@@ -6,7 +6,7 @@ function jEliDB(name,version)
   var defer = new $d(),
       dbEvent = {},
       version = parseInt(version || "1"),
-      onUpgrade = null,
+      _onUpgrade = function(){},
       loginRequired = false,
       _isClient = false;
   //set the Database name
@@ -18,38 +18,49 @@ function jEliDB(name,version)
     
     if(name)
     {
-      //set the current active DB
-      $queryDB.DB.$setActiveDB(name);
-      //set isOpened flag to true
-      //so that debug is not posible when in production
-      if($queryDB.DB.isOpen(name)){
-        errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
-      }
+      // set the storage type
+      $queryDB.setStorage(config.storage || 'localStorage', function(){
+          //set the current active DB
+          $queryDB.DB.$setActiveDB(name);
+          //set isOpened flag to true
+          //so that debug is not posible when in production
+          if($queryDB.DB.isOpen(name)){
+            errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
+          }
+          
+
+          //set production flag
+          //register our configuration
+          $queryDB.$getActiveDB().$get('resolvers').register(config);
+          if(_isClient){
+            $queryDB.$getActiveDB().$get('resolvers').register('inProduction', _isClient);
+          }
+          
+          
+          inProduction = $queryDB.getNetworkResolver('inProduction',name);
+
+
+          //This is useful when client trys to login in user before loading the DB
+          if(loginRequired){
+            startLoginMode();
+            return promise;
+          }
+
+
+          //set Synchronization
+          dbSync = new jEliDBSynchronization(name)
+                  .Entity(name)
+                  .configSync({});
+
+
+          if(!$queryDB.$taskPerformer.localStorage.initializeDB(name)){
+            initializeDBSuccess();
+          }else{
+            startDB();
+          }
+
+      });
       
-
-      //set production flag
-      //register our configuration
-      $queryDB.$getActiveDB().$get('resolvers').register(config);
-      if(_isClient){
-        $queryDB.$getActiveDB().$get('resolvers').register('inProduction', _isClient);
-      }
-      
-      
-      inProduction = $queryDB.getNetworkResolver('inProduction',name);
-
-
-      //This is useful when client trys to login in user before loading the DB
-      if(loginRequired){
-        startLoginMode();
-        return promise;
-      }
-
-
-      //set Synchronization
-      dbSync = new jEliDBSynchronization(name)
-              .Entity(name)
-              .configSync({});
-
       //No resource found or error from server
         function handleFailedSync()
         {
@@ -67,57 +78,58 @@ function jEliDB(name,version)
           defer.resolve(dbEvent);
         }
 
-      //Start DB
+      // Start DB
         function startDB()
         {
             dbEvent.result = new DBEvent(name,version);
-          var dbChecker = $queryDB.DB.$get(name) || {},
-              isSameVersion = $isEqual(dbChecker.version, version);
+            var dbChecker = $queryDB.DB.$get(name) || false,
+                isSameVersion = $isEqual(dbChecker.version, version);
 
-          if(dbChecker && isSameVersion)
-          {
-            dbEvent.message = name+" DB already exists with version no:("+dbChecker.version;
-            dbEvent.message +="), having "+Object.keys(dbChecker.tables).length+" tables";
-
-            //set exists mode
-            dbEvent.type = "existMode";
-
-          }
-          else
-          {
-            //Create a new DB Event 
-            //DB will be updated with data
-            //Only if onUpgrade Function is initilaized
-            $queryDB.DB.$set(name,{tables : {},'version':version});
-            // DB is already created but versioning is different
-            if(dbChecker && !isSameVersion)
+            if(dbChecker && isSameVersion)
             {
-                //set Message
-                dbEvent.message = name+" DB was successfully upgraded!!";
-                $queryDB.DB[name].version = version;
-            }else
-            {
-              //set Message
-                dbEvent.message = name+" DB was successfully created!!";
+              dbEvent.message = name+" DB already exists with version no:("+dbChecker.version;
+              dbEvent.message +="), having "+Object.keys(dbChecker.tables).length+" tables";
+
+              //set exists mode
+              dbEvent.type = "existMode";
+
             }
+            else
+            {
+              //Create a new DB Event 
+              //DB will be updated with data
+              //Only if onUpgrade Function is initilaized
 
-            // Object Store in Db
-                $queryDB.stack.push(function()
-                {
-                  $queryDB.$taskPerformer.localStorage.updateDB(name);
-                });
+              //set upgrade mode
+              dbEvent.type = "upgradeMode";
+              $queryDB.DB.$set(name,{tables : {},'version':version});
+              // DB is already created but versioning is different
+              if(dbChecker && !isSameVersion)
+              {
+                  //set Message
+                  dbEvent.message = name+" DB was successfully upgraded!!";
+                  $queryDB.DB[name].version = version;
+              }else
+              {
+                //set Message
+                  dbEvent.message = name+" DB was successfully created!!";
+              }
 
-            //set upgrade mode
-            dbEvent.type = "upgradeMode";
-          }
-          //resolve the request
-          defer.resolve(dbEvent);
+              // Object Store in Db
+              $queryDB.stack.push(function()
+              {
+                $queryDB.$taskPerformer.localStorage.updateDB(name);
+              });
+
+              // trigger the onUpgrade Fn
+              _onUpgrade();
+            }
+            //resolve the request
+            defer.resolve(dbEvent);
         }
 
-        
-        if(!$queryDB.$taskPerformer.localStorage.initializeDB(name))
-        {
-            //synchronize the server DB
+        function initializeDBSuccess(){
+          //synchronize the server DB
             dbSync
             .resource()
             .then(function(syncResponse)
@@ -164,39 +176,35 @@ function jEliDB(name,version)
                 //failed to get resource
                 handleFailedSync();
             });
-        }else
-        {
-          startDB();
-        }
+        }      
         
-      }
-      else
-      {
-          dbEvent.message = "There was an error creating your DB,";
-          dbEvent.message +=" either DB name or version number is missing";
-          dbEvent.errorCode = 101;
+    }
+    else
+    {
+        dbEvent.message = "There was an error creating your DB,";
+        dbEvent.message +=" either DB name or version number is missing";
+        dbEvent.errorCode = 101;
 
-          //reject the request
-          defer.reject(dbEvent);
-      }
+        //reject the request
+        defer.reject(dbEvent);
+    }
 
         //set upgradeneed to the promise Fn
         promise.onUpgrade = function(fn)
         {
-          if($isFunction(fn) && $isEqual(dbEvent.type,'upgradeMode'))
-          {
-            if(dbEvent)
+          _onUpgrade = function(){
+            if($isFunction(fn) && $isEqual(dbEvent.type,'upgradeMode'))
             {
-              //initialize the upgraded FN
-              fn.call(fn,dbEvent)
-            }else
-            {
-              setTimeout(function()
+              if(dbEvent)
               {
-                fn(dbEvent);
-              },2000);
+                //initialize the upgraded FN
+                fn.call(fn,dbEvent)
+              }
             }
-          }
+          };
+          
+
+          return this;
         };
 
       return promise;

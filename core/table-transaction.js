@@ -2,7 +2,7 @@
 //@argument {object}
 // @return Object
 
-function jTblQuery(tableInfo,mode,isMultipleTable){
+function jTblQuery(tableInfo,mode,isMultipleTable, tables){
 
     var select = "",
       executeState = [],
@@ -11,6 +11,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
       tblMode = mode || 'read',
       join = [],
       errLog = [],
+      _skipped = [],
       _recordResolvers = $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('recordResolvers');
 
       function setDBError(msg)
@@ -35,22 +36,33 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
             processState = null;
         this.insert = function()
         {
-          var arg = arguments,
+          var _data = arguments,
               columnObj = columnObjFn(tableInfo.columns[0]),
               l;
 
-          if(arg.length && columnObj)
+          /*
+              Check if the our arguments is 1
+              if also the argument is an array
+              replace variable arg with arg[0]
+          */
+          if(_data.length === 1){
+            if($isArray(_data[0])){
+              _data = _data[0];
+            }
+          }
+
+          if(_data.length && columnObj)
           {
-              for(l=0; l <= arg.length-1;l++)
+              for(l=0; l <= _data.length-1;l++)
               {
-                  var type = ($isObject(arg[l])?'object':'array'),
+                  var type = ($isObject(_data[l])?'object':'array'),
                       cdata = {};
                   
                   //switch type
                   switch(type)
                   {
                     case('object'):
-                      cdata = arg[l];
+                      cdata = _data[l];
                     break;
                     case('array'):
                       var columnKeys = Object.keys(columnObj),
@@ -58,7 +70,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                         //loop through the 
                         for(k in columnKeys)
                         {
-                          cdata[ columnKeys[k] ] = arg[l][k];
+                          cdata[ columnKeys[k] ] = _data[l][k];
                         }                 
                     break;
                   }
@@ -67,29 +79,55 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                   {
                     var tableConfig = tableInfo.columns[0],
                         pData = extend({},columnObj,cdata);
-                        tableInfo.lastInsertId++;
-                      //update the data to store
-                      findInList.call(pData,function(i,n)
-                      {  
-                          //check auto_increment
-                          if(!n && tableConfig[i].hasOwnProperty('AUTO_INCREMENT'))
-                          {
-                            pData[i] = tableInfo.lastInsertId;
-                          }
-                      });
+                    
+
+                      // check indexing
+                      var _dataExists = false,
+                          _ref = GUID();
+                      for(var _index in tableInfo.index){
+                        var _currentIndexCheck = tableInfo.index[_index];
+                        if(_currentIndexCheck.indexes){
+                            // check the the index already exists
+                            if(_currentIndexCheck.indexes[pData[_index]]){
+                              if(_currentIndexCheck.unique){
+                                _dataExists = true;
+                                _skipped.push(_currentIndexCheck.indexes[pData[_index]]);
+                              }
+                            }else{
+                              _currentIndexCheck.indexes[pData[_index]] = _ref;
+                            }
+                        }else{
+                          _currentIndexCheck.indexes = {};
+                          _currentIndexCheck.indexes[pData[_index]] = _ref;
+                        }
+                      }
 
                       //push data to processData array
                       //set obj ref GUID
-                      var newSet = {}
-                          newSet['_ref'] = GUID();
+                      if(!_dataExists){
+                        tableInfo.lastInsertId++;
+
+                        //update the data to store
+                        findInList.call(pData,function(i,n)
+                        {  
+                            //check auto_increment
+                            if(!n && tableConfig[i].hasOwnProperty('AUTO_INCREMENT'))
+                            {
+                              pData[i] = tableInfo.lastInsertId;
+                            }
+                        });
+
+                        var newSet = {}
+                          newSet['_ref'] = _ref;
                           newSet['_data'] = pData;
-                      processedData.push( newSet );
+                        processedData.push( newSet );
+                      }
                   }                   
               }
 
               if(!$isEqual(processState,"insert"))
               {
-                executeState.push(["insert",function()
+                executeState.push(["insert",function(disableOfflineCache)
                 {
                     //errorLog Must be empty
                     if(errLog.length)
@@ -99,11 +137,13 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                       throw new Error(errLog);
                     }
 
+                    // update offline
+                    if(!disableOfflineCache){
+                      updateOfflineCache('insert',processedData);
+                    }
+                    
                         //push records to our resolver
-                        _recordResolvers
-                        .$set(tableInfo.TBL_NAME)
-                        .data('insert',processedData);
-
+                        
                     return updateTable( processedData.length );
                 }]);
               }
@@ -178,7 +218,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                     rowsToUpdate = [],
                     $self = this;
 
-                executeState.push(["update",function()
+                executeState.push(["update",function(disableOfflineCache)
                 {
                   //Execute Function 
                   //Kill Process if error was Found
@@ -203,9 +243,9 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                         }
 
                         //push records to our resolver
-                        _recordResolvers
-                        .$set(tableInfo.TBL_NAME)
-                        .data('update',rowsToUpdate);
+                        if(!disableOfflineCache){
+                          updateOfflineCache('update',rowsToUpdate);
+                        }
 
                        //empty the rows 
                         rowsToUpdate = [];
@@ -241,7 +281,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                 delItem.push(item);
               });
 
-              executeState.push(["delete",function()
+              executeState.push(["delete",function(disableOfflineCache)
               {
                   if(!delItem.length)
                   {
@@ -255,9 +295,9 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
 
 
                         //push records to our resolver
-                        _recordResolvers
-                        .$set(tableInfo.TBL_NAME)
-                        .data('delete',delItem);
+                        if(!disableOfflineCache){
+                          updateOfflineCache('delete',delItem);
+                        }
 
                       //return success Message
                       return ({
@@ -273,7 +313,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                 //Update the table content
             function updateTable(totalRecords)
             {
-                if($isArray(processedData))
+                if($isArray(processedData) && totalRecords)
                 {
                   tableInfo.data.push.apply(tableInfo.data,processedData);
                 }
@@ -282,7 +322,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                 processedData = [];
 
                 return ({
-                          message : totalRecords + " record(s) inserted successfully"
+                          message : totalRecords + " record(s) inserted successfully, skipped "+_skipped.length+" existing record(s)"
                       });
             }
     }
@@ -311,15 +351,15 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
             if(limit)
              {
                 var _startEnd = limit.split(',');
-                return cdata.splice(parseInt(_startEnd[0]),parseInt(_startEnd[1]));
+                return jEli.$copy(cdata.splice(parseInt(_startEnd[0]),parseInt(_startEnd[1])), true);
              }
 
-             return cdata;
+             return jEli.$copy(cdata, true);
           }
 
             //loop through the data
             //return the required column
-          if(!expect(col).contains('*'))
+          if(!$isEqual(col,'*'))
           {
             for(d in data)
             {
@@ -371,7 +411,9 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                 {
                   var spltCol = aCol.split(".");
                       tCol = $removeWhiteSpace(spltCol[0]);
+                      // split our required column on ' as '
                       fieldName = spltCol[1].split(' as ');
+                      // set the data
                       cData = data[d][tCol] || data[d];
 
                       //AS Clause is required 
@@ -385,20 +427,19 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                   cData = data[d];
                 }
 
-                
-                  fieldName
-                  .filter(function(item,idx)
-                  { 
-                    fieldName[idx] = $removeWhiteSpace(item); 
-                    return 1; 
-                  });
+                  // remove whiteSpace from our fieldName
+                  fieldName = JSON.parse($removeWhiteSpace(JSON.stringify(fieldName))) ;               
 
                 var
                     _as = fieldName.pop(),
                     field =  fieldName.length?fieldName.shift():_as;
 
                   //set the data
-                    odata[_as] = cData[field] || null;
+                  if($isEqual(field,'*')){
+                    odata[_as] = cData;
+                  }else{
+                    odata[_as] = cData[field];
+                  }
                   
                   fnd++;
               }
@@ -425,7 +466,6 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                 _joinTable = "",
                 $self = this,
                 _sData = [],
-                _tables = {},
                 _qTables = [],
                 _limit;
 
@@ -439,7 +479,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                   //Split through the queryColumn
                   var queryColumn = query.split(",");
 
-                  if(_joinTable && expect(query).contains('*'))
+                  if(_joinTable && $isEqual(query,'*'))
                   {
                     setDBError('Invalid Select Statment.');
                   }
@@ -453,14 +493,10 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                         {
                             var splitColumn = n.split("."),
                             tblName = $removeWhiteSpace(splitColumn[0]);
-
                             //reference to the tables
-                            if(tableInfo[tblName])
+                            if(!tableInfo[tblName])
                             {
-                              _tables[tblName] = tableInfo[tblName].data;   
-                            }else
-                            {
-                              setDBError("Include table in transaction Array eg: db.transaction(['table_1','table_2'])");
+                              setDBError(tblName +" was not found, Include table in transaction Array eg: db.transaction(['table_1','table_2'])");
                             }
                         }else
                         {
@@ -538,8 +574,8 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
               {
                 var startLogic = _onClause[0].split("."),
                     innerLogic = _onClause[1].split("."),
-                    startTable = _tables[startLogic[0]],
-                    innerTable = _tables[innerLogic[0]],
+                    startTable = tableInfo[startLogic[0]].data,
+                    innerTable = tableInfo[innerLogic[0]].data,
                     innerLength = innerTable.length,
                     startLength = startTable.length,
                     leftTable = startTable,
@@ -591,7 +627,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                     });
 
                     counter++;
-                    setJoinTypeFn( $isFound, $foundObj, totalLeftRecord , counter )( resObject,clause );
+                    setJoinTypeFn( $isFound, $foundObj, totalLeftRecord , counter )( resObject, clause );
                     return true
                 });
   
@@ -733,7 +769,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
 
 
 
-    this.execute = function(done,fail)
+    this.execute = function(disableOfflineCache)
     {
       if(executeState.length)
       {
@@ -747,7 +783,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                 var ret = {state:ex[0]};
                   try
                   {
-                    var res = ex[1].call();
+                    var res = ex[1].call(ex[1], disableOfflineCache);
                     sqlResultExtender( ret , res );
                   }catch(e)
                   {
@@ -785,6 +821,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
         leftTableData = [];
         join = [];
         errLog = [];
+        _skipped = [];
     }
 
     //rowback function
@@ -883,6 +920,9 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
                 retType = requiredType;
               }
             break;
+            case('any'):
+              retType = type;
+            break;
           }
 
 
@@ -922,5 +962,11 @@ function jTblQuery(tableInfo,mode,isMultipleTable){
         }
 
         return !1;
+    }
+
+    function updateOfflineCache(type, data){
+        _recordResolvers
+        .$set(tableInfo.TBL_NAME)
+        .data(type,data);
     }
 }

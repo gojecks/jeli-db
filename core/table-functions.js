@@ -70,6 +70,9 @@ function jEliDBTBL(tableInfo)
 
               return this;
             },
+            index : function(name, setting){
+              tableInfo.index[name] = setting || {unique:false};
+            },
             mode : function(mode)
             {
               if(!tableInfo.allowedMode[mode])

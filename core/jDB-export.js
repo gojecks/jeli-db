@@ -69,7 +69,7 @@ function jExport(type)
               {
                   for(var cell in data)
                   {
-                    row +='<td>'+data[cell]+'</td>';
+                    row +='<td>'+JSON.stringify(data[cell])+'</td>';
                   }
               }
 

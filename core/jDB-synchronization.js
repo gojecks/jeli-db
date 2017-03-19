@@ -514,7 +514,7 @@ function jEliDBSynchronization(appName)
   function pull()
   {
     setMessage('Pull  State Started');
-    return new startSyncState($queryDB.$getActiveDB(appName).$get('resourceManager').getResource()).getDBRecords();
+    return new startSyncState().getDBRecords();
   }
 
   //@Function pullResource
@@ -578,21 +578,19 @@ function jEliDBSynchronization(appName)
 
   //@Fn Name prepareTables
   //@return ARRAY of tables
-  function prepareSyncState()
+  function prepareSyncState(resource)
   {
-      var tbls = [],
-          localResource = getStorageItem(appName) || $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
+    var tbls = [];
+    // check if table was requested
+    if($isArray(entity) || $isArray(resource)){
+      tbls = entity || resource;
+    }else{
+       var localResource = getStorageItem(appName) || $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
         if(localResource.tables || localResource.resourceManager)
         {
           tbls = Object.keys(localResource.tables || localResource.resourceManager);
         }
-
-        //check if table was requested
-      if($isArray(entity))
-      {
-        tbls = entity
-      }
-
+    }
 
       return ({tables:tbls});
   }
@@ -695,12 +693,11 @@ function jEliDBSynchronization(appName)
 
   function startSyncState(resource)
   {
-     var syncState = prepareSyncState(),
+     var syncState = prepareSyncState(resource),
         failedState = [],
         queue = 0,
         pullRecordList = {},
         $defer = new $p();
-
           //processQueue()
           function processQueue(inc,state)
           {
@@ -797,8 +794,7 @@ function jEliDBSynchronization(appName)
                   .then(function(tblResult)
                   {
                     //update the recordList
-                    var tblData = tblResult.data._data || JSON.stringify(fakeTable());
-                    pullRecordList[currentProcessTbl] = JSON.parse(tblData);
+                    pullRecordList[currentProcessTbl] = tblResult.data._data || JSON.stringify(fakeTable());
 
                     //goto next queue
                     nextQueue({state:'Success'},'pull');
@@ -978,7 +974,7 @@ function jEliDBSynchronization(appName)
 
   this.Entity = function(tblName)
   {
-    entity = maskedEval(tblName);
+    entity = ($isArray(tblName)?tblName : maskedEval(tblName));
     //set Message for Entity
     return ({
       configSync : configSync
