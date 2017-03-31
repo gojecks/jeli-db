@@ -135,7 +135,6 @@ function indexedDBStorage(CB){
 
 	publicApis.removeItem = function(name){
 	  _pApis.clearStore(name, function(){
-	  	console.log(arguments);
 	  	delete _dataHolder[name];
 	  });
 	};
