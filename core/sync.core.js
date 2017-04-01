@@ -202,14 +202,14 @@ function jEliDBSynchronization(appName)
   {
     if(!$isObject(tableToUpdate))
     {
-      tableToUpdate =  $queryDB.DB.$getTable(appName,tableToUpdate);
+      tableToUpdate =  $queryDB.$getTable(appName,tableToUpdate);
     }
 
     //Update Hash
     tableToUpdate.$hash = hash || GUID();
     tableToUpdate.lastModified = +new Date;
     delete tableToUpdate._$;
-    $queryDB.$taskPerformer.localStorage.updateDB(appName);
+    $queryDB.$taskPerformer.updateDB(appName);
   }
 
   //@FN NAME finalizeProcess();
@@ -274,7 +274,7 @@ function jEliDBSynchronization(appName)
         ajax(options)
         .then(function(res)
         {
-          $queryDB.DB
+          $queryDB
           .$resolveUpdate(appName,tbl,{insert:res.data._rec})
           .then(function(_ret)
           {
@@ -402,7 +402,7 @@ function jEliDBSynchronization(appName)
       {
         case('push'):
         case('syncstate'):
-          options.data.postData = $queryDB.DB.$getTable(appName,tbl);
+          options.data.postData = $queryDB.$getTable(appName,tbl);
           options.data.action = "overwrite";
         break;
         case('resource'):
@@ -437,7 +437,7 @@ function jEliDBSynchronization(appName)
       .$mergeTable(serverData,tbl)
       .then(function(suc)
       {
-          $queryDB.$taskPerformer.localStorage.updateDB(appName,tbl);
+          $queryDB.$taskPerformer.updateDB(appName,tbl);
           setMessage(suc.message);
           finalizeProcess();
       },function(fai)
@@ -454,7 +454,7 @@ function jEliDBSynchronization(appName)
   function conflict(resourceChecker,tbl)
   {
     var serverTbl = [],
-        clientTbl = $queryDB.DB.$getTable(appName , tbl),
+        clientTbl = $queryDB.$getTable(appName , tbl),
         $promise = new $p();
     //getLatest from server
     if(resourceChecker)
@@ -618,8 +618,8 @@ function jEliDBSynchronization(appName)
               }
 
               //update the local tables
-              $queryDB.DB.$updateTableData(tbl,toResolve);
-              $queryDB.$taskPerformer.localStorage.updateDB(appName,tbl);
+              $queryDB.$updateTableData(tbl,toResolve);
+              $queryDB.$taskPerformer.updateDB(appName,tbl);
           }
 
           //empty our local recordResolver
@@ -814,7 +814,7 @@ function jEliDBSynchronization(appName)
                 {
                     finalizeProcess();
                     //remove deleteRecords
-                    $queryDB.$taskPerformer.localStorage.del($queryDB.$delRecordName);
+                    $queryDB.$taskPerformer.del($queryDB.$delRecordName);
                 },
                 pull : function()
                 {

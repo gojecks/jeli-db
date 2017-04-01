@@ -3,7 +3,7 @@ var customPlugins = new watchBinding(); //used to hold customPlugins
 function jEliDB(name,version)
 {
 
-  var defer = new $d(),
+  var defer = new $p(),
       dbEvent = {},
       version = parseInt(version || "1"),
       _onUpgrade = function(){},
@@ -21,10 +21,10 @@ function jEliDB(name,version)
       // set the storage type
       $queryDB.setStorage(config.storage || 'localStorage', function(){
           //set the current active DB
-          $queryDB.DB.$setActiveDB(name);
+          $queryDB.$setActiveDB(name);
           //set isOpened flag to true
           //so that debug is not posible when in production
-          if($queryDB.DB.isOpen(name)){
+          if($queryDB.isOpen(name)){
             errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
           }
           
@@ -53,7 +53,7 @@ function jEliDB(name,version)
                   .configSync({});
 
 
-          if(!$queryDB.$taskPerformer.localStorage.initializeDB(name)){
+          if(!$queryDB.$taskPerformer.initializeDB(name)){
             initializeDBSuccess();
           }else{
             startDB();
@@ -82,7 +82,7 @@ function jEliDB(name,version)
         function startDB()
         {
             dbEvent.result = new DBEvent(name,version);
-            var dbChecker = $queryDB.DB.$get(name) || false,
+            var dbChecker = $queryDB.$get(name) || false,
                 isSameVersion = $isEqual(dbChecker.version, version);
 
             if(dbChecker && isSameVersion)
@@ -102,13 +102,13 @@ function jEliDB(name,version)
 
               //set upgrade mode
               dbEvent.type = "upgradeMode";
-              $queryDB.DB.$set(name,{tables : {},'version':version});
+              $queryDB.$set(name,{tables : {},'version':version});
               // DB is already created but versioning is different
               if(dbChecker && !isSameVersion)
               {
                   //set Message
                   dbEvent.message = name+" DB was successfully upgraded!!";
-                  $queryDB.DB[name].version = version;
+                  $queryDB[name].version = version;
               }else
               {
                 //set Message
@@ -118,7 +118,7 @@ function jEliDB(name,version)
               // Object Store in Db
               $queryDB.stack.push(function()
               {
-                $queryDB.$taskPerformer.localStorage.updateDB(name);
+                $queryDB.$taskPerformer.updateDB(name);
               });
 
               // trigger the onUpgrade Fn
@@ -156,7 +156,7 @@ function jEliDB(name,version)
                             }
 
                         //register DB to QueryDB
-                        $queryDB.DB.$set(name, dbTables );
+                        $queryDB.$set(name, dbTables );
                         setStorageItem(name, dbTables ); 
 
                         //start the DB

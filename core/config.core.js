@@ -39,7 +39,7 @@ function jEliDBTBL(tableInfo)
                   case('foreign'):
                     if(key && tableName && tableInfo.columns[0][key])
                     {
-                      if(!tableInfo.foreignKey && $queryDB.DB.$getTable(tableInfo.DB_NAME,tableName))
+                      if(!tableInfo.foreignKey && $queryDB.$getTable(tableInfo.DB_NAME,tableName))
                       {
                         tableInfo.foreignKey = {
                           key : key,
@@ -122,9 +122,9 @@ function jEliDBTBL(tableInfo)
               return dbErrorPromiseObject("Invalid Table record passed, please try again.");
             }
               //update the deletedRecords
-              $queryDB.$taskPerformer.localStorage.updateDeletedRecord('table',delObj);
+              $queryDB.$taskPerformer.updateDeletedRecord('table',delObj);
               //delete the table from DB
-               if($queryDB.DB.removeTable(tableInfo.TBL_NAME,tableInfo.DB_NAME))
+               if($queryDB.removeTable(tableInfo.TBL_NAME,tableInfo.DB_NAME))
                {
                     //push stack
                     updateDB();
@@ -149,7 +149,7 @@ function jEliDBTBL(tableInfo)
 
         $queryDB.stack.push(function()
         {
-          $queryDB.$taskPerformer.localStorage.updateDB(tableInfo.DB_NAME,tableInfo.TBL_NAME);
+          $queryDB.$taskPerformer.updateDB(tableInfo.DB_NAME,tableInfo.TBL_NAME);
         });
     }
 

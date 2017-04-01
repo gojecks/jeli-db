@@ -11,6 +11,12 @@ function purifyJSON(data)
   }
 }
 
+//condition setter
+function setCondition(spltQuery)
+{
+    return spltQuery.slice( parseInt(spltQuery.indexOf("where") + 1) ).join(' ');
+}
+
 //Function to retrieve storage Data
 //@return OBJECT
 function getStorageItem(item)

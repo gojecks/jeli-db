@@ -96,14 +96,11 @@ function DBPromise(defer,upgradeneeded)
 {
   if(defer)
   {
-    function resolve(fn,type){
-        defer[type](fn);
-    }
       //onSuccess State
       this.onSuccess = function(fn)
       {
         //set the defer state
-        resolve(fn,'done');
+        defer.then(fn);
 
         return this;
       };
@@ -111,14 +108,15 @@ function DBPromise(defer,upgradeneeded)
       this.onError = function(fn)
       {
         //set the error state
-        resolve(fn,'fail');
+        defer.catch(fn);
 
         return this;
       };
 
       this.then = function(done,fail){
-        resolve(done,'done');
-        resolve(fail,'fail');
+        defer.then(done,fail);
+
+        return this;
       };
 
   }
@@ -164,7 +162,7 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
           _reqOptions.data.type = cType;
 
       if($isEqual(type,'table')){
-        _reqOptions.data.checksum = $queryDB.DB.getTableCheckSum(dbName,tbl);
+        _reqOptions.data.checksum = $queryDB.getTableCheckSum(dbName,tbl);
       }
 
       ajax( _reqOptions  )
@@ -177,7 +175,6 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
         {
           $queryDB
           .$taskPerformer
-           .localStorage
            .updateDB(dbName,tbl,function(table){
               if(res.data.checksum){
                  table.$hash = res.data.checksum;

@@ -773,7 +773,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
     {
       if(executeState.length)
       {
-          var defer = new $d(),
+          var defer = new $p(),
               error = !1;
 
           findInList.call(executeState,function(idx,ex)
@@ -800,7 +800,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                         liveProcessor(tableInfo.TBL_NAME,tableInfo.DB_NAME)(ex[0]);
                         $queryDB.stack.push(function()
                         {
-                          $queryDB.$taskPerformer.localStorage.updateDB(tableInfo.DB_NAME,tableInfo.TBL_NAME);
+                          $queryDB.$taskPerformer.updateDB(tableInfo.DB_NAME,tableInfo.TBL_NAME);
                         });
                     }
                   }

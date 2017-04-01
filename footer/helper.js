@@ -4,4 +4,4 @@
  */
 
 window.jeli = window.jeli || {};
-window.jeli.$jDB = jEliDB;
+window.jeli.jDB = jEliDB;
