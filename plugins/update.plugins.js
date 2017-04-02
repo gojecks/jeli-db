@@ -2,7 +2,7 @@
 //Clause -where -columns -like:expression
 
 jEliDB.plugins.jQl('update',{
-	help : '',
+	help : ['-update -[tbl_name] [data] -expression[ [where] [like]]'],
 	fn : updatePluginFn
 });
 

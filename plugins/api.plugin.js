@@ -1,7 +1,7 @@
 //Cutom Plugins
 //Environment Plugin 
 	jEliDB.plugins.jQl('api',{
-		help : 'api -url -post -data',
+		help : ['api -url -post -data'],
 		fn : apiPluginFn
 	});
 

@@ -279,7 +279,6 @@ function jEliDBSynchronization(appName)
           .then(function(_ret)
           {
             $queryDB.$taskPerformer
-            .localStorage
             .updateDB(appName,tbl);
             //resolve promise
             $defer.resolve(sqlResultExtender(dbSuccessPromiseObject('select',""),_ret.insert));

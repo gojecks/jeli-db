@@ -1,6 +1,6 @@
 
 jEliDB.plugins.jQl('create',{
-	help : '',
+	help : ['-create -[tbl_name] [columns]'],
 	fn : createPluginFn
 });
 

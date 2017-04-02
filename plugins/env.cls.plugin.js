@@ -2,7 +2,7 @@
 	//@Function clearScreen
 	//Clear Screen Plugin
 	jEliDB.plugins.jQl('cls',{
-		help : '',
+		help : ['-cls (clearScreen)'],
 		fn : clearScreenPluginFn
 	});
 

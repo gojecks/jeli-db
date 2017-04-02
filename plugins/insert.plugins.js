@@ -1,6 +1,6 @@
 
 	jEliDB.plugins.jQl('insert',{
-		help : '',
+		help : ['-insert -[data] -[tbl_name]'],
 		fn : insertPluginFn
 	});
 

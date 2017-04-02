@@ -1,7 +1,7 @@
 
 
 jEliDB.plugins.jQl('delete',{
-	help : '',
+	help : ['-delete -[tbl_name] -expression[[where] -[like:]]'],
 	fn : deletePluginFn
 });
 

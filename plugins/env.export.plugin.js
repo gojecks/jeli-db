@@ -4,7 +4,7 @@
 	//env -export -type -name -download | print
 
 	jEliDB.plugins.jQl('export',{
-		help : '',
+		help : ['-export -[TBL_NAME] -type[(csv , html or json)]  -(d or p) (optional) -[fileName]'],
 		fn : jExportPluginFn
 	});
 

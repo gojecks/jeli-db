@@ -2,7 +2,7 @@
 //Clause -where -columns -like:expression
 
   jEliDB.plugins.jQl('truncate',{
-  	help : '',
+  	help : ['-truncate -[tbl_name] -flag[[yes] : [no]]'],
   	fn : truncatePluginFn
   });
 

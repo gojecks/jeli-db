@@ -37,7 +37,7 @@ function jEliDB(name,version)
           }
           
           
-          inProduction = $queryDB.getNetworkResolver('inProduction',name);
+          inProduction = _isClient;
 
 
           //This is useful when client trys to login in user before loading the DB

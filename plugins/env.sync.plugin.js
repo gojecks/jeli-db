@@ -3,7 +3,7 @@
 		//Task Called with Env
 
     jEliDB.plugins.jQl('sync',{
-		help : '',
+		help : ['-sync  (optional) -[tbl_name]'],
 		fn : syncPluginFn
 	});
 

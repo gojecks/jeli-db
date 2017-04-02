@@ -1,7 +1,7 @@
 
 
   jEliDB.plugins.jQl('drop',{
-  	help : '',
+  	help : ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ]'],
   	fn : dropPluginFn
   });
 

@@ -80,7 +80,6 @@ function DBRecordResolvers(name)
           //Update Hash
           function updateTableHash($hash){
              $queryDB.$taskPerformer
-             .localStorage
              .updateDB(name,tbl,function(table){
                 table.$hash = $hash;
              });
