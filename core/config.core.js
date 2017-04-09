@@ -92,51 +92,51 @@ function jEliDBTBL(tableInfo)
         return tableInfo.columns[0];
     };
 
-    this.truncate = function(flag)
+  this.truncate = function(flag)
+  {
+    //empty the table
+    if(flag)
     {
-      //empty the table
+        tableInfo.data = [];
+        //update the DB
+        updateDB();
+      return dbSuccessPromiseObject("truncate",tableInfo.TBL_NAME +" was truncated");
+    }else
+    {
+      return dbErrorPromiseObject("Table ("+tableInfo.TBL_NAME+") Was not found in "+tableInfo.DB_NAME +" DataBase or invalid flag passed");
+    }
+  };
+
+  this.drop = function(flag)
+  {
       if(flag)
       {
-          tableInfo.data = [];
-          //update the DB
-          updateDB();
-        return dbSuccessPromiseObject("truncate",tableInfo.TBL_NAME +" was truncated");
+        var delObj = ({
+          name:tableInfo.TBL_NAME,
+          $hash : tableInfo.$hash,
+          db : tableInfo.DB_NAME
+        });
+
+        if(!tableInfo.TBL_NAME && !tableInfo.$hash)
+        {
+          return dbErrorPromiseObject("Invalid Table record passed, please try again.");
+        }
+          //update the deletedRecords
+          $queryDB.$taskPerformer.updateDeletedRecord('table',delObj);
+          //delete the table from DB
+           if($queryDB.removeTable(tableInfo.TBL_NAME,tableInfo.DB_NAME))
+           {
+                //push stack
+                updateDB();
+           }
+
+        return dbSuccessPromiseObject("drop","Table ("+tableInfo.TBL_NAME +") was dropped successfully");
+
       }else
       {
         return dbErrorPromiseObject("Table ("+tableInfo.TBL_NAME+") Was not found in "+tableInfo.DB_NAME +" DataBase or invalid flag passed");
       }
-    };
-
-      this.drop = function(flag)
-      {
-          if(flag)
-          {
-            var delObj = ({
-              name:tableInfo.TBL_NAME,
-              $hash : tableInfo.$hash,
-              db : tableInfo.DB_NAME
-            });
-
-            if(!tableInfo.TBL_NAME && !tableInfo.$hash)
-            {
-              return dbErrorPromiseObject("Invalid Table record passed, please try again.");
-            }
-              //update the deletedRecords
-              $queryDB.$taskPerformer.updateDeletedRecord('table',delObj);
-              //delete the table from DB
-               if($queryDB.removeTable(tableInfo.TBL_NAME,tableInfo.DB_NAME))
-               {
-                    //push stack
-                    updateDB();
-               }
-
-            return dbSuccessPromiseObject("drop","Table ("+tableInfo.TBL_NAME +") was dropped successfully");
-
-          }else
-          {
-            return dbErrorPromiseObject("Table ("+tableInfo.TBL_NAME+") Was not found in "+tableInfo.DB_NAME +" DataBase or invalid flag passed");
-          }
-      };
+  };
 
 
       this.onUpdate = jDBStartUpdate('table',tableInfo.DB_NAME,tableInfo.TBL_NAME,tableInfo.$hash);

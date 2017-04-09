@@ -165,30 +165,28 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
             //Function structureUpdateData()
             function structureUpdateData(setData)
             {
-              var setData = maskedEval(setData);
-              if($isString(setData))
-              {
-                //convert String Data to Object
-                  var nString =  removeSingleQuote(setData),
-                      splitComma = nString.split(","),
-                      i = splitComma.length,
-                      tempObj = {};
-                  //Loop through the split Data
-                  while(i--)
-                  {
-                    var splitEqualTo = splitComma[i].split("=");
-                    //set the new Object Data
-                    tempObj[splitEqualTo[0]] = splitEqualTo[1];
-                  }
-
-                  return tempObj;
-              }else
-              {
-                if($isObject(setData))
+              // return setData when its an object
+              if($isObject(setData)){
+                return setData;
+              }else{
+                //check if setData is a string
+                var setData = maskedEval(setData);
+                if($isString(setData))
                 {
-                  return setData;
-                }else
-                {
+                  //convert String Data to Object
+                    var nString =  removeSingleQuote(setData),
+                        splitComma = nString.split(","),
+                        i = splitComma.length,
+                        tempObj = {};
+                    //Loop through the split Data
+                    while(i--)
+                    {
+                      var splitEqualTo = splitComma[i].split("=");
+                      //set the new Object Data
+                      tempObj[splitEqualTo[0]] = splitEqualTo[1];
+                    }
+                    return tempObj;
+                }else{
                   setDBError('Unable to update Table, unaccepted dataType recieved');
                 }
               }
@@ -217,7 +215,6 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                     },
                     rowsToUpdate = [],
                     $self = this;
-
                 executeState.push(["update",function(disableOfflineCache)
                 {
                   //Execute Function 
