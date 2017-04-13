@@ -21,8 +21,11 @@ DBEvent.prototype.api = function(type,state,postData,tbl){
   
     ajax(_options)
     .then(function(res){
-      var ret = dbSuccessPromiseObject('api', "");
-          ret.result = res.data;
+      var ret = dbSuccessPromiseObject("api", "");
+          ret.result = {
+            type:"state",
+            data:res.data 
+          };
         $defer.resolve(ret);
     },function(err)
     {

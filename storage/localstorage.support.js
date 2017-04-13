@@ -23,4 +23,8 @@
     this.clear = function(){
       _storage.clear && _storage.clear();
     };
+
+    this.usage = function(name){
+      return (_storage[name] || '').length;
+    };
   }

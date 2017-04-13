@@ -139,6 +139,10 @@ function indexedDBStorage(CB){
 	  });
 	};
 
+	 publicApis.usage = function(name){
+      return JSON.stringify(this.getItem(name) || '').length;
+    };
+
 
 	return publicApis;
 

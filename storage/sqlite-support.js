@@ -179,6 +179,10 @@ function sqliteStorage(type, CB)
       return true;
     };
 
+    publicApis.prototype.usage = function(name){
+      return JSON.stringify(this.getItem(name) || '').length;
+    };
+
     publicApis.prototype.clear = function(){
       queryPerfomrer('DELETE FROM _JELI_STORE_',[])
       .then(function(){

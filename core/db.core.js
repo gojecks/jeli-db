@@ -10,7 +10,7 @@ function DBEvent(name,version,required)
         {
           if(name && $queryDB.hasOwnProperty(name))
           {
-              return (((name.length + $localStorage[name].length) * 2) / 1024).toFixed(2)+" KB";
+              return ((($queryDB.$storage.usage(name)) * 2) / 1024).toFixed(2)+" KB";
           }
 
           return  "unknown usuage";
