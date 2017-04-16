@@ -913,6 +913,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
             break;
             case('object'):
             case('array'):
+            case('blob'):
               if($isObject(data) || $isArray(data)){
                 retType = requiredType;
               }

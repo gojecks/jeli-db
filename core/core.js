@@ -18,14 +18,16 @@ function jEliDB(name,version)
     
     if(name)
     {
+        //set the current active DB
+          $queryDB.$setActiveDB(name);
       // set the storage type
       $queryDB.setStorage(config.storage || 'localStorage', function(){
-          //set the current active DB
-          $queryDB.$setActiveDB(name);
           //set isOpened flag to true
           //so that debug is not posible when in production
           if($queryDB.isOpen(name)){
-            errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
+            if(!loginRequired){
+              errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
+            }
           }
           
 
@@ -136,7 +138,7 @@ function jEliDB(name,version)
             {
                 if(syncResponse.data.resource)
                 {
-                    var resource = JSON.parse( syncResponse.data.resource ),
+                    var resource = syncResponse.data.resource,
                         _resource = $queryDB.$getActiveDB(),
                         _loadServerData = _resource.$get('resolvers').getResolvers('loadServerData') || [];
                       _resource.$get('resourceManager').setResource(resource);

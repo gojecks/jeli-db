@@ -15,8 +15,7 @@ DBEvent.prototype._users = function()
     {
         if($isObject(uInfo))
         {
-          var _default = ({time:(+new Date),access:"*",_ref:GUID()}),
-              _newInfo = extend({},_default,uInfo),
+          var _newInfo = ({_ref:GUID(),_data:extend({},{time:(+new Date),access:"*"},uInfo)}),
             //Put the Data
             postData = {data:{insert:[_newInfo]}};
             //use the db API Method
@@ -29,9 +28,15 @@ DBEvent.prototype._users = function()
                 //set the getUserInfo and getAccessToken
                 if(res.result.access_info)
                 {
-                    ret.result.getUserInfo = function(){
-                    return res.result._rec[0];
+                  ret.result.getUserInfo = function(){
+                      _newInfo.__uid = res.result.lastInsertId;
+                    return _newInfo;
                   };
+
+                  ret.result.getLastInsertId = function(){
+                    return res.result.lastInsertId;
+                  };
+
                   ret.result.getAccessToken = function(){
                     return res.result.access_info;
                   };
@@ -100,6 +105,25 @@ DBEvent.prototype._users = function()
     }
 
 
+    /**
+      Method: isExists
+    **/
+    function isExists(queryData){
+      syncService
+      .getNumRows(queryData, _secure)
+      .then(function(res){
+          if(res._jDBNumRows){
+            $promise.reject('Already Exists');
+          }else{
+            $promise.resolve({isExists:false});
+          }
+      },$defer.reject);
+
+      return $defer;
+    }
+
+
+
     //getUser
     function getUsers(queryData)
     {
@@ -135,6 +159,7 @@ DBEvent.prototype._users = function()
         add : addUser,
         remove : removeUser,
         authorize : getUsers,
-        updateUser : updateUser
+        updateUser : updateUser,
+        isExists: isExists
     });
 };

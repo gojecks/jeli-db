@@ -2,7 +2,7 @@
 
 
 	jEliDB.plugins.jQl('alter',{
-		help : ['Alter -table] -a -c -columnName [config]', 
+		help : ['Alter -[tbl_name] -a -c -columnName [config]', 
 				'Alter -[tbl_name] -a -p -columnName',
 				'Alter -[tbl_name] -a -f -columnName -[relative table]',
  				'Alter -[tbl_name] -d -columnName',

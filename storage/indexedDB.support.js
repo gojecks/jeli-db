@@ -82,7 +82,7 @@ function indexedDBStorage(CB){
 
     	this.addStore = function(storeName,  data){
     		if(this.checkStoreName(_storeName)){
-    		
+
 			    // Use transaction oncomplete to make sure the objectStore creation is 
 				// finished before adding data into it.
 				var store = getObjectStore(_storeName, "readwrite");

@@ -10,9 +10,12 @@ function _privateApi(){
     this.$delRecordName = '_deletedRecordsManager';
     this.$taskPerformer = _privateTaskPerfomer(this);
     this.$activeDB = null;
-    this.openedDB = new watchBinding();
+    this.openedDB = new openedDBHandler();
     this.$setActiveDB = function(name) {
-    this.$activeDB = name;
+        // open the DB
+        this.openedDB.$new(name, new openedDBHandler());
+
+        this.$activeDB = name;
         return this;
     };
     this.$set = function(name, data) {
@@ -138,11 +141,10 @@ _privateApi.prototype.getTableCheckSum = function(db, tbl) {
 };
 
 _privateApi.prototype.isOpen = function(name) {
-    if (this.openedDB[name]) {
+    if (this.$get(name)) {
         return true
     }
 
-    this.openedDB.$new(name, new watchBinding());
     this.openedDB.$get(name).$new('resolvers', new openedDBResolvers());
     this.openedDB.$get(name).$new('resourceManager', new resourceManager(name));
     this.openedDB.$get(name).$new('recordResolvers', new DBRecordResolvers(name));
@@ -208,24 +210,53 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
 };
 
 _privateApi.prototype.setStorage = function(storage, callback) {
+
+    if(this.$get(this.$activeDB)){
+        callback();
+        return;
+    }
+
     // check for storage type
     switch (storage.toLowerCase()) {
         case ('indexeddb'):
-            this.$storage = new indexedDBStorage(callback);
-            break;
+            this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback));
+        break;
         case ('sqlite'):
         case ('websql'):
-            this.$storage = new sqliteStorage(storage, callback).mockLocalStorage();
-            break;
+            this.$getActiveDB().$new('_storage_', new sqliteStorage(storage, callback).mockLocalStorage());
+        break;
         case ('localstorage'):
+        case ('sessionstorage'):
+        case ('memory'):
         default:
             //setStorage
             //default storage to localStorage
-            this.$storage = $isSupport.localStorage && new jDBStorage(storage);
+            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(storage) );
             callback();
-            break;
+        break;
     }
 };
+
+
+function openedDBHandler(){
+    var _openedDB = {};
+
+    this.$new = function(name, value){
+        if(!_openedDB[name]){
+            _openedDB[name] = value;
+        }
+
+        return this;
+    };
+
+    this.$get = function(name){
+        return _openedDB[name];
+    };
+
+    this.$destroy = function(name){
+        _openedDB[name] = null;
+    };
+}
 
 // create a new privateApi Instance
 var $queryDB = new _privateApi(),

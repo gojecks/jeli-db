@@ -370,6 +370,28 @@ function jEliDBSynchronization(appName)
           return $defer;
     };
 
+    /**
+      get Num rows from DB
+    **/
+    clientService.prototype.getNumRows = function(query,tbl){
+        var _options = setRequestData('getNumRows',true,tbl),
+            $defer = new $p()
+        _options.data.query = {type:"_data",param:query,return_type:"num_rows"};
+        _options.type = "GET";
+          
+       //perform JSON Task
+        ajax(_options)
+        .then(function(res)
+        {
+          $defer.resolve(res.data);
+        },function(res)
+        {
+          $defer.reject(res);
+        });
+
+        return $defer;
+    };
+
     //Revalidate Expired Users
     clientService.prototype.reAuthorize = function(data){
       var _options = setRequestData('reauthorize',false),

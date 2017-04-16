@@ -22,7 +22,7 @@ function setCondition(spltQuery)
 function getStorageItem(item)
 {
     //return FN
-    return $queryDB.$storage.getItem(item);
+    return $queryDB.$getActiveDB().$get('_storage_').getItem(item);
 }
 
 //Function to Store storage data
@@ -31,7 +31,9 @@ function setStorageItem(key,value)
 {
   if(key && value && $isObject(value))
   {
-    $queryDB.$storage.setItem(key, value );
+    $queryDB.$getActiveDB()
+    .$get('_storage_')
+    .setItem(key, value );
   }
 }
 
@@ -40,7 +42,7 @@ function delStorageItem(name)
 {
   if(getStorageItem(name))
   {
-    $queryDB.$storage.removeItem(name);
+    $queryDB.$getActiveDB().$get('_storage_').removeItem(name);
   }
 
   return true;
@@ -81,7 +83,7 @@ function updateDeletedRecord(ref,obj)
     //extend the delete Object
     //with the current deleteResolver
     checker[obj.db] = _delRecords;
-    setStorageItem($queryDB.$delRecordName,checker);
+    setStorageItem($queryDB.$delRecordName, checker);
 }
 //Property Watch
 function defineProperty(obj,type,callBack)
