@@ -16,7 +16,11 @@ DBEvent.prototype.api = function(type,state,postData,tbl){
       $defer = new $p();
       _options.type = type || 'GET';
       if(postData){
-        _options.data.postData = postData;
+        if(type.toLowerCase() === 'get'){
+          _options.data.query = postData;
+        }else{
+          _options.data.postData = postData;
+        }
       }
   
     ajax(_options)
