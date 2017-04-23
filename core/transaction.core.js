@@ -171,9 +171,9 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
               }else{
                 //check if setData is a string
                 var setData = maskedEval(setData);
-                if($isString(setData))
-                {
-                  //convert String Data to Object
+                switch(typeof setData){
+                  case('string'):
+                    //convert String Data to Object
                     var nString =  removeSingleQuote(setData),
                         splitComma = nString.split(","),
                         i = splitComma.length,
@@ -186,8 +186,13 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                       tempObj[splitEqualTo[0]] = splitEqualTo[1];
                     }
                     return tempObj;
-                }else{
-                  setDBError('Unable to update Table, unaccepted dataType recieved');
+                  break;
+                  case('object'):
+                      return setData;
+                  break;
+                  default:
+                    setDBError('Unable to update Table, unaccepted dataType recieved');
+                  break;
                 }
               }
             }
