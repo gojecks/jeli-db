@@ -13,19 +13,18 @@ function jEliDB(name,version)
   function open(config)
   {
     var promise = new DBPromise(defer),
-        dbSync,
         inProduction;
     
     if(name)
     {
         //set the current active DB
-          $queryDB.$setActiveDB(name);
+      $queryDB.$setActiveDB(name);
       // set the storage type
       $queryDB.setStorage(config.storage || 'localStorage', function(){
           //set isOpened flag to true
           //so that debug is not posible when in production
           if($queryDB.isOpen(name)){
-            if(!loginRequired){
+            if(!loginRequired  && !config.isLoginRequired){
               errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
             }
           }
@@ -39,21 +38,14 @@ function jEliDB(name,version)
           }
           
           
-          inProduction = _isClient;
+          inProduction = _isClient || config.isClientMode;
 
 
           //This is useful when client trys to login in user before loading the DB
-          if(loginRequired){
+          if(loginRequired || config.isLoginRequired){
             startLoginMode();
             return promise;
           }
-
-
-          //set Synchronization
-          dbSync = new jEliDBSynchronization(name)
-                  .Entity(name)
-                  .configSync({});
-
 
           if(!$queryDB.$taskPerformer.initializeDB(name)){
             initializeDBSuccess();
@@ -132,8 +124,8 @@ function jEliDB(name,version)
 
         function initializeDBSuccess(){
           //synchronize the server DB
-            dbSync
-            .resource()
+            syncHelper
+            .pullResource(name)
             .then(function(syncResponse)
             {
                 if(syncResponse.data.resource)
@@ -144,8 +136,8 @@ function jEliDB(name,version)
                       _resource.$get('resourceManager').setResource(resource);
                     //Get the DB schema 
                     //for each Table
-                    dbSync
-                    .getSchema(_loadServerData)
+                    syncHelper
+                    .getSchema(name, _loadServerData)
                     .then(function(mergeResponse)
                     {
                       //Create a new version of the DB

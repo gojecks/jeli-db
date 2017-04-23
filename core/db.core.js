@@ -27,30 +27,21 @@ function DBEvent(name,version,required)
         appkey : function()
         {
           var _options = $queryDB.buildOptions(name,'','apikey'),
-              $defer = new $p(),
               logService = $queryDB.getNetworkResolver('logService');
               _options.type = "POST";
 
           logService('Retrieving Api Key and Secret..');
             //perform ajax call
-            ajax( _options )
-            .then(function(res)
-            {
-              logService('Completed without errors..');
-              $defer.resolve(res.data);
-              //empty our local recordResolver
-            },function(res)
-            {
-              logService('Completed with error..');
-              $defer.reject(res.data.error);
-            });
-
-            return $defer; 
+            return ProcessRequest(_options); 
         }
     };
 
-         //add event listener to db
+    //add event listener to db
     this.onUpdate = jDBStartUpdate('db',name,null);
+
+    // clientService
+    this.clientService = new clientService(name);
+
 
    if(required && $isArray(required)){
       var ret = {},

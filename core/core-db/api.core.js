@@ -11,7 +11,6 @@ DBEvent.prototype.api = function(type,state,postData,tbl){
       state = camelCase.call(state.join('-'));
     }
 
-
   var _options = $queryDB.buildOptions(this.name,tbl,state),
       $defer = new $p();
       _options.type = type || 'GET';
