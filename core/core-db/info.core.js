@@ -1,4 +1,4 @@
-DBEvent.prototype.list_tables = function()
+DBEvent.prototype.info = function()
 {
     var tableSet = {},
         _db = $queryDB[this.name];

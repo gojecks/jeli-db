@@ -12,11 +12,16 @@ function jEliDBTBL(tableInfo)
           //reconstruct the table
             constructTable(function(row)
             {
-                if(row.hasOwnProperty(columnName))
+                if(row._data.hasOwnProperty(columnName))
                 {
-                  delete row[columnName];
+                  delete row._data[columnName];
                 }
             });
+
+            /**
+                broadcast event
+            **/
+            $queryDB.storageEventHandler.broadcast('onUpdate',[tableInfo.TBL_NAME, tableInfo.data]);
              //update the DB
             updateDB();
         },
@@ -64,6 +69,11 @@ function jEliDBTBL(tableInfo)
                 tableInfo.columns[0] = extend({},tableInfo.columns[0],nColumn);
                 //reconstruct the table
                 constructTable();
+
+                 /**
+                      broadcast event
+                  **/
+                  $queryDB.storageEventHandler.broadcast('onUpdate',[tableInfo.TBL_NAME, tableInfo.data]);
                 //update the DB
                 updateDB();
               }
@@ -98,6 +108,11 @@ function jEliDBTBL(tableInfo)
     if(flag)
     {
         tableInfo.data = [];
+        /**
+            broadcast event
+        **/
+        $queryDB.storageEventHandler.broadcast('onTruncateTable',[tableInfo.TBL_NAME]);
+
         //update the DB
         updateDB();
       return dbSuccessPromiseObject("truncate",tableInfo.TBL_NAME +" was truncated");
@@ -123,6 +138,12 @@ function jEliDBTBL(tableInfo)
         }
           //update the deletedRecords
           $queryDB.$taskPerformer.updateDeletedRecord('table',delObj);
+
+          /**
+            broadcast event
+          **/
+          $queryDB.storageEventHandler.broadcast('onDropTable',[tableInfo.TBL_NAME]);
+
           //delete the table from DB
            if($queryDB.removeTable(tableInfo.TBL_NAME,tableInfo.DB_NAME))
            {
@@ -165,7 +186,7 @@ function jEliDBTBL(tableInfo)
               cFn(n);
             }
           //Update the dataSet
-            tableInfo.data[idx] = extend(columnObjFn(tableInfo.columns[0]),n);
+            tableInfo.data[idx]._data = extend(columnObjFn(tableInfo.columns[0]),n._data);
         });
     }
 }

@@ -141,8 +141,13 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                     if(!disableOfflineCache){
                       updateOfflineCache('insert',processedData);
                     }
+
+                    /**
+                        broadcast event
+                    **/
+                    $queryDB.storageEventHandler.broadcast('onInsert',[tableInfo.TBL_NAME, processedData]);
                     
-                        //push records to our resolver
+                    //push records to our resolver
                         
                     return updateTable( processedData.length );
                 }]);
@@ -249,6 +254,11 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                           updateOfflineCache('update',rowsToUpdate);
                         }
 
+                        /**
+                            broadcast event
+                        **/
+                        $queryDB.storageEventHandler.broadcast('onUpdate',[tableInfo.TBL_NAME, rowsToUpdate]);
+
                        //empty the rows 
                         rowsToUpdate = [];
 
@@ -300,6 +310,11 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                         if(!disableOfflineCache){
                           updateOfflineCache('delete',delItem);
                         }
+
+                        /**
+                            broadcast event
+                        **/
+                        $queryDB.storageEventHandler.broadcast('onDelete',[tableInfo.TBL_NAME, delItem]);
 
                       //return success Message
                       return ({

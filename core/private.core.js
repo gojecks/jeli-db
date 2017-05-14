@@ -38,6 +38,8 @@ function _privateApi(){
         return delete this[db].tables[tbl];
     };
 
+    this.storageEventHandler = new $eventStacks();
+
     //_privateApi initializer
     defineProperty(this.stack, "push", function() {
         fireEvent.apply(null, arguments); // assign/raise your event
@@ -222,8 +224,13 @@ _privateApi.prototype.setStorage = function(storage, callback) {
             this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback));
         break;
         case ('sqlite'):
+        case ('sqlitecipher'):
         case ('websql'):
-            this.$getActiveDB().$new('_storage_', new sqliteStorage(storage, callback).mockLocalStorage());
+            if($inArray(storage.toLowerCase(),['sqlite','sqlitecipher']) && !window.sqlitePlugin){
+                storage = "websql";
+            }
+            
+            this.$getActiveDB().$new('_storage_', new sqliteStorage(storage, this.$activeDB, callback).mockLocalStorage());
         break;
         case ('localstorage'):
         case ('sessionstorage'):
