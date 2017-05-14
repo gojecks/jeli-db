@@ -36,12 +36,13 @@ function DBEvent(name,version,required)
         }
     };
 
-    //add event listener to db
-    this.onUpdate = jDBStartUpdate('db',name,null);
+    if($queryDB.getNetworkResolver('serviceHost')){
+          //add event listener to db
+      this.onUpdate = jDBStartUpdate('db',name,null);
 
-    // clientService
-    this.clientService = new clientService(name);
-
+      // clientService
+      this.clientService = new clientService(name);
+    }
 
    if(required && $isArray(required)){
       var ret = {},

@@ -47,7 +47,7 @@ function jEliDB(name,version)
             return promise;
           }
 
-          if(!$queryDB.$taskPerformer.initializeDB(name)){
+          if(!$queryDB.$taskPerformer.initializeDB(name) && config.serviceHost){
             initializeDBSuccess();
           }else{
             startDB();
