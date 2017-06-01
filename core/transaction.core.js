@@ -225,6 +225,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                     },
                     rowsToUpdate = [],
                     $self = this;
+
                 executeState.push(["update",function(disableOfflineCache)
                 {
                   //Execute Function 
@@ -368,10 +369,10 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
             if(limit)
              {
                 var _startEnd = limit.split(',');
-                return jEli.$copy(cdata.splice(parseInt(_startEnd[0]),parseInt(_startEnd[1])), true);
+                return copy(cdata.splice(parseInt(_startEnd[0]),parseInt(_startEnd[1])), true);
              }
 
-             return jEli.$copy(cdata, true);
+             return copy(cdata, true);
           }
 
             //loop through the data

@@ -8,6 +8,7 @@ jEliDB.plugins.jQl('update',{
 
 //create -tablename -columns
 function updatePluginFn(query,handler){
+  var spltQuery = query
 	return function(db)
   {
     //updating a table
@@ -20,7 +21,7 @@ function updatePluginFn(query,handler){
         {
           upd
           .result
-          .update(query[2],setCondition(query))
+          .update(query[2], setCondition(query.concat()))
           .execute()
           .onSuccess(handler.onSuccess)
           .onError(handler.onError)

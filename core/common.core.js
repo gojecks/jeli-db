@@ -14,7 +14,10 @@ function purifyJSON(data)
 //condition setter
 function setCondition(spltQuery)
 {
-    return spltQuery.slice( parseInt(spltQuery.indexOf("where") + 1) ).join(' ');
+  var whereTask = spltQuery.slice( parseInt(spltQuery.indexOf("where") + 1) ),
+      whereString = whereTask.join(''),
+      checkTask = ($isJsonString(whereString)?maskedEval(whereString) : whereString);
+    return checkTask;
 }
 
 //Function to retrieve storage Data

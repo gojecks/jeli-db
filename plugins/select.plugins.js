@@ -47,12 +47,8 @@
 
                   if(expect(query).contains('where'))
                   {
-                    var whereTask = spltQuery.slice( parseInt(query.indexOf("where") + 1) ),
-                        whereString = whereTask.join(''),
-                        checkTask = ($isJsonString(whereString)?maskedEval(whereString) : whereString);
-
                       qTask
-                      .where(checkTask);
+                      .where(setCondition(query.concat()));
                   }
 
                   if(expect(query).contains('limit'))
