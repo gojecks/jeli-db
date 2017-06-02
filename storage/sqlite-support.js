@@ -25,7 +25,7 @@ function sqliteStorage(type, dbName, CB)
           break;
           case('sqlite'):
           case('sqlitecipher'):
-            ret = (sqlitePlugin in window) && window.sqlitePlugin.openDatabase({name: dbName, location: 'default'});
+            ret = ($isSupport.sqlite) && window.sqlitePlugin.openDatabase({name: dbName, location: 'default'});
           break;
         }
         
