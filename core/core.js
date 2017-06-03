@@ -186,18 +186,20 @@ function jEliDB(name,version)
         //set upgradeneed to the promise Fn
         promise.onUpgrade = function(fn)
         {
-          _onUpgrade = function(){
+          /***
+              set the promise callback for upgradeneeded
+          ***/
+          promise.then(function(){
             if($isFunction(fn) && $isEqual(dbEvent.type,'upgradeMode'))
             {
               if(dbEvent)
               {
                 //initialize the upgraded FN
-                fn.call(fn,dbEvent)
+                fn.call(fn, dbEvent);
               }
             }
-          };
+          });
           
-
           return this;
         };
 

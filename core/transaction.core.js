@@ -212,7 +212,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
               }
 
 
-                var where = (query)?removeSingleQuote(query):!1,
+                var where,
                     setData = structureUpdateData(updateData),
                     u = tableInfo.data.length,
                     updated = 0,
@@ -225,6 +225,16 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
                     },
                     rowsToUpdate = [],
                     $self = this;
+
+                /**
+                  check if query is an object or string
+                  set the where query
+                **/
+                if($isString(query)){
+                  where = (query)?removeSingleQuote(query):!1
+                }else{
+                  where = query;
+                }  
 
                 executeState.push(["update",function(disableOfflineCache)
                 {

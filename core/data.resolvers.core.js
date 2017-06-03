@@ -5,9 +5,9 @@ function DBRecordResolvers(name)
     function tableRecordHolder()
     {
         return ({
-          delete : [],
-          update : [],
-          insert : []
+          delete : {},
+          update : {},
+          insert : {}
         });
     }
 
@@ -30,9 +30,17 @@ function DBRecordResolvers(name)
               if(data.length)
               {
                 //push the data to the list
-                _records[name][tbl].data[type].push.apply(_records[name][tbl].data[type],data);
-                
-                 setStorageItem(_lRecordName,_records);
+                data.forEach(function(item){
+                  if($isEqual(type,'update')){
+                    if(_records[name][tbl].data['insert'][item._ref]){
+                      delete _records[name][tbl].data['insert'][item._ref];
+                    }
+                  }
+
+                  _records[name][tbl].data[type][item._ref] = item;
+                });
+         
+                setStorageItem(_lRecordName,_records);
               }
           },
           columns : function(type,data)
