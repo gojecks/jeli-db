@@ -211,26 +211,33 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     return options;
 };
 
-_privateApi.prototype.setStorage = function(storage, callback) {
+_privateApi.prototype.setStorage = function(config, callback) {
 
     if(this.$get(this.$activeDB)){
         callback();
         return;
     }
 
+    var _storage = config.storage || 'localStorage';
     // check for storage type
-    switch (storage.toLowerCase()) {
+    switch (config.storage.toLowerCase()) {
         case ('indexeddb'):
             this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback));
         break;
         case ('sqlite'):
         case ('sqlitecipher'):
         case ('websql'):
-            if($inArray(storage.toLowerCase(),['sqlite','sqlitecipher']) && !window.sqlitePlugin){
-                storage = "websql";
+            if($inArray(_storage.toLowerCase(),['sqlite','sqlitecipher']) && !window.sqlitePlugin){
+                _storage = "websql";
             }
-            
-            this.$getActiveDB().$new('_storage_', new sqliteStorage(storage, this.$activeDB, callback).mockLocalStorage());
+
+            var sqliteConfig = {
+                name: this.$activeDB,
+                location: config.location || 'default',
+                key:config.key || GUID()
+            };
+
+            this.$getActiveDB().$new('_storage_', new sqliteStorage(_storage, sqliteConfig, callback).mockLocalStorage());
         break;
         case ('localstorage'):
         case ('sessionstorage'):
@@ -238,7 +245,7 @@ _privateApi.prototype.setStorage = function(storage, callback) {
         default:
             //setStorage
             //default storage to localStorage
-            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(storage) );
+            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(_storage) );
             callback();
         break;
     }

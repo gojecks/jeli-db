@@ -83,8 +83,9 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
 
                       // check indexing
                       var _dataExists = false,
-                          _ref = GUID();
-                      for(var _index in tableInfo.index){
+                          _ref = GUID(),
+                          _index;
+                      for(_index in tableInfo.index){
                         var _currentIndexCheck = tableInfo.index[_index];
                         if(_currentIndexCheck.indexes){
                             // check the the index already exists

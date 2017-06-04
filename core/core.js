@@ -20,7 +20,7 @@ function jEliDB(name,version)
         //set the current active DB
       $queryDB.$setActiveDB(name);
       // set the storage type
-      $queryDB.setStorage(config.storage || 'localStorage', function(){
+      $queryDB.setStorage(config, function(){
           //set isOpened flag to true
           //so that debug is not posible when in production
           if($queryDB.isOpen(name)){

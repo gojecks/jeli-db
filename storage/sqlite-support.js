@@ -1,12 +1,13 @@
 //jEliDB for Sqlite
-function sqliteStorage(type, dbName, CB)
+function sqliteStorage(type, config, CB)
 {
   //set Prototype
   //create Database
   //Param Object
   //{name: "mySQLite.db", location: 'default'}
 
-  var privateApis = createDB(dbName),
+  var dbName = config.name,
+      privateApis = createDB(dbName),
       _storageTableName = "",
       _started = false,
       _privateStore = {},
@@ -25,7 +26,7 @@ function sqliteStorage(type, dbName, CB)
           break;
           case('sqlite'):
           case('sqlitecipher'):
-            ret = ($isSupport.sqlite) && window.sqlitePlugin.openDatabase({name: dbName, location: 'default'});
+            ret = ($isSupport.sqlite) && window.sqlitePlugin.openDatabase(config);
           break;
         }
         
