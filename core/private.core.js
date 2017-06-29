@@ -113,6 +113,10 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
     return $promise;
 };
 
+_privateApi.prototype.getDbTablesNames = function(db){
+    return Object.keys(this[db || this.$activeDB].tables);
+};
+
 _privateApi.prototype.removeDB = function(db) {
     if (this[db]) {
         delete this[db];

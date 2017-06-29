@@ -29,55 +29,87 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
       timerId,
       ctimer,
       cType,
-      _def = ["insert","update","delete"];
+      _def = ["insert","update","delete"],
+      payload,
+      query;
+
+      if(tbl){
+        payload = {};
+        payload[tbl] = {};
+      }
 
     function pollUpdate()
     {
-      var _reqOptions = $queryDB.buildOptions(dbName,tbl,"update");
+      var _reqOptions = $queryDB.buildOptions(dbName, null, "update");
           _reqOptions.data.ref = type;
           _reqOptions.data.type = cType;
 
-      if($isEqual(type,'table')){
-        _reqOptions.data.checksum = $queryDB.getTableCheckSum(dbName,tbl);
+      var promiseData = {};
+
+      function resolvePromise(_tbl, _data){
+        $queryDB
+        .$resolveUpdate(dbName, _tbl, _data, true)
+        .then(function(cdata)
+        {
+          $queryDB
+          .$taskPerformer
+           .updateDB(dbName, _tbl, function(table){
+              if(_data.checksum){
+                 table.$hash = _data.checksum;
+              }
+           });
+
+           promiseData[_tbl] = _data;
+           
+        });
       }
+
+
+      switch(type){
+        case('table'):
+          payload[tbl].query = query;
+        break;
+        case('db'):
+          if(!payload){
+              $queryDB.getDbTablesNames(dbName).forEach(function(name){
+                payload[name] = {};
+              });
+          }
+        break;
+      }
+
+      for(var _tbl in payload){
+        payload[_tbl].checksum = $queryDB.getTableCheckSum(dbName,_tbl);
+      }
+
+      _reqOptions.data.payload = payload;
 
       ajax( _reqOptions  )
       .done(function(res)
       {
-        $queryDB
-        .DB
-        .$resolveUpdate(dbName,tbl,res.data,true)
-        .then(function(_data)
-        {
-          $queryDB
-          .$taskPerformer
-           .updateDB(dbName,tbl,function(table){
-              if(res.data.checksum){
-                 table.$hash = res.data.checksum;
-              }
-           });
+        for(var _tbl in res.data){
+          resolvePromise(_tbl, res.data[_tbl]);
+        }
+        
+          
+        var _promise = dbSuccessPromiseObject('onUpdate','');
+        _promise.result.getData = function(key,tblName){
+          return (key && promiseData[tblName || tbl][key || cType])?promiseData[tblName || tbl][key || cType]:[];
+        };
 
-           var retData;
-           if(cType){
-              retData = _data[cType];
-           }else{
-              retData = _data;
-           }
-            
-            var _promise = dbSuccessPromiseObject('onUpdate','');
-              _promise.result.getData = function(key){
-                return (key && retData[key])?retData[key]:[];
-              };
-              _promise.result.getCheckSum = function(){
-                  return res.data.checksum;
-              };
-              _promise.result.getAllUpdates = function(){
-                return retData;
-              };
+        _promise.result.getCheckSum = function(tblName){
+            return promiseData[tblName || tbl].checksum;
+        };
+        _promise.result.getAllUpdates = function(){
+          return promiseData;
+        };
 
-            _callback(_promise);
-            polling();
-        });
+        _promise.result.getTable = function(tblName){
+          return promiseData[tblName || tbl];
+        };
+
+        _callback(_promise);
+        polling();
 
       }).fail(function(){
         polling();
@@ -92,7 +124,7 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
     
    
 
-  return function(fn,timer,ctype){
+  return function(fn,timer,ctype,_payload){
     if($isFunction(fn)){
         _callback = fn;
     }
@@ -101,6 +133,12 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
       ctimer = timer || 1000;
       polling(timer);
       cType = ctype;
+      // when 
+      if(tbl){
+        query = _payload
+      }else{
+        payload = _payload;
+      }
     }
 
     return ({
