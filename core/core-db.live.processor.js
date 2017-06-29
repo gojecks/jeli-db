@@ -59,7 +59,7 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
               }
            });
 
-           promiseData[_tbl] = _data;
+           promiseData[_tbl] = cdata;
            
         });
       }
@@ -90,11 +90,13 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
         for(var _tbl in res.data){
           resolvePromise(_tbl, res.data[_tbl]);
         }
-        
-          
+                  
         var _promise = dbSuccessPromiseObject('onUpdate','');
         _promise.result.getData = function(key,tblName){
-          return (key && promiseData[tblName || tbl][key || cType])?promiseData[tblName || tbl][key || cType]:[];
+          key = key || cType;
+          tblName = tblName || tbl;
+
+          return (key && promiseData[tblName][key])?promiseData[tblName][key]:[];
         };
 
         _promise.result.getCheckSum = function(tblName){
