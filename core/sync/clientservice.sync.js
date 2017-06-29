@@ -103,6 +103,35 @@ clientService.prototype.delete = function(tbl,data)
 };
 
 /**
+  @params : query
+  {
+    tables:{
+      "tbl_name":{
+        type:"_data",
+        limit:"JDB_MAX"
+        param: {
+            "column": VAL,
+        },
+        join:{
+          table:"TBL_NAME",
+          on:"VAL"
+        }
+      }
+    }
+  }
+
+**/
+
+clientService.prototype.query = function(query){
+  var _options = syncHelper.setRequestData(this.appName, 'query',false);
+  _options.data.query = query;
+  _options.type = 'GET';
+
+  return ProcessRequest(_options);
+
+};
+
+/**
   get Num rows from DB
 **/
 clientService.prototype.getNumRows = function(query,tbl){
