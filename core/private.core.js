@@ -224,7 +224,7 @@ _privateApi.prototype.setStorage = function(config, callback) {
 
     var _storage = config.storage || 'localStorage';
     // check for storage type
-    switch (config.storage.toLowerCase()) {
+    switch (_storage.toLowerCase()) {
         case ('indexeddb'):
             this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback));
         break;
