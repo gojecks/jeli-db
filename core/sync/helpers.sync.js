@@ -3,15 +3,15 @@ syncHelper.printConflictLog = function (networkResolver)
 {
   for(var i in this.conflictLog)
   {
-      setMessage('---Log for '+i+' table----', networkResolver);
+      this.setMessage('---Log for '+i+' table----', networkResolver);
       var cList = ["delete","insert","update"],
           cLog = ["data","columns"];
         for(var log in cLog)
         {
-          setMessage(cLog[log].toUpperCase() +' Changes: '+this.conflictLog[i][cLog[log]].changesFound, networkResolver);
+          this.setMessage(cLog[log].toUpperCase() +' Changes: '+this.conflictLog[i][cLog[log]].changesFound, networkResolver);
           for(var list in cList)
           {
-            setMessage(cList[list].toUpperCase()+" : "+this.conflictLog[i][cLog[log]][cList[list]].length, networkResolver)
+            this.setMessage(cList[list].toUpperCase()+" : "+this.conflictLog[i][cLog[log]][cList[list]].length, networkResolver)
           }
         }
   }

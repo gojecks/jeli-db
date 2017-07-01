@@ -24,10 +24,10 @@ function syncConflictChecker(appName, resourceChecker,tbl)
         //client table was found
         if(clientTbl)
         {
-            syncHelper.pull(appName)
-            .then(function(response)
+            syncHelper.pullTable(appName, tbl)
+            .then(function(tblResult)
             {
-                serverTbl = response.data[tbl];
+                serverTbl = tblResult.data._data || syncHelper.createFakeTable();;
                 if(serverTbl)
                 {
                   var $diff = syncDataComparism(serverTbl, clientTbl, resourceChecker, networkResolver);
