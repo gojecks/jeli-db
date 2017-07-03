@@ -28,7 +28,6 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
   var _callback  = function(){},
       timerId,
       ctimer,
-      cType,
       _def = ["insert","update","delete"],
       payload,
       query;
@@ -42,7 +41,7 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
     {
       var _reqOptions = $queryDB.buildOptions(dbName, null, "update");
           _reqOptions.data.ref = type;
-          _reqOptions.data.type = cType;
+          _reqOptions.data.type = _def;
 
       var promiseData = {};
 
@@ -93,7 +92,10 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
                   
         var _promise = dbSuccessPromiseObject('onUpdate','');
         _promise.result.getData = function(key,tblName){
-          key = key || cType;
+          if(!key || !tblName){
+            return null;
+          }
+
           tblName = tblName || tbl;
 
           return (key && promiseData[tblName][key])?promiseData[tblName][key]:[];
@@ -110,6 +112,15 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
           return promiseData[tblName || tbl];
         };
 
+        _promise.count = function(tblName){
+          var total = 0;
+          _def.forEach(function(type){
+            total +=promiseData[tblName || tbl][type].length;
+          });
+
+          return total;
+        };
+
         _callback(_promise);
         polling();
 
@@ -118,10 +129,10 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
       });
     }
 
-    function polling(){
+    function polling(start){
       timerId =  setTimeout(function(){
         pollUpdate();
-      },ctimer);
+      },start || ctimer);
     }
     
    
@@ -133,8 +144,7 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
     //start update
     if($queryDB.getNetworkResolver('serviceHost',dbName)){
       ctimer = timer || 1000;
-      polling(timer);
-      cType = ctype;
+      _def = ctype || _def;
       // when 
       if(tbl){
         query = _payload
@@ -146,7 +156,10 @@ function jDBStartUpdate(type,dbName,tbl,$hash){
     return ({
       disconnect : function(){
           clearTimeout(timerId);
-        }
-      });
+        },
+      start : function(start){
+        polling(start);
+      }
+    });
   };
 }
