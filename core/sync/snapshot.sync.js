@@ -4,7 +4,7 @@
   function snapShot(server,client)
   {
     var counter = 0,
-        $hashChanges = $isEqual(server.$hash,client.$hash);
+        $hashChanges = $isEqual(server.$hash, client.$hash || client.$previousHash);
       function checker(diffLoop,diffAgainst,_changes,type)
       {
         function increaseCounter()

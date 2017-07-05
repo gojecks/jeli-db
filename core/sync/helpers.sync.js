@@ -136,7 +136,8 @@ syncHelper.finalizeProcess = function(networkResolver)
   //Objective : update the server database with client records
 syncHelper.push = function(appName, tbl, data, state)
 {
-    syncHelper.setMessage('Initializing Push State for table('+tbl+')', $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver);
+  var _activeDB = $queryDB.$getActiveDB(appName);
+    syncHelper.setMessage('Initializing Push State for table('+tbl+')', _activeDB.$get('resolvers').networkResolver);
     //check state
     state = state || 'push';
     var _options = syncHelper.setRequestData(appName,state,false,tbl);
@@ -146,7 +147,7 @@ syncHelper.push = function(appName, tbl, data, state)
       if(!data.columns.diff)
       {
         data.$hash = _options.data.postData.$hash; //update the postData hash before posting
-        _options.data.postData = _recordResolvers.$get(tbl);
+        _options.data.postData = _activeDB.$get('recordResolvers').$get(tbl);
         _options.data.action = "update";
       }
     }
