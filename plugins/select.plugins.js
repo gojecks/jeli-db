@@ -1,6 +1,6 @@
     //juser
 	jEliDB.plugins.jQl('select',{
-		help : ['select -[fields] -[table] -Clause[ -[on] -[join] -[where] -[like] ] -limit'],
+		help : ['select -[fields] -[table] -Clause[ -[on] -[join] -[where] -[like] ] -limit -[orderBy] -[groupBy]'],
 		fn : selectPluginFn
 	});
 	
@@ -8,7 +8,7 @@
         //-join -CLAUSE -on -EXPRESSION
         //-Where -column -like -expression 
     function selectPluginFn(query,handler){
-    	var spltQuery = query,
+    	var spltQuery = query.concat(),
             result = false,
             qTask,
             table;
@@ -27,6 +27,10 @@
                 }
             }
 
+            function getQueryValues(type){
+              return spltQuery[parseInt(query.indexOf(type) + 1)];
+            }
+
             if(spltQuery.length > 1)
             {
                 //build table
@@ -41,8 +45,8 @@
                   if(expect(query).contains("join") && expect(query).contains("on"))
                   {
                     qTask
-                    .join(spltQuery[parseInt(query.indexOf("join") + 1)])
-                    .on(spltQuery[parseInt(query.indexOf("on") + 1)]);
+                    .join(getQueryValues("join"))
+                    .on(getQueryValues("on"));
                   }
 
                   if(expect(query).contains('where'))
@@ -51,11 +55,12 @@
                       .where(setCondition(query.concat()));
                   }
 
-                  if(expect(query).contains('limit'))
-                  {
-                    var limitTask = spltQuery.slice( parseInt(query.indexOf("limit") + 1) );
-                        qTask.limit(limitTask.join(''));
-                  }
+                  ["limit","orderBy","groupBy"].forEach(function(key){
+                    if(expect(query).contains(key.toLowerCase()))
+                    {
+                        qTask[key](getQueryValues(key.toLowerCase()));
+                    }
+                  });
 
                   qTask
                   .execute()
