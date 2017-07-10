@@ -1,9 +1,9 @@
 {
   "name": "jelidb",
-  "version": "0.0.6",
+  "version": "1.0.0",
   "description": "Javascript Database for front-end development",
   "main": "jdb.min.js",
-  "files":[
+  "files": [
     "dist"
   ],
   "scripts": {
