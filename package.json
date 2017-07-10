@@ -1,0 +1,27 @@
+{
+  "name": "jelidb",
+  "version": "0.0.6",
+  "description": "Javascript Database for front-end development",
+  "main": "jdb.min.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gojecks/jEliDB.git"
+  },
+  "keywords": [
+    "jeli",
+    "jelijs",
+    "jdb",
+    "database",
+    "frontend",
+    "software"
+  ],
+  "author": "Joseph Gojecks Kadiri",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gojecks/jEliDB/issues"
+  },
+  "homepage": "https://github.com/gojecks/jEliDB#readme"
+}
