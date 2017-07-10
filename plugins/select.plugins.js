@@ -28,7 +28,9 @@
             }
 
             function getQueryValues(type){
-              return spltQuery[parseInt(query.indexOf(type) + 1)];
+              var field = spltQuery[parseInt(query.indexOf(type))];
+              field = field.replace(/\((.*?)\)/,"|$1").split("|");
+              return ((field.length > 1)?field[1] : spltQuery[parseInt(query.indexOf(type) + 1)]);
             }
 
             if(spltQuery.length > 1)
@@ -40,29 +42,26 @@
                 .transaction(table)
                 .onSuccess(function(e)
                 {
-                  qTask = e.result.select(spltQuery[1]);
+                  var definition = {};
 
-                  if(expect(query).contains("join") && expect(query).contains("on"))
-                  {
-                    qTask
-                    .join(getQueryValues("join"))
-                    .on(getQueryValues("on"));
-                  }
-
-                  if(expect(query).contains('where'))
-                  {
-                      qTask
-                      .where(setCondition(query.concat()));
-                  }
-
-                  ["limit","orderBy","groupBy"].forEach(function(key){
-                    if(expect(query).contains(key.toLowerCase()))
-                    {
-                        qTask[key](getQueryValues(key.toLowerCase()));
+                  if(query.length > 3){
+                    if($isJsonString(query[3])){
+                      definition = maskedEval(query[3]);
+                    }else{
+                      // splice our query
+                      // set definition
+                      [].concat.call(query).splice(3).map(function(qKey){
+                          qKey = qKey.replace(/\((.*?)\)/,"|$1").split("|");
+                          // function Query
+                          if(qKey.length > 1){
+                            definition[qKey[0]] = maskedEval(qKey[1]);
+                          }
+                      });
                     }
-                  });
-
-                  qTask
+                  }
+                  
+                  e.result
+                  .select(spltQuery[1], definition)
                   .execute()
                   .onSuccess(handler.onSuccess)
                   .onError(handler.onError);
