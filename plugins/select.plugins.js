@@ -29,7 +29,7 @@
 
             function getQueryValues(type){
               var field = spltQuery[parseInt(query.indexOf(type))];
-              field = field.replace(/\((.*?)\)/,"|$1").split("|");
+              field = field.replace(/\((.*?)\)/,"~$1").split("~");
               return ((field.length > 1)?field[1] : spltQuery[parseInt(query.indexOf(type) + 1)]);
             }
 
@@ -51,10 +51,15 @@
                       // splice our query
                       // set definition
                       [].concat.call(query).splice(3).map(function(qKey){
-                          qKey = qKey.replace(/\((.*?)\)/,"|$1").split("|");
+                          qKey = qKey.replace(/\((.*?)\)/,"~$1").split("~");
                           // function Query
                           if(qKey.length > 1){
-                            definition[qKey[0]] = maskedEval(qKey[1]);
+                            if($isJsonString(qKey[1])){
+                              definition[qKey[0]] = maskedEval(qKey[1]);
+                            }else{
+                              definition[qKey[0]] = qKey[1];
+                            }
+                            
                           }
                       });
                     }
