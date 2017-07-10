@@ -1,8 +1,8 @@
 //Sync Functionality
 function jEliDBSynchronization(appName)
 {
-  var networkResolver = $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver;
-      syncHelper.conflictLog = {};
+  var networkResolver = $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver,
+    $process = syncHelper.process.startSyncProcess(appName);
 
   function setMessage(msg){
     syncHelper.setMessage(msg, networkResolver);
@@ -170,12 +170,10 @@ function jEliDBSynchronization(appName)
     }
   }
 
-  function configSync(config)
+  function configSync(config, forceSync)
   {
-      if(config)
-      {
-        networkResolver = extend({},networkResolver,config);
-      }
+    networkResolver = extend({},networkResolver,config || {});
+    $process.getSet('forceSync', forceSync);
 
       //check for production state
       if(!networkResolver.inProduction)

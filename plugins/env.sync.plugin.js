@@ -3,7 +3,7 @@
 		//Task Called with Env
 
     jEliDB.plugins.jQl('sync',{
-		help : ['-sync  (optional) -[tbl_name]'],
+		help : ['-sync  (optional) -[tbl_name] -[force]'],
 		fn : syncPluginFn
 	});
 
@@ -15,7 +15,7 @@
 	      db
 	      .synchronize()
 	      .Entity(query[1])
-	      .configSync()
+	      .configSync(null, query[2])
 	      .processEntity(handler);
 	    };
 	}

@@ -11,7 +11,8 @@ function syncConflictChecker(appName, resourceChecker,tbl)
   var serverTbl = [],
       clientTbl = $queryDB.$getTable(appName , tbl),
       $promise = new $p(),
-      networkResolver = $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver;
+      networkResolver = $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver,
+      $process = syncHelper.process.getProcess(appName);
   //getLatest from server
   if(resourceChecker)
   {
@@ -48,10 +49,10 @@ function syncConflictChecker(appName, resourceChecker,tbl)
 
 
                   //data have changed after last pull
-                    syncHelper.printConflictLog(networkResolver);
+                    syncHelper.printSyncLog(networkResolver, appName);
                      //update
                     $promise
-                    .resolve({status:"success",pushRecord:syncHelper.conflictLog[tbl],code:200});
+                    .resolve({status:"success",pushRecord:$process.getSet('syncLog')[tbl],code:200});
 
                 }
             },function(mergeResponse)

@@ -1,21 +1,44 @@
 var syncHelper = {};
-syncHelper.printConflictLog = function (networkResolver)
+syncHelper.printSyncLog = function (networkResolver, appName)
 {
-  for(var i in this.conflictLog)
+  var _syncLog = this.process.getProcess(appName).getSet('syncLog');
+  for(var i in _syncLog)
   {
-      this.setMessage('---Log for '+i+' table----', networkResolver);
-      var cList = ["delete","insert","update"],
-          cLog = ["data","columns"];
-        for(var log in cLog)
-        {
-          this.setMessage(cLog[log].toUpperCase() +' Changes: '+this.conflictLog[i][cLog[log]].changesFound, networkResolver);
-          for(var list in cList)
-          {
-            this.setMessage(cList[list].toUpperCase()+" : "+this.conflictLog[i][cLog[log]][cList[list]].length, networkResolver)
-          }
-        }
+    this.setMessage('---Log for '+i+' table----', networkResolver);
+     ["data","columns"].forEach(function(log){
+        syncHelper.setMessage(log.toUpperCase() +' Changes: '+_syncLog[i][log].changesFound, networkResolver);
+        ["delete","insert","update"].map(function(list){
+          syncHelper.setMessage(list.toUpperCase()+" : "+_syncLog[i][log][list].length, networkResolver);
+        })
+     });
   }
 
+  this.process.destroyProcess(appName);
+};
+
+syncHelper.process = {
+  $process:{},
+  startSyncProcess: function(appName){
+    this.$process[appName] = {
+      syncLog:{},
+      forceSync:false,
+      getSet:function(name, value){
+        if(arguments.length > 1){
+          this[name] = value;
+        }
+
+        return this[name];
+      }
+    };
+
+    return this.$process[appName];
+  },
+  destroyProcess:function(appName){
+    this.$process[appName] = null;
+  },
+  getProcess:function(appName){
+    return this.$process[appName] || {}
+  }
 };
 
 //Sync Error Message Logger

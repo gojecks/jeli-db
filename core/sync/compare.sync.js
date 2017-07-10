@@ -11,7 +11,9 @@
         //process server tables
           var comparism = new snapShot(server, local),
               tbl = server.TBL_NAME;
-              syncHelper.conflictLog[server.TBL_NAME] = {
+              syncHelper.process
+                .getProcess(server.DB_NAME)
+                .getSet('syncLog')[server.TBL_NAME] = {
                 data : comparism.data(),
                 columns : comparism.columns()
               };

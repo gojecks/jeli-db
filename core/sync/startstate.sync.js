@@ -60,7 +60,7 @@
               if(tbl)
               {
                 //get the current recordResolver state
-                var resolvedData = syncHelper.conflictLog[tbl],
+                var resolvedData = syncHelper.process.getProcess(appName).getSet('syncLog')[tbl],
                     localResolved = _recordResolvers.$get(tbl),
                     toResolve = [];
 
@@ -159,6 +159,11 @@
                           {
                             syncHelper.setMessage('Updating Local('+currentProcessTbl+') with Server('+currentProcessTbl+')', networkResolver);
                             mergeTbl(response.conflictRecord,currentProcessTbl);
+                          }else{
+                            if(syncHelper.process.getProcess(appName).getSet('forceSync')){
+                              syncHelper.setMessage('sync was called with -force:yes', networkResolver);
+                              allowPushState(false);
+                            }
                           }
                       });
                   }
@@ -207,7 +212,7 @@
               //parameter : XMLHTTPRESPONSE Object
               return function(response)
               {
-                  syncHelper.printConflictLog(networkResolver);
+                  syncHelper.printSyncLog(networkResolver, appName);
                   if($isEqual(syncState.tables.length,queue))
                   {
                     if(failedState.length)
