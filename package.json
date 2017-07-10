@@ -3,6 +3,9 @@
   "version": "0.0.6",
   "description": "Javascript Database for front-end development",
   "main": "jdb.min.js",
+  "files":[
+    "dist"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
