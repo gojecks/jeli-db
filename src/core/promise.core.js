@@ -28,6 +28,7 @@
                   cursorEvent = ({
                     result:{
                       value : [],
+                    },
                       continue:function()
                       {
                           //increment the start cursor point
@@ -38,7 +39,6 @@
                             fn(cursorEvent);
                           }
                           
-                          fn(null);
                       },
                       prev : function()
                       {
@@ -48,17 +48,16 @@
                             start--;
                           }
 
-                          this.continue();
+                          cursorEvent.continue();
                       },
                       index : function()
                       {
                         return start;
                       }
-                    }
                   });
 
               //initialize the cursor event
-              fn(cursorEvent.continue);
+              cursorEvent.continue();
           };
           ret.limit = function(start,end)
           {

@@ -6,7 +6,10 @@ function transactionSelectColumn(data,definition)
       retData = [],
       data = getTableData(),
       d,
-      tableInfo = this.tableInfo;
+      $self = this,
+      replacer = function(str){
+        return str.replace(/\((.*?)\)/,"|$1").split("|");
+      };
 
   /**
       @perFormLimitTask
@@ -18,25 +21,27 @@ function transactionSelectColumn(data,definition)
 
   function performOrderLimitTask(cdata)
   {
-    if(definition.groupBy){
-      cdata = groupByTask(cdata);
-    }else{
-      if($isEqual(definition.orderBy.toLowerCase(), "desc")){
-        cdata = cdata.reverse();
+    var actions = {
+      groupBy:function(){
+        cdata =  groupByTask(cdata);
+      },
+      orderBy : function(){
+        cdata =  cdata.reverse();
+      },
+      limit : function(){
+        cdata =  limitTask(cdata);
       }
+    };
 
-      if(definition.limit)
-       {
-          cdata = limitTask(cdata);
-       }
-    }
+    Object.keys(definition).map(function(key){
+      return (actions[key] || function(){})();
+    })
 
      return copy(cdata, true);
   }
 
   function limitTask(data){
-    var _startEnd = definition.limit.split(',');
-    return data.splice(parseInt(_startEnd[0]),parseInt(_startEnd[1]));
+    return data.splice(parseInt(definition.limit.split(',')[0]),parseInt(definition.limit.split(',')[1]));
   }
 
   function groupByTask(cData){
@@ -84,17 +89,16 @@ function transactionSelectColumn(data,definition)
       if($isArray(data))
       {
         return data;
-      }else if(tableInfo.data) //return data when single table search
+      }else if($self.tableInfo.data) //return data when single table search
       {
-        return tableInfo.data;
+        return $self.tableInfo.data;
       }
       else if($isString(data))
       {
-        return tableInfo[data].data;
-      }else
-      {
-        return [];
-      } 
+        return $self.tableInfo[data].data;
+      }
+      
+      return [];
   }
 
     /**
@@ -111,10 +115,16 @@ function transactionSelectColumn(data,definition)
             returns converted value of field to timestamp
         -DATE_DIFF(field1, field2)
             returns difference between 2 DATE
+        - CASE( WHEN COLUMN = CONDITION THEN COLUMN2 ELSE WHEN COLUMN2 = CONDITION THEN COLUMN ELSE NULL)
+          return RESULT
+        -GET(FIELD)
+          return FIELD_VALUE
     **/
 
+
+
   function setFieldValue(field, cdata){
-    field = field.replace(/\((.*?)\)/,"|$1").split("|");
+    field = replacer(field);
 
     var privateApi = {
       COUNT : function(){
@@ -133,12 +143,17 @@ function transactionSelectColumn(data,definition)
         return new Date(cdata[field[1]]).getTime();
       },
       DATE_DIFF: function(){
-        var diff = field[1].split(',');
-        return new Date(cdata[diff[0]]) - new Date(cdata[diff[1]]);
+        return new Date(cdata[field[1].split(',')[0]]) - new Date(cdata[field[1].split(',')[1]]);
+      },
+      CASE:function(){
+        return maskedEval( field[1].replace(new RegExp("when","gi"),"").replace(new RegExp("then","gi"),"?").replace(new RegExp("else","gi"),":"), cdata);
+      },
+      GET:function(){
+        return maskedEval(field[1], cdata);
       }
     };
 
-    return ((privateApi[field[0]] && !cdata.hasOwnProperty(field[0]))?privateApi[field[0]]() : cdata[field[0]]);
+    return ((privateApi[field[0]] && !cdata.hasOwnProperty(field[0]))?privateApi[field[0]]() : maskedEval(field[0], cdata));
   }
    
 
@@ -150,31 +165,27 @@ function transactionSelectColumn(data,definition)
           _cLen = columns.length;
       while(_cLen--)
       {
-        var aCol = columns[_cLen],
-            fieldName,
+        var aCol = replacer(columns[_cLen]);
+            aCol = aCol[1] || aCol[0];
+
+        var 
+            fieldName = aCol.split(' as '),
             tCol,
-            cData;
+            cData = data[d];
 
 
         //if fieldName contains table name
         if(expect(aCol).contains('.'))
         {
           var spltCol = aCol.split(".");
-              tCol = $removeWhiteSpace(spltCol[0]);
+              tCol = $removeWhiteSpace(spltCol.shift());
               // split our required column on ' as '
-              fieldName = spltCol[1].split(' as ');
-              // set the data
-              cData = data[d][tCol] || data[d];
-
+              fieldName = spltCol.join('.').split(' as ');
               //AS Clause is required 
               if(expect(aCol).contains(' as '))
               {
                 tCol = false;
               }
-        }else
-        {
-          fieldName = aCol.split(' as ');
-          cData = data[d];
         }
 
           // remove whiteSpace from our fieldName
@@ -186,9 +197,9 @@ function transactionSelectColumn(data,definition)
 
           //set the data
           if($isEqual(field,'*')){
-            odata[_as] = cData;
+            odata[_as] = cData[tCol] || cData;
           }else{
-            odata[_as] = setFieldValue(field,cData);
+            odata[_as] = setFieldValue($removeWhiteSpace(columns[_cLen].split("as")[0]),cData);
           }
           
           fnd++;

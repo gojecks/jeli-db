@@ -15,6 +15,7 @@
           table:STRING,
           on:STRING,
           type:STRING (INNER,OUTER,LEFT,RIGHT),
+          where:{},
           feilds:{ //OPTIONAL
             
           }
@@ -37,9 +38,6 @@ function transactionSelect(selectFields, definition)
         fields:selectFields,
         where:"",
         like:"",
-        limit:false,
-        orderBy:"asc",
-        groupBy:false,
         join:[]
     },definition || {});
 
@@ -47,8 +45,6 @@ function transactionSelect(selectFields, definition)
       //@Function Name processQueryData
       //@Arguments nill
       // 
-      function processQueryData()
-      {
         if(queryDefinition.fields)
         {
           //Split through the queryColumn
@@ -64,10 +60,10 @@ function transactionSelect(selectFields, definition)
           {
               if(expect(n).contains("."))
               {
-                if(isMultipleTable)
+                if($self.isMultipleTable)
                 {
-                    var splitColumn = n.split("."),
-                    tblName = $removeWhiteSpace(splitColumn[0]);
+                  n = n.replace(/\((.*?)\)/,"|$1").split("|");
+                    tblName = $removeWhiteSpace((n[1] || n[0]).split(".")[0]);
                     //reference to the tables
                     if(!$self.tableInfo[tblName])
                     {
@@ -81,8 +77,6 @@ function transactionSelect(selectFields, definition)
               }
           });
         }
-      }
-
 
       //FUnction for Join Clause
       //@Function Name : setJoinTypeFn
@@ -144,13 +138,21 @@ function transactionSelect(selectFields, definition)
           }
         }
 
+        // restructure jELiData storage
+        function removeJeliDataStructure(_data){
+          return _data.map(function(item){
+            return item._data;
+          });
+        }
+
       //Function Table Matcher
       function matchTableFn(joinObj, clause)
       {
-        var startLogic = joinObj.on[0].split("."),
-            innerLogic = joinObj.on[1].split("."),
-            startTable = $self.tableInfo[startLogic[0]].data,
-            innerTable = $self.tableInfo[innerLogic[0]].data,
+        var joinOn = joinObj.on.split("="),
+            startLogic = joinOn[0].split("."),
+            innerLogic = joinOn[1].split("."),
+            startTable = removeJeliDataStructure($self.tableInfo[startLogic[0]].data),
+            innerTable = removeJeliDataStructure($self.tableInfo[innerLogic[0]].data),
             innerLength = innerTable.length,
             startLength = startTable.length,
             leftTable = startTable,
@@ -173,27 +175,27 @@ function transactionSelect(selectFields, definition)
           var totalLeftRecord = leftTable.length,
               counter = 0;
 
+          rightTable =  $self.getColumn( new $query(rightTable)._(joinObj.where), joinObj);
+
         //start process
         //query the leftTable Data
         expect(leftTable).search(null,function(lItem,lIdx)
         {
           var resObject = {},
-              _ldata = lItem._data,
               $isFound = 0,
               $foundObj = [];
-              resObject[leftTableLogic] = _ldata;
+              resObject[leftTableLogic] = lItem;
               resObject[rightTableLogic] = {};
             //Pass other filter
             expect(rightTable).search(null,function(rItem,rIdx)
             {
                 //check match
-                var _rdata = rItem._data;
-                if( $isEqual(_ldata[leftLogic],_rdata[rightLogic]) )
+                if( $isEqual(lItem[leftLogic], rItem[rightLogic]) )
                 {
-                  resObject[rightTableLogic] = _rdata;
+                  resObject[rightTableLogic] = rItem;
                   var temp = {};
-                      temp[leftTableLogic] = _ldata;
-                      temp[rightTableLogic] = _rdata;
+                      temp[leftTableLogic] = lItem;
+                      temp[rightTableLogic] = rItem;
                   $foundObj.push(temp);
                   $isFound++;
                 }
@@ -202,7 +204,7 @@ function transactionSelect(selectFields, definition)
             });
 
             counter++;
-            setJoinTypeFn( $isFound, $foundObj, totalLeftRecord , counter )( resObject, clause, joinObj.type );
+            setJoinTypeFn( $isFound, $foundObj, totalLeftRecord , counter )( resObject, clause, joinObj.clause );
             return true
         });
 
@@ -217,50 +219,42 @@ function transactionSelect(selectFields, definition)
         //Push our executeState Function into Array
         this.executeState.push(["select",function()
         {
-          //check if join is required
-          processQueryData();
 
           if($self.hasError())
           {
             //Throw new error
             throw new Error($self.getError());
-          }else
-          {
-              if(queryDefinition.join.length)
-              {
-
-                //Table matcher
-                //Matches the leftTable to RightTable
-                //returns both Match and unMatched Result
-                queryDefinition.join.forEach(function(join){
-                  switch(_joinTypeFn)
-                  {
-                    case('outer'):
-                      matchTableFn(join, 'left').recur('right');
-                    break;
-                    default:
-                      matchTableFn(join, join.type);
-                    break;
-                  }
-                });
-                
-
-                if(queryDefinition.where)
-                {
-                  return new $query( $self.getColumn(_sData, queryDefinition) )._(queryDefinition.where);
-                }else{
-                  
-                  return  $self.getColumn(_sData, queryDefinition);
-                }
-
-              }else
-              {
-                _sData = $self.tableInfo.data;
-              }
-
-              //return the processed Data
-              return $self.getColumn(new $query(_sData)._(queryDefinition.where), queryDefinition );
           }
+
+          if(queryDefinition.join.length)
+          {
+
+            //Table matcher
+            //Matches the leftTable to RightTable
+            //returns both Match and unMatched Result
+            queryDefinition.join.forEach(function(join){
+              switch(join.clause.toLowerCase())
+              {
+                case('outer'):
+                  matchTableFn(join, 'left').recur('right');
+                break;
+                default:
+                  matchTableFn(join, join.clause);
+                break;
+              }
+            });
+            
+            if(queryDefinition.where)
+            {
+              return new $query( $self.getColumn(_sData, queryDefinition) )._(queryDefinition.where);
+            }else{
+              return  $self.getColumn(_sData, queryDefinition);
+            }
+
+          }
+
+            //return the processed Data
+            return $self.getColumn(new $query($self.tableInfo.data)._(queryDefinition.where), queryDefinition );
         }]);
 
           var join = function(statement)
@@ -288,7 +282,7 @@ function transactionSelect(selectFields, definition)
           joinClause = function(type,table)
           {
             queryDefinition.join.push({
-              type:type,
+              clause:type,
               table:table
             });
 
@@ -298,7 +292,7 @@ function transactionSelect(selectFields, definition)
                   if(oQuery)
                   {
                     //perform the query
-                    queryDefinition.join[queryDefinition.join.length-1].on = $removeWhiteSpace( oQuery ).split("=");
+                    queryDefinition.join[queryDefinition.join.length-1].on = $removeWhiteSpace( oQuery );
                   }else
                   {
                     //Push new error

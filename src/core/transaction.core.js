@@ -12,6 +12,7 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
     this.tableInfo = tableInfo;
     this.tables = tables;
     this.errLog = [];
+    this.isMultipleTable = isMultipleTable;
 
     this.getError = function(){
       return this.errLog;

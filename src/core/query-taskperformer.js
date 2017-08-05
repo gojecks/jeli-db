@@ -76,7 +76,7 @@ function $query(data)
                        callback(item,idx);
                     }else
                     {
-                      _search.push(item._data);
+                      _search.push(item._data || item);
                     }
                 }
             });
@@ -162,7 +162,7 @@ function $query(data)
         var lLen = pCondition.like.length,
             matcher = item._data || item;
         while(lLen--){
-          var cur = String(maskedEval(pCondition.like[lLen].task[0],item._data) || ''),
+          var cur = String(maskedEval(pCondition.like[lLen].task[0], item._data) || item || ''),
               fnd = (cur.toLowerCase().search(String(pCondition.like[lLen].task[1]).toLowerCase())) > -1;
 
           cLogic = cLogic.replace(pCondition.like[lLen].exp,fnd);

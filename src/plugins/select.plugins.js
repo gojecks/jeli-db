@@ -55,7 +55,7 @@
                           // function Query
                           if(qKey.length > 1){
                             if($isJsonString(qKey[1])){
-                              definition[qKey[0]] = maskedEval(qKey[1]);
+                              definition[qKey[0]] = JSON.parse(qKey[1]);
                             }else{
                               definition[qKey[0]] = qKey[1];
                             }
