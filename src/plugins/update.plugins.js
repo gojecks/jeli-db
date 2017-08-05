@@ -21,12 +21,22 @@ function updatePluginFn(query,handler){
         {
           upd
           .result
-          .update(query[2], setCondition(query.concat()))
+          .update(formatData(), setCondition([].concat.call(query).splice(3)))
           .execute()
           .onSuccess(handler.onSuccess)
           .onError(handler.onError)
         })
         .onError(handler.onError);
+    }
+
+    function formatData(){
+      var data;
+      try{
+        data = JSON.parse(query[2])
+      }catch(e){
+        data = query[2];
+      }
+      return data;
     }
   }
 }

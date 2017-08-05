@@ -14,9 +14,8 @@
         // return setData when its an object
         if($isObject(setData)){
           return setData;
-        }else{
-          //check if setData is a string
-          var setData = maskedEval(setData);
+        }
+
           switch(typeof setData){
             case('string'):
               //convert String Data to Object
@@ -40,17 +39,7 @@
               $self.setDBError('Unable to update Table, unaccepted dataType recieved');
             break;
           }
-        }
       }
-
-        //@Arguments.length is 1
-        //@query is undefined
-        if(!query && $isString(updateData))
-        {
-          var splitUpdate = $removeWhiteSpace(updateData).split(/(?:where):/gi),
-              updateData =  splitUpdate.shift(),
-              query = splitUpdate.pop();
-        }
 
 
           var where,
@@ -65,7 +54,6 @@
                   rowsToUpdate.push($self.tableInfo.data[idx]);
               },
               rowsToUpdate = [];
-
           /**
             check if query is an object or string
             set the where query
@@ -83,39 +71,38 @@
               if($self.hasError() || !setData)
               {
                 throw Error($self.getError());
+              }
+
+              if(where)
+              {
+                new $query($self.tableInfo.data)._(where,function(item,idx)
+                {
+                    //store the data
+                    store(idx);
+                });
               }else
               {
-                  if(where)
-                  {
-                    new $query($self.tableInfo.data)._(where,function(item,idx)
-                    {
-                        //store the data
-                        store(idx);
-                    });
-                  }else
-                  {
-                    while(u--)
-                    {
-                      store(u);
-                    }
-                  }
-
-                  //push records to our resolver
-                  if(!disableOfflineCache){
-                    $self.updateOfflineCache('update',rowsToUpdate);
-                  }
-
-                  /**
-                      broadcast event
-                  **/
-                  $queryDB.storageEventHandler.broadcast('onUpdate',[$self.tableInfo.TBL_NAME, rowsToUpdate]);
-
-                 //empty the rows 
-                  rowsToUpdate = [];
-
-                  //return success
-                  return {message:updated+" row(s) updated."};
+                while(u--)
+                {
+                  store(u);
                 }
+              }
+
+              //push records to our resolver
+              if(!disableOfflineCache){
+                $self.updateOfflineCache('update',rowsToUpdate);
+              }
+
+                /**
+                    broadcast event
+                **/
+                $queryDB.storageEventHandler.broadcast('onUpdate',[$self.tableInfo.TBL_NAME, rowsToUpdate]);
+
+               //empty the rows 
+                rowsToUpdate = [];
+
+                //return success
+                return {message:updated+" row(s) updated."};
           }]);
 
       return this;
