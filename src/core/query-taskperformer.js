@@ -156,16 +156,16 @@ function $query(data)
     this.likeQueryTaskPerformer = function(item,idx){
           var found = false,
               cLogic = logic;
-
         //Loop through the logic
         //match found item
         var lLen = pCondition.like.length,
             matcher = item._data || item;
+
         while(lLen--){
-          var cur = String(maskedEval(pCondition.like[lLen].task[0], item._data) || item || ''),
+          var cur = String(maskedEval(pCondition.like[lLen].task[0], item._data || item)),
               fnd = (cur.toLowerCase().search(String(pCondition.like[lLen].task[1]).toLowerCase())) > -1;
 
-          cLogic = cLogic.replace(pCondition.like[lLen].exp,fnd);
+          cLogic = cLogic.replace(pCondition.like[lLen].exp, fnd);
         }
 
         if(pCondition.normal.length)
