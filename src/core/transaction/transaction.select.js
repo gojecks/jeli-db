@@ -37,6 +37,7 @@ function transactionSelect(selectFields, definition)
   var queryDefinition = extend({},{
         fields:selectFields,
         where:"",
+        inClause:[],
         like:"",
         join:[]
     },definition || {});
@@ -216,9 +217,51 @@ function transactionSelect(selectFields, definition)
         });
       }
 
+
+      function stripWhereClause(){
+        if($isObject(queryDefinition.where)){
+          return;
+        }
+          // check for INARRAY CLAUSE in query
+          // @usage : INARRAY([HAYSTACK, needle])
+          queryDefinition.where.replace(/\INARRAY\(\[(.*?)\]\)/,function(key, match){
+            queryDefinition.inClause.push({
+              replacer:key,
+              query:match.split(",")[0],
+              contains:match.split(",")[1]
+            });
+            
+            return key;
+          });
+      }
+
+      function runInClause(){
+        if(!queryDefinition.inClause.length){
+          return;
+        }
+
+        queryDefinition.inClause.map(function(item, idx){
+          performInClauseQuery(item, idx);
+        });
+      }
+
+      function performInClauseQuery(item, idx){
+        var inQuery = item.query.split(/(@)/gi).filter(function(item){
+            return !("@".indexOf(item) > -1);
+        }),
+        inQueryDefinition = buildSelectQuery(inQuery);
+        inQueryDefinition.fields = inQuery[1];
+        queryDefinition.where = queryDefinition.where.replace(
+            item.replacer,
+            "String(JSON.stringify("+JSON.stringify($self.getColumn( new $query(removeJeliDataStructure($self.tableInfo[inQuery[2]].data))._(inQueryDefinition.where || ""), inQueryDefinition)) + ")).indexOf("+item.contains+") > -1;"
+        );
+      }
+
         //Push our executeState Function into Array
         this.executeState.push(["select",function()
         {
+          stripWhereClause();
+          runInClause();
 
           if($self.hasError())
           {
@@ -257,57 +300,32 @@ function transactionSelect(selectFields, definition)
             return $self.getColumn(new $query($self.tableInfo.data)._(queryDefinition.where), queryDefinition );
         }]);
 
-          var join = function(statement)
-          {
-            if(expect(statement).contains(':'))
+          /*
             {
-              var clause = $removeWhiteSpace( statement ).split(":"),
-                  type = clause.shift().toLowerCase(),
-                  table = clause.pop();
-
-              if($inArray(type,["inner","left","right","outer"]))
-              {
-                  return joinClause(type,table);
-              }else
-              {
-                $self.setDBError("Invalid join clause used ("+type+")");
+              table:STRING,
+              on:STRING,
+              type:STRING (INNER,OUTER,LEFT,RIGHT),
+              where:{},
+              feilds:{ //OPTIONAL
+                
               }
-            }else
-            {
-              $self.setDBError("JOIN clause requires a table Name e.g(inner:tablename)");
+            }
+          */
+          var join = function(definition)
+          {
+            if(!$isObject(definition)){
+              throw new Error("join DEFINITION should be an object");
             }
 
-            return joinClause(undefined);
-          },
-          joinClause = function(type,table)
-          {
-            queryDefinition.join.push({
-              clause:type,
-              table:table
-            });
-
-              return ({
-                on:function(oQuery)
-                {
-                  if(oQuery)
-                  {
-                    //perform the query
-                    queryDefinition.join[queryDefinition.join.length-1].on = $removeWhiteSpace( oQuery );
-                  }else
-                  {
-                    //Push new error
-                    $self.setDBError(type.toUpperCase() +' JOIN clause was required but was never used.');
-                  }
-
-                  return publicApi;
-                }
-              });
+            queryDefinition.join.push(definition);
+            
+            return publicApi;
           },
           whereClause = function(where)
           {
             //store where query
             queryDefinition.where = where;
-              return publicApi;
+            return publicApi;
           },
           limit = function(parseLimit){
               queryDefinition.limit = parseLimit;
