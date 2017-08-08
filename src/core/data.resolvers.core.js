@@ -11,6 +11,17 @@ function DBRecordResolvers(name)
         });
     }
 
+    function resolveSyncData(tbl, type){
+      var recordsToSync = jEliDeepCopy(_records[name][tbl]);
+      Object.keys(recordsToSync.data).map(function(cType){
+         Object.keys(recordsToSync.data[cType]).map(function(ref){
+          recordsToSync.data[cType][ref] = $queryDB.$getDataByRef($queryDB.$getTableOptions(name, tbl, 'data') || [], ref);
+        });
+      });
+
+      return recordsToSync;
+    }
+
     var _records = {},
         _lRecordName = "_l_";
 
@@ -30,14 +41,14 @@ function DBRecordResolvers(name)
               if(data.length)
               {
                 //push the data to the list
-                data.forEach(function(item){
+                data.forEach(function(ref){
                   if($isEqual(type,'update')){
-                    if(_records[name][tbl].data['insert'][item._ref]){
-                      delete _records[name][tbl].data['insert'][item._ref];
+                    if(_records[name][tbl].data['insert'][ref]){
+                      delete _records[name][tbl].data['insert'][ref];
                     }
                   }
 
-                  _records[name][tbl].data[type][item._ref] = item;
+                  _records[name][tbl].data[type][ref] = true;
                 });
          
                 setStorageItem(_lRecordName,_records);
@@ -59,9 +70,7 @@ function DBRecordResolvers(name)
       {
         if(_records[name] && _records[name][tbl])
         {
-          var tblRecord = _records[name][tbl];
-
-          return ((type)?tblRecord[type]:tblRecord);
+          return resolveSyncData(tbl, type);
         }
 
         return {data:tableRecordHolder(),columns:tableRecordHolder()};

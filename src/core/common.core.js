@@ -163,3 +163,38 @@
 
     return definition;
   }
+
+  function columnObjFn(columns)
+  {
+      var obj = {},
+          _dbDefaultValueMatcher = function(val){
+            switch(val){
+              case('CURRENT_TIMESTAMP'):
+                val = +new Date;
+              break;
+              default:
+                val = val || null;
+              break;
+            }
+
+            return val;
+          };
+
+      findInList.call(columns,function(idx,n)
+      {
+        obj[idx] = _dbDefaultValueMatcher(n.defaultValue || n.default);
+      });
+
+      return obj;
+  }
+
+  function jEliDeepCopy(data){
+    return JSON.parse(JSON.stringify(data));
+  }
+
+  //@Function Name jEliUpdateStorage
+  //Updates the required Database
+  function jEliUpdateStorage(dbName, tblName)
+  {
+    $queryDB.$taskPerformer.updateDB.apply($queryDB.$taskPerformer, arguments);
+  }

@@ -18,20 +18,31 @@ function _privateApi(){
         this.$activeDB = name;
         return this;
     };
+
     this.$set = function(name, data) {
         this[name] = data;
         return this;
     };
+
     this.$get = function(name) {
         return this[name];
     };
+
     this.$getTable = function(dbName, tableName) {
-        if (tableName && dbName && this[dbName]) {
-            if (this[dbName].tables[tableName]) {
-                return this[dbName].tables[tableName]
-            }
+        if (tableName && dbName && this[dbName] && this[dbName].tables[tableName]) {
+            return this[dbName].tables[tableName]
         }
         return false;
+    };
+
+    this.$getTableOptions = function(dbName, tableName, option){
+        return (this.$getTable(dbName, tableName) || {})[option];
+    };
+
+    this.$getDataByRef = function(data, ref){
+        return [].filter.call(data, function(item){
+            return item._ref === ref;
+        })[0];
     };
 
     this.removeTable = function(tbl, db) {

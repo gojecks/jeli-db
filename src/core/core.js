@@ -33,13 +33,8 @@ function jEliDB(name,version)
           //set production flag
           //register our configuration
           $queryDB.$getActiveDB().$get('resolvers').register(config);
-          if(_isClient){
-            $queryDB.$getActiveDB().$get('resolvers').register('inProduction', _isClient);
-          }
-          
-          
+          $queryDB.$getActiveDB().$get('resolvers').register('inProduction', _isClient || config.isClientMode || false);
           inProduction = _isClient || config.isClientMode;
-
 
           //This is useful when client trys to login in user before loading the DB
           if(loginRequired || config.isLoginRequired){
@@ -110,10 +105,7 @@ function jEliDB(name,version)
               }
 
               // Object Store in Db
-              $queryDB.stack.push(function()
-              {
-                $queryDB.$taskPerformer.updateDB(name);
-              });
+              jEliUpdateStorage(name);
 
               // trigger the onUpgrade Fn
               _onUpgrade();

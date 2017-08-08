@@ -40,8 +40,8 @@ function _privateTaskPerfomer(self){
               {
                  dbRef.resourceManager[tblName] = {
                     $hash : null,
-                    lastModified : null,
-                    created : null,
+                    lastModified : +new Date,
+                    created : +new Date,
                     _ref : null
                  }; 
               }

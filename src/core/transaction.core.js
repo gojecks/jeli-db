@@ -69,25 +69,15 @@ function jTblQuery(tableInfo,mode,isMultipleTable, tables){
       this.getColumn = transactionSelectColumn;
     }
 
-
-    //rowback function
-    function rowBack(state)
-    {
-      //Check State
-      //Write mode must be enable
-        if(state && $inArray(state,["insert","delete","update"]))
-        {
-
-        }
-    }
-
     /**
       update offline cache
     **/
     this.updateOfflineCache = function(type, data){
-        _recordResolvers
-        .$set(tableInfo.TBL_NAME)
-        .data(type,data);
+      if(!expect($queryDB.getNetworkResolver('ignoreSync',tableInfo.DB_NAME)).contains(tableInfo.TBL_NAME)){
+         _recordResolvers
+          .$set(tableInfo.TBL_NAME)
+          .data(type, [].map.call(data, function(item){ return item._ref; }));
+      }
     }
 }
 
@@ -121,12 +111,9 @@ jTblQuery.prototype.execute = function(disableOfflineCache)
 
                 if(expect(["insert","update","delete"]).contains(ex[0]) && !error)
                 {
-                    // life processor
-                    liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0]);
-                    $queryDB.stack.push(function()
-                    {
-                      $queryDB.$taskPerformer.updateDB($self.tableInfo.DB_NAME, $self.tableInfo.TBL_NAME);
-                    });
+                  // life processor
+                  liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0]);
+                  jEliUpdateStorage($self.tableInfo.DB_NAME, $self.tableInfo.TBL_NAME);
                 }
               }
           }

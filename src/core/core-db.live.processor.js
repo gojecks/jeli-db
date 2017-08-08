@@ -1,24 +1,23 @@
 //Live processor Fn
 function liveProcessor(tbl,dbName)
 {
-  var syncService = new jEliDBSynchronization(dbName)
-                    .Entity()
-                    .configSync({});
+  function syncService(data){
+    new jEliDBSynchronization(dbName)
+      .Entity()
+      .configSync({})
+      [$queryDB.getNetworkResolver('inProduction',dbName)?'put':'push'](tbl, data);
+  }
 
-  var self = this;
   return function(type)
   {
-     if($queryDB.getNetworkResolver('live',dbName))
+     if($queryDB.getNetworkResolver('live',dbName) && !expect($queryDB.getNetworkResolver('ignoreSync',dbName)).contains(tbl))
      {
-        var data = $queryDB.$getActiveDB(dbName).$get('recordResolvers').$get(tbl);
-          //process the request
-          //Synchronize PUT STATE
-          if(expect(['update','insert','delete']).contains(type))
-          {
-            var inProduction = $queryDB.getNetworkResolver('inProduction',dbName);
-              syncService[inProduction?'put':'push'](tbl,data);
-          }
-            
+        //process the request
+        //Synchronize PUT STATE
+        if(expect(['update','insert','delete']).contains(type))
+        {
+            syncService($queryDB.$getActiveDB(dbName).$get('recordResolvers').$get(tbl));
+        }
      }
   };
 }

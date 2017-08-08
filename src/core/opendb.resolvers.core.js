@@ -18,7 +18,8 @@ function openedDBResolvers() {
             onError: function() {}
         },
         "app_id": "*",
-        inProduction: false
+        inProduction: false,
+        ignoreSync: []
     });
 
     this.register = function(name, value) {

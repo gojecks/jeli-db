@@ -34,17 +34,13 @@ DBEvent.prototype.createTbl = function(name,columns)
         _$:1 //created locally
       }));
 
-      $queryDB.stack.push(function()
-      {
-        $queryDB.$taskPerformer.updateDB(DB_NAME,name);
-      });
+      // update DB
+      jEliUpdateStorage(DB_NAME, name);
 
       /**
         broadcast event
       **/
       $queryDB.storageEventHandler.broadcast('onCreateTable',[name, columns]);
-
-      
 
       //set the result
       result.result = new jEliDBTBL($queryDB.$getTable(DB_NAME,name));

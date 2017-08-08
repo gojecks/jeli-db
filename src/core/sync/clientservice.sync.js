@@ -14,8 +14,7 @@ function clientService(appName)
       .$resolveUpdate(appName,tbl,{insert:res.data._rec})
       .then(function(_ret)
       {
-        $queryDB.$taskPerformer
-        .updateDB(appName,tbl);
+        jEliUpdateStorage(appName,tbl);
         //resolve promise
         $defer.resolve(sqlResultExtender(dbSuccessPromiseObject('select',""),_ret.insert));
       });
@@ -60,16 +59,20 @@ function clientService(appName)
   @param: options
   @return: promise
 **/
-function ProcessRequest(_options, _recordResolvers){
+function ProcessRequest(_options, resolvedTable, appName){
   var $defer = new $p();
   //perform JSON Task
     ajax(_options)
       .then(function(res)
       {
         $defer.resolve(res.data);
-        if(_recordResolvers){
+        if(resolvedTable){
           //empty our local recordResolver
-          _recordResolvers.updateTableHash(res.data.$hash);
+          $queryDB
+          .$getActiveDB(appName)
+          .$get('recordResolvers')
+          .$isResolved(resolvedTable)
+          .updateTableHash(res.data.$hash);
         }
       },function(res)
       {
@@ -88,7 +91,7 @@ clientService.prototype.put = function(tbl,data)
       _options.data.action = 'update';
       _options.type = "PUT";
 
-     return ProcessRequest(_options, $queryDB.$getActiveDB(this.appName).$get('recordResolvers').$isResolved(tbl));
+     return ProcessRequest(_options, tbl, this.appName);
 };
 
 //@Function Delete
