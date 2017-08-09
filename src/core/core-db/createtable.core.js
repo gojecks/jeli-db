@@ -40,7 +40,7 @@ DBEvent.prototype.createTbl = function(name,columns)
       /**
         broadcast event
       **/
-      $queryDB.storageEventHandler.broadcast('onCreateTable',[name, columns]);
+      $queryDB.storageEventHandler.broadcast(eventNamingIndex(DB_NAME,'onCreateTable'), [name, columns]);
 
       //set the result
       result.result = new jEliDBTBL($queryDB.$getTable(DB_NAME,name));

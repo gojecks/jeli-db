@@ -96,7 +96,7 @@
                 /**
                     broadcast event
                 **/
-                $queryDB.storageEventHandler.broadcast('onUpdate',[$self.tableInfo.TBL_NAME, rowsToUpdate]);
+                $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'update'), [$self.tableInfo.TBL_NAME, rowsToUpdate]);
 
                //empty the rows 
                 rowsToUpdate = [];

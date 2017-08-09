@@ -116,7 +116,7 @@
               /**
                   broadcast event
               **/
-              $queryDB.storageEventHandler.broadcast('onInsert',[tableInfo.TBL_NAME, processedData]);
+              $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert') ,[tableInfo.TBL_NAME, processedData]);
               
               //push records to our resolver
                   

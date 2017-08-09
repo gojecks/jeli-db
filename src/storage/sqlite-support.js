@@ -237,15 +237,16 @@ function sqliteStorage(type, config, CB)
     /**
         register to storage events
     **/
+
     $queryDB.storageEventHandler
-    .subscribe('onInsert', function(tbl, data){
+    .subscribe(eventNamingIndex(dbName, 'insert'), function(tbl, data){
       data.forEach(function(_data){
           _dbApi.insert(tbl,_data);
       });
     });
 
     $queryDB.storageEventHandler
-    .subscribe('onUpdate', function(tbl, data){
+    .subscribe(eventNamingIndex(dbName, 'update'), function(tbl, data){
       data.forEach(function(_data){
           _dbApi.update(tbl, _data," WHERE _ref='"+_data._ref+"'")
           .then(function(){},txError);
@@ -253,7 +254,7 @@ function sqliteStorage(type, config, CB)
     });
 
     $queryDB.storageEventHandler
-    .subscribe('onDelete',function(tbl, data){
+    .subscribe(eventNamingIndex(dbName, 'delete'), function(tbl, data){
         data.forEach(function(_data){
           _dbApi.delete(tbl," WHERE _ref=?", [_data._ref])
           .then(function(){
@@ -262,14 +263,22 @@ function sqliteStorage(type, config, CB)
     });
 
     $queryDB.storageEventHandler
-    .subscribe('onCreateTable', function(tableName, columns){
-      _dbApi.createTable('CREATE TABLE IF NOT EXISTS '+tableName+' (_ref unique, _data)');
-    });
+    .subscribe(eventNamingIndex(dbName, 'onCreateTable'), createTable);
+
 
     $queryDB.storageEventHandler
-    .subscribe('onDropTable', _dbApi.dropTable);
+    .subscribe(eventNamingIndex(dbName, 'onDropTable'), _dbApi.dropTable);
 
-    $queryDB.storageEventHandler.subscribe('onTruncateTable',  _dbApi.delete);
+    $queryDB.storageEventHandler.subscribe(eventNamingIndex(dbName, 'onTruncateTable'),  _dbApi.delete);
+    $queryDB.storageEventHandler.subscribe(eventNamingIndex(dbName, 'onResolveSchema'), function(tables){
+      tables.forEach(function(tbl){
+        createTable(tbl);
+      });
+    });
+
+    function createTable(tbl){
+      _dbApi.createTable('CREATE TABLE IF NOT EXISTS '+tbl+' (_ref unique, _data)');
+    }
 
 
     

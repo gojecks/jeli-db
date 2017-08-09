@@ -80,7 +80,7 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
     var $promise = new $p();
     if (db && tbl && data) {
         var tbl = this.$getTable(db, tbl),
-            types = ["update", "delete", "insert"],
+            types = ["insert", "delete", "update"],
             _task = {},
             _ret = { update: [], "delete": [], insert: [] };
 
@@ -97,7 +97,7 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
 
         _task['delete'] = function(cdata) {
             tbl.data = tbl.data.filter(function(item) {
-                _ret['delete'].push(item._data);
+                _ret['delete'].push(item._ref);
                 return !$inArray(item._ref, cdata);
             });
         };
@@ -113,6 +113,7 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
             types.forEach(function(name) {
                 if (data[name] && data[name].length) {
                     _task[name](data[name]);
+                    $queryDB.storageEventHandler.broadcast(eventNamingIndex(db, name), [tbl.TBL_NAME, data[name]]);
                 }
             });
             $promise.resolve(_ret);

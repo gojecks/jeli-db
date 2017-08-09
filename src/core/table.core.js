@@ -26,7 +26,7 @@ function jEliDBTBL(tableInfo)
       /**
           broadcast event
       **/
-      $queryDB.storageEventHandler.broadcast('onUpdate',[tableInfo.TBL_NAME, tableInfo.data]);
+      $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'update'), [tableInfo.TBL_NAME, tableInfo.data]);
        //update the DB
       jEliUpdateStorage(tableInfo.DB_NAME,tableInfo.TBL_NAME);
   };
@@ -58,9 +58,9 @@ function jEliDBTBL(tableInfo)
     /**
         broadcast event
     **/
-    $queryDB.storageEventHandler.broadcast('onTruncateTable',[tableInfo.TBL_NAME]);
+    $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'onTruncateTable'), [tableInfo.TBL_NAME]);
     //update the DB
-    jEliUpdateStorage(tableInfo.DB_NAME,tableInfo.TBL_NAME);
+    jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
     return dbSuccessPromiseObject("truncate",tableInfo.TBL_NAME +" was truncated");
   };
 
@@ -86,13 +86,13 @@ function jEliDBTBL(tableInfo)
       /**
         broadcast event
       **/
-      $queryDB.storageEventHandler.broadcast('onDropTable',[tableInfo.TBL_NAME]);
+      $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'onDropTable'), [tableInfo.TBL_NAME]);
 
       //delete the table from DB
        if($queryDB.removeTable(tableInfo.TBL_NAME,tableInfo.DB_NAME))
        {
-            //push stack
-            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+          //push stack
+          jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
        }
 
       return dbSuccessPromiseObject("drop","Table ("+tableInfo.TBL_NAME +") was dropped successfully");      
@@ -164,7 +164,7 @@ function jEliDBTBL(tableInfo)
          /**
               broadcast event
           **/
-          $queryDB.storageEventHandler.broadcast('onUpdate',[tableInfo.TBL_NAME, tableInfo.data]);
+          $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'update'), [tableInfo.TBL_NAME, tableInfo.data]);
         //update the DB
         jEliUpdateStorage(tableInfo.DB_NAME,tableInfo.TBL_NAME);
       }

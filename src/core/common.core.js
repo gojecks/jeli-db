@@ -198,3 +198,10 @@
   {
     $queryDB.$taskPerformer.updateDB.apply($queryDB.$taskPerformer, arguments);
   }
+
+  /**
+    DB event naming
+  **/
+   function eventNamingIndex(dbName, evName){
+      return "/event/"+dbName+"/"+evName;
+    }

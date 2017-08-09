@@ -34,7 +34,7 @@ function transactionDelete(query)
                 /**
                     broadcast event
                 **/
-                $queryDB.storageEventHandler.broadcast('onDelete',[$self.tableInfo.TBL_NAME, delItem]);
+                $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'delete'), [$self.tableInfo.TBL_NAME, delItem]);
 
               //return success Message
               return ({
