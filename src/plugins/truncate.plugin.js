@@ -23,7 +23,7 @@
           {
             var flag = simpleBooleanParser(query[2]),
                 state = trun.result.truncate(flag);
-            if(state.status.success)
+            if(state.status)
             {
               handler.onSuccess(state);
             }else{

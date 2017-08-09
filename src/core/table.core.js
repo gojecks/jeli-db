@@ -54,13 +54,17 @@ function jEliDBTBL(tableInfo)
       return dbErrorPromiseObject("Table ("+tableInfo.TBL_NAME+") Was not found in "+tableInfo.DB_NAME +" DataBase or invalid flag passed");
     }
 
-    tableInfo.data = [];
-    /**
-        broadcast event
-    **/
-    $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'onTruncateTable'), [tableInfo.TBL_NAME]);
     //update the DB
-    jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+    jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table){
+      table.data = [];
+      table.$hash = "";
+      table._records = table.lastInsertId = 0;
+      /**
+          broadcast event
+      **/
+      $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME,'onTruncateTable'), [tableInfo.TBL_NAME]);
+    });
+
     return dbSuccessPromiseObject("truncate",tableInfo.TBL_NAME +" was truncated");
   };
 

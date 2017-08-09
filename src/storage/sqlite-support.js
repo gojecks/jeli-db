@@ -163,9 +163,12 @@ function sqliteStorage(type, config, CB)
           ex = ex || [];
           var $promise = new $p(),
               executeQuery = "DELETE FROM "+table;
-              executeQuery+=" "+(where)?where:"";
+              if(where){
+                executeQuery+=" "+where;
+              }
+              
           privateApis.transaction(function(transaction){
-            transaction.executeSql(executeQuery, ex || [],$promise.resolve,$promise.reject);
+            transaction.executeSql(executeQuery, ex, $promise.resolve,$promise.reject);
           });
 
           return $promise;
