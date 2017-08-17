@@ -2,7 +2,7 @@
 //set a new Method $getTable()
 //Function Name : $getTable
 //@Arguments : DB_NAME {STRING}, tableName {STRING}
-function _privateApi(){
+function _privateApi() {
     //setup our DBName
     this.$dbName = "_resourceManager";
     this.accessStorage = 'jEliAccessToken';
@@ -35,12 +35,12 @@ function _privateApi(){
         return false;
     };
 
-    this.$getTableOptions = function(dbName, tableName, option){
+    this.$getTableOptions = function(dbName, tableName, option) {
         return (this.$getTable(dbName, tableName) || {})[option];
     };
 
-    this.$getDataByRef = function(data, ref){
-        return [].filter.call(data, function(item){
+    this.$getDataByRef = function(data, ref) {
+        return [].filter.call(data, function(item) {
             return item._ref === ref;
         })[0];
     };
@@ -118,14 +118,14 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
             });
             $promise.resolve(_ret);
         }
-        } else {
-            $promise.reject();
-        }
+    } else {
+        $promise.reject();
+    }
 
     return $promise;
 };
 
-_privateApi.prototype.getDbTablesNames = function(db){
+_privateApi.prototype.getDbTablesNames = function(db) {
     return Object.keys(this[db || this.$activeDB].tables);
 };
 
@@ -229,7 +229,7 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
 
 _privateApi.prototype.setStorage = function(config, callback) {
 
-    if(this.$get(this.$activeDB)){
+    if (this.$get(this.$activeDB)) {
         callback();
         return;
     }
@@ -239,51 +239,51 @@ _privateApi.prototype.setStorage = function(config, callback) {
     switch (_storage.toLowerCase()) {
         case ('indexeddb'):
             this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback));
-        break;
+            break;
         case ('sqlite'):
         case ('sqlitecipher'):
         case ('websql'):
-            if($inArray(_storage.toLowerCase(),['sqlite','sqlitecipher']) && !window.sqlitePlugin){
+            if ($inArray(_storage.toLowerCase(), ['sqlite', 'sqlitecipher']) && !window.sqlitePlugin) {
                 _storage = "websql";
             }
 
             var sqliteConfig = {
                 name: this.$activeDB,
                 location: config.location || 'default',
-                key:config.key || GUID()
+                key: config.key || GUID()
             };
 
             this.$getActiveDB().$new('_storage_', new sqliteStorage(_storage, sqliteConfig, callback).mockLocalStorage());
-        break;
+            break;
         case ('localstorage'):
         case ('sessionstorage'):
         case ('memory'):
         default:
             //setStorage
             //default storage to localStorage
-            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(_storage) );
+            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(_storage));
             callback();
-        break;
+            break;
     }
 };
 
 
-function openedDBHandler(){
+function openedDBHandler() {
     var _openedDB = {};
 
-    this.$new = function(name, value){
-        if(!_openedDB[name]){
+    this.$new = function(name, value) {
+        if (!_openedDB[name]) {
             _openedDB[name] = value;
         }
 
         return this;
     };
 
-    this.$get = function(name){
+    this.$get = function(name) {
         return _openedDB[name];
     };
 
-    this.$destroy = function(name){
+    this.$destroy = function(name) {
         _openedDB[name] = null;
     };
 }
