@@ -11,6 +11,7 @@
         limit:STRING,
         orderBy:STRING,
         groupBy:FIELD,
+        groupByStrict:FIELDS
         join:[{
           table:STRING,
           on:STRING,
@@ -41,6 +42,16 @@ function transactionSelect(selectFields, definition)
         like:"",
         join:[]
     },definition || {});
+
+
+    // check for duplicate definition
+    if(queryDefinition.groupByStrict && queryDefinition.groupBy){
+      this.setDBError("Clause: groupByStrict cannot be used with groupBy");
+    }
+
+    if(queryDefinition.groupByStrict && queryDefinition.groupByStrict.indexOf(",") < 0){
+      this.setDBError("Clause: groupByStrict requires two fields for matching");
+    }
 
 
       //@Function Name processQueryData
@@ -341,6 +352,10 @@ function transactionSelect(selectFields, definition)
           },
           execute = function(condition){
             return $self.execute(condition)
+          },
+          groupByStrict = function(groupKey){
+            queryDefinition.groupByStrict = groupKey;
+             return publicApi;
           };
 
 

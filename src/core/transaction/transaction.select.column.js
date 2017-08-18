@@ -27,9 +27,12 @@ function transactionSelectColumn(data, definition) {
                 cdata = cdata.reverse();
             },
             limit: function() {
-                if (!definition.groupBy) {
+                if (!definition.groupBy && !definition.groupByStrict) {
                     cdata = limitTask(cdata);
                 }
+            },
+            groupByStrict : function(){
+                cdata = groupByTask(cdata, true);
             }
         };
 
@@ -44,18 +47,25 @@ function transactionSelectColumn(data, definition) {
         return data.splice(parseInt(definition.limit.split(',')[0]), parseInt(definition.limit.split(',')[1]));
     }
 
-    function groupByTask(cData) {
-        var ret = {},
-            _groupSplit = definition.groupBy.split(",");
-        cData.forEach(function(item) {
-            var cMatch = "";
-            _groupSplit.forEach(function(key) {
-                cMatch += item[key] + ":";
-            });
 
-            if (!ret[cMatch]) {
-                ret[cMatch] = [];
+    function groupByTask(cData, strict) {
+        var ret = {},
+            _groupSplit = (definition.groupBy || definition.groupByStrict).split(",");
+        cData.forEach(function(item) {
+            var cMatch = _groupSplit.map(function(key) {
+                return item[key];
+            }).join(":"),
+                cMatch2 = cMatch.split(":").reverse().join(":");
+
+            if(strict){
+                if(!ret[cMatch] && ret[cMatch2]){
+                    cMatch = cMatch2;
+                }
             }
+
+            if(!ret[cMatch]){
+                ret[cMatch] = [];
+            }            
 
             ret[cMatch].push(item);
         });
@@ -68,7 +78,7 @@ function transactionSelectColumn(data, definition) {
             return ret[key];
         });
 
-        ret = null;
+        ret= null;
 
         return cData;
     }

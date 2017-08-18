@@ -15,7 +15,11 @@ function DBRecordResolvers(name)
       var recordsToSync = jEliDeepCopy(_records[name][tbl]);
       Object.keys(recordsToSync.data).map(function(cType){
          Object.keys(recordsToSync.data[cType]).map(function(ref){
-          recordsToSync.data[cType][ref] = $queryDB.$getDataByRef($queryDB.$getTableOptions(name, tbl, 'data') || [], ref);
+          if($isEqual(cType,"delete")){
+            recordsToSync.data[cType][ref] = true;
+          }else{
+            recordsToSync.data[cType][ref] = $queryDB.$getDataByRef($queryDB.$getTableOptions(name, tbl, 'data') || [], ref);
+          }
         });
       });
 

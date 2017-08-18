@@ -7,22 +7,18 @@ jEliDB.plugins.jQl('delete',{
 
 //create -tablename -columns
 function deletePluginFn(query,handler){
-	var table = query[1],
-          condition = setCondition(query),
-          result = false;
-
 	return function(db)
     {
-      if(table && condition)
+      if(query[1])
       {
         db
-        .transaction(table,'writeonly')
+        .transaction(query[1],'writeonly')
         .onSuccess(function(del)
         {
           del
           .result
-          .delete(condition)
-          .execute()
+          .delete(query[3])
+          .execute(query[4])
           .onSuccess(handler.onSuccess)
           .onError(handler.onError)
         })
