@@ -31,7 +31,7 @@ function transactionSelectColumn(data, definition) {
                     cdata = limitTask(cdata);
                 }
             },
-            groupByStrict : function(){
+            groupByStrict: function() {
                 cdata = groupByTask(cdata, true);
             }
         };
@@ -53,19 +53,19 @@ function transactionSelectColumn(data, definition) {
             _groupSplit = (definition.groupBy || definition.groupByStrict).split(",");
         cData.forEach(function(item) {
             var cMatch = _groupSplit.map(function(key) {
-                return item[key];
-            }).join(":"),
+                    return item[key];
+                }).join(":"),
                 cMatch2 = cMatch.split(":").reverse().join(":");
 
-            if(strict){
-                if(!ret[cMatch] && ret[cMatch2]){
+            if (strict) {
+                if (!ret[cMatch] && ret[cMatch2]) {
                     cMatch = cMatch2;
                 }
             }
 
-            if(!ret[cMatch]){
+            if (!ret[cMatch]) {
                 ret[cMatch] = [];
-            }            
+            }
 
             ret[cMatch].push(item);
         });
@@ -78,7 +78,7 @@ function transactionSelectColumn(data, definition) {
             return ret[key];
         });
 
-        ret= null;
+        ret = null;
 
         return cData;
     }
@@ -203,7 +203,7 @@ function transactionSelectColumn(data, definition) {
             if ($isEqual(field, '*')) {
                 odata[_as] = cData[tCol] || cData;
             } else {
-                odata[_as] = setFieldValue($removeWhiteSpace(columns[_cLen].split("as")[0]), cData);
+                odata[_as] = setFieldValue($removeWhiteSpace(columns[_cLen].split(" as ")[0]), cData);
             }
 
             fnd++;
