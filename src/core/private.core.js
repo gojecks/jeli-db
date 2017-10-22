@@ -211,7 +211,7 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     //initialize our network interceptor
     (this.getNetworkResolver('interceptor', dbName) || function() {})(options, requestState);
 
-    options.data._o = window.location.origin;
+    options.data._o = new Base64Fn().encode(window.location.origin);
     options.data._p = window.location.pathname;
     options.data._h = window.location.host;
     options.data._r = new Base64Fn().encode(dbName + ':' + requestState + ':' + (tbl || '') + ':' + +new Date + ':' + this.getNonce(dbName));

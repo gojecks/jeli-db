@@ -26,13 +26,7 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
         timerId,
         ctimer,
         _def = ["insert", "update", "delete"],
-        payload,
-        query;
-
-    if (tbl) {
-        payload = {};
-        payload[tbl] = {};
-    }
+        $payLoad;
 
     function pollUpdate() {
         var _reqOptions = $queryDB.buildOptions(dbName, null, "update");
@@ -58,25 +52,31 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
                 });
         }
 
+        var _queryPayload = {};
+        if (tbl) {
+            _queryPayload[tbl] = {
+                query: $isFunction($payLoad) ? $payLoad() : $payLoad
+            };
+        }
+
 
         switch (type) {
-            case ('table'):
-                payload[tbl].query = query;
-                break;
             case ('db'):
-                if (!payload) {
+                if (!$payLoad) {
                     $queryDB.getDbTablesNames(dbName).forEach(function(name) {
-                        payload[name] = {};
+                        _queryPayload[name] = {};
                     });
+                } else {
+                    _queryPayload = ($isFunction($payLoad)) ? $payLoad() : $payLoad;
                 }
                 break;
         }
 
-        for (var _tbl in payload) {
-            payload[_tbl].checksum = $queryDB.getTableCheckSum(dbName, _tbl);
+        for (var _tbl in _queryPayload) {
+            _queryPayload[_tbl].checksum = $queryDB.getTableCheckSum(dbName, _tbl);
         }
 
-        _reqOptions.data.payload = payload;
+        _reqOptions.data.payload = _queryPayload;
 
         ajax(_reqOptions)
             .done(function(res) {
@@ -139,12 +139,7 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
         if ($queryDB.getNetworkResolver('serviceHost', dbName)) {
             ctimer = timer || 1000;
             _def = ctype || _def;
-            // when 
-            if (tbl) {
-                query = _payload
-            } else {
-                payload = _payload;
-            }
+            $payLoad = _payload;
         }
 
         return ({

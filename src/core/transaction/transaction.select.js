@@ -1,28 +1,28 @@
     /**
-          #Transaction.select(query, [definition])
-          @params query {STRING}
-          @params definition {OBJECT}
+                                                                                  #Transaction.select(query, [definition])
+                                                                                  @params query {STRING}
+                                                                                  @params definition {OBJECT}
 
-          Perform query on selected Table and return the Data that matches the query
-          -query : select -* -TBL_NAME
-          -definition: {
-            where:STRING,
-            like:STRING,
-            limit:STRING,
-            orderBy:STRING,
-            groupBy:FIELD,
-            groupByStrict:FIELDS
-            join:[{
-              table:STRING,
-              on:STRING,
-              type:STRING (INNER,OUTER,LEFT,RIGHT),
-              where:{},
-              feilds:{ //OPTIONAL
-                
-              }
-            }]
-          }
-        **/
+                                                                                  Perform query on selected Table and return the Data that matches the query
+                                                                                  -query : select -* -TBL_NAME
+                                                                                  -definition: {
+                                                                                    where:STRING,
+                                                                                    like:STRING,
+                                                                                    limit:STRING,
+                                                                                    orderBy:STRING,
+                                                                                    groupBy:FIELD,
+                                                                                    groupByStrict:FIELDS
+                                                                                    join:[{
+                                                                                      table:STRING,
+                                                                                      on:STRING,
+                                                                                      type:STRING (INNER,OUTER,LEFT,RIGHT),
+                                                                                      where:{},
+                                                                                      feilds:{ //OPTIONAL
+                                                                                        
+                                                                                      }
+                                                                                    }]
+                                                                                  }
+                                                                                **/
     function transactionSelect(selectFields, definition) {
         var $self = this,
             _sData = [],
@@ -78,52 +78,51 @@
             });
         }
 
+
         //FUnction for Join Clause
         //@Function Name : setJoinTypeFn
         //@Argument : BOOLEAN true:false
         //@return Function(resolver)
-        function setJoinTypeFn(processed, processedData, totalRecord, counter) {
+        function setJoinTypeFn(processed, processedData, totalRecord, idx, resolver, clause, joinType) {
             //INNER JOIN FN
             //@argument resolver {OBJECT}
-            return function(resolver, clause, joinType) {
-                switch (joinType) {
-                    //INNER JOIN FN
+            switch (joinType) {
+                //INNER JOIN FN
+                //@argument resolver {OBJECT}
+                case ('inner'):
+                    if (processed) {
+                        _sData.push(resolver);
+                    }
+                    break;
+                    //LEFT JOIN FN
+                    //RIGHT JOIN FN
                     //@argument resolver {OBJECT}
-                    case ('inner'):
-                        if (processed) {
-                            _sData.push(resolver);
-                        }
-                        break;
-                        //LEFT JOIN FN
-                        //RIGHT JOIN FN
-                        //@argument resolver {OBJECT}
-                    case ('left'):
-                    case ('right'):
-                        //push all left table to array
-                        if (!processed) {
-                            _sData.push(resolver);
-                        } else {
-                            _sData.push.apply(_sData, processedData)
-                        }
-                        break;
+                case ('left'):
+                case ('right'):
+                    //push all left table to array
+                    if (!processed) {
+                        _sData[idx] = extend(true, resolver, _sData[idx] || {});
+                    } else {
+                        _sData[idx] = extend(true, processedData[0], _sData[idx] || {});
+                    }
+                    break;
 
-                        //OUTTER JOIN FN
-                        //@argument resolver {OBJECT}
-                        //Algorithm : Match the lefttable before right
-                    case ('outer'):
-                        if (expect(clause).contains('left')) {
-                            if (!processed) {
-                                _sData.push(resolver);
-                            } else {
-                                _sData.push.apply(_sData, processedData)
-                            }
+                    //OUTTER JOIN FN
+                    //@argument resolver {OBJECT}
+                    //Algorithm : Match the lefttable before right
+                case ('outer'):
+                    if (expect(clause).contains('left')) {
+                        if (!processed) {
+                            _sData[idx] = extend(true, resolver, _sData[idx] || {});
                         } else {
-                            if (!processed) {
-                                _sData.push(resolver);
-                            }
+                            _sData[idx] = extend(true, processedData[0], _sData[idx] || {});
                         }
-                        break;
-                }
+                    } else {
+                        if (!processed) {
+                            _sData[idx] = extend(true, resolver, _sData[idx] || {});
+                        }
+                    }
+                    break;
             }
         }
 
@@ -187,8 +186,8 @@
                     return true
                 });
 
+                setJoinTypeFn($isFound, $foundObj, totalLeftRecord, lIdx, resObject, clause, joinObj.clause);
                 counter++;
-                setJoinTypeFn($isFound, $foundObj, totalLeftRecord, counter)(resObject, clause, joinObj.clause);
                 return true
             });
 
