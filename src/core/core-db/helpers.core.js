@@ -1,25 +1,20 @@
 //DB helper
-function jCMDHelpers()
-{
+function jCMDHelpers() {
     var list = [];
     //env
-    this.add = function(help)
-    {
+    this.add = function(help) {
         list.push(help);
     };
 
-    this.get = function()
-    {
-      return list;
+    this.get = function() {
+        return list;
     };
 
-    this.overwrite = function(helps)
-    {
-        if($isArray(helps) && helps.length)
-        {
-          list = helps;
+    this.overwrite = function(helps) {
+        if ($isArray(helps) && helps.length) {
+            list = helps;
         }
     };
 }
 
-DBEvent.prototype.jDBHelpers =  new jCMDHelpers();
+DBEvent.prototype.jDBHelpers = new jCMDHelpers();

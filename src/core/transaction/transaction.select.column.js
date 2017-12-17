@@ -1,15 +1,14 @@
 //get table column
 function transactionSelectColumn(data, definition) {
     //set the data to get column info from
-    var columns = definition.fields.split(','),
+    var columns = (definition.fields || "").split(','),
         retData = [],
+        requiredFields = [],
         data = getTableData(),
-        d,
         $self = this,
         replacer = function(str) {
             return str.replace(/\((.*?)\)/, "|$1").split("|");
         };
-
     /**
         @perFormLimitTask
         -Task
@@ -23,8 +22,29 @@ function transactionSelectColumn(data, definition) {
             groupBy: function() {
                 cdata = groupByTask(cdata);
             },
-            orderBy: function() {
-                cdata = cdata.reverse();
+            orderBy: function(propertyName) {
+                var _queryApi = new $query(cdata),
+                    newList,
+                    order = 'ASC';
+
+                /**
+                 * set reverse options if defined
+                 * only when been used as filter options in expressions
+                 */
+                if (expect(propertyName).contains(':')) {
+                    order = $removeWhiteSpace(propertyName.split(":")[1]);
+                }
+
+                /**
+                 * sort option accepts multiple property
+                 * split the properties into array
+                 * as method params
+                 */
+                newList = _queryApi.sortBy.apply(_queryApi, propertyName.split(":")[0].split(","));
+                if ($isEqual(order, 'DESC')) {
+                    newList.reverse();
+                }
+                return newList;
             },
             limit: function() {
                 if (!definition.groupBy && !definition.groupByStrict) {
@@ -36,8 +56,10 @@ function transactionSelectColumn(data, definition) {
             }
         };
 
-        Object.keys(definition).map(function(key) {
-            (actions[key] || function() {})();
+        Object.keys(actions).map(function(key) {
+            if (definition[key]) {
+                actions[key](definition[key]);
+            };
         });
 
         return copy(cdata, true);
@@ -83,31 +105,6 @@ function transactionSelectColumn(data, definition) {
         return cData;
     }
 
-    //loop through the data
-    //return the required column
-    if (!$isEqual(definition.fields, '*')) {
-        for (d in data) {
-            setColumnData();
-        }
-    } else {
-        return performOrderLimitTask(data);
-    }
-
-
-    //Function getTbale data
-    function getTableData() {
-        //return data when its defined
-        if ($isArray(data)) {
-            return data;
-        } else if ($self.tableInfo.data) //return data when single table search
-        {
-            return $self.tableInfo.data;
-        } else if ($isString(data)) {
-            return $self.tableInfo[data].data;
-        }
-
-        return [];
-    }
 
     /**
         JDB Private FIELD VALUES
@@ -129,55 +126,61 @@ function transactionSelectColumn(data, definition) {
           return FIELD_VALUE
     **/
 
+    var _privateApi = {
+        COUNT: function(cdata) {
+            return cdata.length
+        },
+        LOWERCASE: function(cdata, field) {
+            return cdata[field].toLowerCase();
+        },
+        UPPERCASE: function(cdata, field) {
+            return cdata[field].toUpperCase();
+        },
+        CURDATE: function() {
+            return new Date().toLocaleString();
+        },
+        TIMESTAMP: function(cdata, field) {
+            return new Date(cdata[field]).getTime();
+        },
+        DATE_DIFF: function(cdata, field) {
+            return new Date(cdata[field.split(',')[0]]) - new Date(cdata[field.split(',')[1]]);
+        },
+        CASE: function(cdata, field) {
+            return maskedEval(field.replace(new RegExp("when", "gi"), "").replace(new RegExp("then", "gi"), "?").replace(new RegExp("else", "gi"), ":"), cdata);
+        },
+        GET: function(cdata, field) {
+            return $modelSetterGetter(field, cdata);
+        }
+    };
 
-
-    function setFieldValue(field, cdata) {
+    function _custom(field) {
         field = replacer(field);
-
-        var privateApi = {
-            COUNT: function() {
-                return data.length
-            },
-            LOWERCASE: function() {
-                return cdata[field[1]].toLowerCase();
-            },
-            UPPERCASE: function() {
-                return cdata[field[1]].toUpperCase();
-            },
-            CURDATE: function() {
-                return new Date().toLocaleString();
-            },
-            TIMESTAMP: function() {
-                return new Date(cdata[field[1]]).getTime();
-            },
-            DATE_DIFF: function() {
-                return new Date(cdata[field[1].split(',')[0]]) - new Date(cdata[field[1].split(',')[1]]);
-            },
-            CASE: function() {
-                return maskedEval(field[1].replace(new RegExp("when", "gi"), "").replace(new RegExp("then", "gi"), "?").replace(new RegExp("else", "gi"), ":"), cdata);
-            },
-            GET: function() {
-                return maskedEval(field[1], cdata);
-            }
+        return function(cdata) {
+            return ((_privateApi[field[0]] && !cdata.hasOwnProperty(field[0])) ? _privateApi[field[0]](cdata, field[1]) : _privateApi.GET(cdata, field[0]));
         };
-
-        return ((privateApi[field[0]] && !cdata.hasOwnProperty(field[0])) ? privateApi[field[0]]() : maskedEval(field[0], cdata));
     }
 
+    //loop through the data
+    //return the required column
+    if (!$isEqual(definition.fields, '*') && definition.fields) {
+        buildColumn();
+        expect(data).each(setColumnData);
+    } else {
+        return performOrderLimitTask(data);
+    }
 
-    //set the object to be returned
-    function setColumnData() {
-        var odata = {},
-            fnd = 0,
-            _cLen = columns.length;
+    /**
+     * Generate column required column for mapping
+     */
+    function buildColumn() {
+        var _cLen = columns.length;
         while (_cLen--) {
             var aCol = replacer(columns[_cLen]);
             aCol = aCol[1] || aCol[0];
 
             var
                 fieldName = aCol.split(' as '),
-                tCol,
-                cData = data[d];
+                tCol;
 
 
             //if fieldName contains table name
@@ -199,19 +202,53 @@ function transactionSelectColumn(data, definition) {
                 _as = fieldName.pop(),
                 field = fieldName.length ? fieldName.shift() : _as;
 
-            //set the data
-            if ($isEqual(field, '*')) {
-                odata[_as] = cData[tCol] || cData;
+            requiredFields.push({
+                _as: _as,
+                custom: _custom($removeWhiteSpace(columns[_cLen].split(" as ")[0])),
+                field: field,
+                tCol: tCol
+            });
+        }
+    }
+
+
+    //Function getTbale data
+    function getTableData() {
+        //return data when its defined
+        if ($isArray(data)) {
+            return data;
+        } else if ($self.tableInfo.data) //return data when single table search
+        {
+            return $self.tableInfo.data;
+        } else if ($isString(data)) {
+            return $self.tableInfo[data].data;
+        }
+
+        return [];
+    }
+
+
+
+    //set the object to be returned
+    function setColumnData(cData) {
+        var odata = {},
+            fnd = 0,
+            len = requiredFields.length;
+
+
+        //set the data
+        while (len > fnd) {
+            var _curField = requiredFields[fnd];
+            if ($isEqual(_curField.field, '*')) {
+                odata[_curField.tCol] = cData[_curField.tCol] || cData;
             } else {
-                odata[_as] = setFieldValue($removeWhiteSpace(columns[_cLen].split(" as ")[0]), cData);
+                odata[_curField._as] = _curField.custom(cData);
             }
 
             fnd++;
         }
 
-        if (fnd && !(JSON.stringify(retData).indexOf(JSON.stringify(odata)) > -1)) {
-            retData.push(odata);
-        }
+        retData.push(odata);
     }
 
     //return the data

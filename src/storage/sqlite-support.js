@@ -221,6 +221,10 @@ function sqliteStorage(type, config, CB) {
     };
 
 
+    /**
+     * 
+     * @param {*} obj 
+     */
     function removeTableData(obj) {
         var tableNames = Object.keys(obj.tables);
 
@@ -258,7 +262,7 @@ function sqliteStorage(type, config, CB) {
     $queryDB.storageEventHandler
         .subscribe(eventNamingIndex(dbName, 'delete'), function(tbl, data) {
             data.forEach(function(_data) {
-                _dbApi.delete(tbl, " WHERE _ref=?", [_data._ref])
+                _dbApi.delete(tbl, " WHERE _ref=?", [_data._ref || _data])
                     .then(function() {}, txError);
             });
         });

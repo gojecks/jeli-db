@@ -27,6 +27,15 @@ function $query(data) {
         return data;
     };
 
+
+    function compare(property) {
+        var sortOrder = 1;
+        return function(a, b) {
+            var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+            return result * sortOrder;
+        };
+    }
+
     this.where = function(logic, callback) {
         if ($isArray(data) && logic) {
             var filter = $removeWhiteSpace(logic).split(/(?:like):/gi);
@@ -47,37 +56,30 @@ function $query(data) {
 
 
     this._ = function(logic, callback, matcher) {
-        var _search = [];
-        if ($isArray(data)) {
-            var _setLogicPerformer = new externalQuery(logic);
-
-            //Query the required Data
-            //Match the Result with Logic
-            //@return : ARRAY Search result
-            expect(data).search(null, function(item, idx) {
-                var found = _setLogicPerformer(item, idx);
-                if (found) {
-                    if ($isFunction(callback)) {
-                        callback(item, idx);
-                    } else {
-                        _search.push(item._data || item);
-                    }
-                }
-            });
-
-            return _search;
+        /**
+         * return data when logic is undefined
+         */
+        if (!logic) {
+            return data;
         }
 
-        return data;
-    };
+        var _search = [],
+            _setLogicPerformer = externalQuery(logic);
+        //Query the required Data
+        //Match the Result with Logic
+        //@return : ARRAY Search result
+        expect(data).each(function(item, idx) {
+            if (_setLogicPerformer.call(null, item, idx)) {
+                if ($isFunction(callback)) {
+                    callback(item, idx);
+                } else {
+                    _search.push(item._data || item);
+                }
+            }
+        });
 
-    function compare(property) {
-        var sortOrder = 1;
-        return function(a, b) {
-            var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
-            return result * sortOrder;
-        };
-    }
+        return _search;
+    };
 }
 
 
@@ -85,140 +87,170 @@ function $query(data) {
 //@param : string
 //@return : Function
 
-function externalQuery(logic) {
+function externalQuery(logic, replacer) {
     var keyLen,
         pCondition;
 
-    //parse Condition
-    function _parseCondition(condition) {
-        var ret = { like: [], normal: [] };
-        for (var a in condition) {
-            if (condition[a]) {
-                var cCheck = condition[a].split(/:(?:like):/gi),
-                    cret = { exp: condition[a], task: cCheck }; //split the like condition
-                if (cCheck.length > 1) { //Like Condition found
-                    ret.like.push(cret);
-                } else {
-                    ret.normal.push(cret);
-                }
-            }
-        }
-
-        return ret;
-    }
-
-    function queryMatcher($query, $val) {
-        if ($isObject($query)) {
-            for (var q in $query) {
-                var _val = $query[q];
-                switch (q) {
-                    case ("$lte"):
-                        return _val <= $val;
-                        break;
-                    case ("$gte"):
-                        return _val >= $val;
-                        break;
-                    case ('$lt'):
-                        return _val < $val;
-                        break;
-                    case ('$gt'):
-                        return _val > $val;
-                        break;
-                    case ('$inArray'):
-                        return $inArray(_val, $val || []);
-                        break;
-                    case ('$notInArray'):
-                        return !$inArray(_val, $val || []);
-                        break;
-                    case ('$is'):
-                        return $isEqual(_val, $val);
-                        break;
-                    case ('$not'):
-                        return !$isEqual(_val, $val);
-                        break;
-                    case ('$isDefined'):
-                        return $isEqual(_val, !$isEmpty($val));
-                        break;
-                }
-            }
-        } else {
-            return $query == $val;
-        }
-    }
 
     function jsonMatcher(res1, res2) {
         return JSON.stringify(res1) == JSON.stringify(res2);
     }
 
-    this.objectQueryTaskPerformer = function(item) {
+    function objectQueryTaskPerformer(item) {
         var found = 0;
         //Loop through the logic
         //match found item
         var matcher = item._data || item;
-        for (var op in logic) {
-            var _res1 = logic[op],
-                _res2 = maskedEval(op, matcher);
-
-            if ($isObject(_res2)) {
-                if (jsonMatcher(_res1, _res2)) {
-                    found++;
-                }
-            } else {
-                if (queryMatcher(_res1, _res2)) {
-                    found++;
-                }
+        expect(logic).each(function(_res1, op) {
+            if (queryMatcher(_res1, $modelSetterGetter(op, matcher), matcher)) {
+                found++;
             }
-        }
+        });
 
         return keyLen === found;
     };
 
-    this.likeQueryTaskPerformer = function(item, idx) {
-        var found = false,
-            cLogic = logic;
-        //Loop through the logic
-        //match found item
-        var lLen = pCondition.like.length,
-            matcher = item._data || item;
-
-        while (lLen--) {
-            var cur = String(maskedEval(pCondition.like[lLen].task[0], item._data || item)),
-                fnd = (cur.toLowerCase().search(String(pCondition.like[lLen].task[1]).toLowerCase())) > -1;
-
-            cLogic = cLogic.replace(pCondition.like[lLen].exp, fnd);
-        }
-
-        if (pCondition.normal.length) {
-            var lLen = pCondition.normal.length;
-            while (lLen--) {
-                cLogic = cLogic.replace(pCondition.normal[lLen].exp, maskedEval(pCondition.normal[lLen].task[0], matcher));
-            }
-        }
-
-        return maskedEval(cLogic);
-    };
-
-    this.normalQueryTaskPerformer = function(item) {
-        return maskedEval(logic, (item._data || item));
-    };
-
     if (logic) {
-        if ($isObject(logic)) {
-            keyLen = Object.keys(logic).length;
-            return this.objectQueryTaskPerformer;
-        } else {
-            logic = $removeWhiteSpace(logic);
-            pCondition = _parseCondition(logic.split(/[&&||]/gi));
-            if (pCondition.like.length) {
-                return this.likeQueryTaskPerformer;
-            } else {
-                return this.normalQueryTaskPerformer;
-            }
+        if (!$isObject(logic)) {
+            logic = _parseCondition(splitStringCondition(logic), replacer);
         }
-    } else {
-        return function() {
-            //push data into _search
-            return true;
+        keyLen = Object.keys(logic).length;
+        return objectQueryTaskPerformer;
+    }
+}
+/**
+ * 
+ * @param {*} condition 
+ */
+function _parseCondition(condition, replacer) {
+    var ret = {},
+        len = condition.length;
+    while (len--) {
+        if (condition[len]) {
+            cCheck = condition[len].split(/:(?:like):/gi);
+            if (cCheck.length > 1) { //Like Condition found
+                ret[cCheck[0]] = { "$lk": cCheck[1] }
+            } else {
+                ret = extend(ret, convertExpressionStringToObject(condition[len], replacer));
+            }
         }
     }
+
+    return ret;
+}
+
+/**
+ * 
+ * @param {*} query 
+ * @param {*} val 
+ */
+function queryMatcher($query, $val, item) {
+    var _fnd = false;
+    if ($isObject($query)) {
+        var q = Object.keys($query)[0],
+            _val = $modelSetterGetter($query[q], item) || $query[q];
+
+
+        switch (q) {
+            case ("$lte"):
+                _fnd = $val <= _val;
+                break;
+            case ("$gte"):
+                _fnd = $val >= _val;
+                break;
+            case ('$lt'):
+                _fnd = $val < _val;
+                break;
+            case ('$gt'):
+                _fnd = $val > _val;
+                break;
+            case ('$inArray'):
+            case ('$lk'):
+                _fnd = $inArray(_val, $val || []);
+                break;
+            case ('$notInArray'):
+                _fnd = !$inArray(_val, $val || []);
+                break;
+            case ('$is'):
+                _fnd = $isEqual(_val, $val);
+                break;
+            case ('$not'):
+                _fnd = !$isEqual(_val, $val);
+                break;
+            case ('$isDefined'):
+                _fnd = $isEqual(_val, !$isEmpty($val));
+                break;
+            case ('$isNot'):
+                _fnd = _val != $val;
+                break;
+            case ('$isEqual'):
+                _fnd = _val == $val;
+                break;
+            case ('$!'):
+                _fnd = !!$val
+                break;
+        }
+
+        return _fnd;
+    } else if ($isObject($val)) {
+        return jsonMatcher($query, $val);
+    }
+
+    return $query == $val;
+}
+
+/**
+ * 
+ * @param {*} expression 
+ */
+
+function convertExpressionStringToObject(expression, replacer) {
+    var exp = expression.split(/([|()=<>!*+//&-])/ig),
+        start = exp.shift(),
+        end = exp.pop(),
+        operand = exp.join(''),
+        _cond = {};
+    _cond[start || end] = {};
+
+    /**
+     * parse end value before writing
+     */
+    if (end) {
+        var _end = $modelSetterGetter(end, replacer || {}) || jSonParser(end);
+    }
+
+    switch (operand) {
+        case ("==="):
+            _cond[start]['$is'] = _end;
+            break;
+        case ("=="):
+        case ("="):
+            _cond[start]['$isEqual'] = end;
+            break;
+        case (">="):
+            _cond[start]['$gte'] = _end;
+            break;
+        case (">"):
+            _cond[start]['$gt'] = _end;
+            break;
+        case ("<="):
+            _cond[start]['$lte'] = _end;
+            break;
+        case ("<"):
+            _cond[start]['$lt'] = _end;
+            break;
+        case ("!=="):
+            _cond[start]['$not'] = _end;
+            break;
+        case ("!="):
+            _cond[start]['$isNot'] = _end;
+            break;
+        case ("!"):
+            _cond[end]["$!"] = false;
+            break;
+        default:
+            _cond[start]['$!'] = true;
+            break;
+    }
+    return _cond;
 }

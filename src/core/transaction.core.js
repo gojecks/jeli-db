@@ -60,6 +60,12 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
 
         this.select = transactionSelect;
         this.getColumn = transactionSelectColumn;
+
+        /**
+         * Quick Search Language
+         */
+        this.qsl = new generateQuickSearchApi(this);
+
     }
 
     /**
@@ -70,6 +76,33 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
             _recordResolvers
                 .$set(tableInfo.TBL_NAME)
                 .data(type, [].map.call(data, function(item) { return item._ref; }));
+        }
+    };
+
+
+    function generateQuickSearchApi(_super) {
+        var self = this;
+        if (!_super.isMultipleTable) {
+            expect(_super.tableInfo.columns[0]).each(function(column, columnName) {
+                self['findby' + columnName] = buildQuery(columnName);
+            });
+        } else {
+            self.findByColumn = buildQuery;
+        }
+
+
+        function buildQuery(columnName) {
+            return function(value, table) {
+                if (_super.isMultipleTable && !table) {
+                    errorBuilder('Current state is having multiple table, please specify the table');
+                }
+
+                return _super.select('*', {
+                        where: columnName + "==" + value
+                    })
+                    .execute();
+
+            }
         }
     }
 }

@@ -25,8 +25,10 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
     var _callback = function() {},
         timerId,
         ctimer,
+        destroyed = false,
         _def = ["insert", "update", "delete"],
-        $payLoad;
+        $payLoad,
+        withRef = false;
 
     function pollUpdate() {
         var _reqOptions = $queryDB.buildOptions(dbName, null, "update");
@@ -37,7 +39,7 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
 
         function resolvePromise(_tbl, _data) {
             $queryDB
-                .$resolveUpdate(dbName, _tbl, _data, true)
+                .$resolveUpdate(dbName, _tbl, _data, withRef)
                 .then(function(cdata) {
                     $queryDB
                         .$taskPerformer
@@ -124,6 +126,8 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
     }
 
     function polling(start) {
+        if (destroyed) { return; }
+
         timerId = setTimeout(function() {
             pollUpdate();
         }, start || ctimer);
@@ -144,7 +148,12 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
 
         return ({
             disconnect: function() {
+                destroyed = true;
                 clearTimeout(timerId);
+            },
+            withRef: function(allow) {
+                withRef = allow;
+                return this;
             },
             start: function(start) {
                 polling(start);

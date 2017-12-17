@@ -13,24 +13,38 @@ function _privateApi() {
     this.openedDB = new openedDBHandler();
     this.$setActiveDB = function(name) {
         // open the DB
-        this.openedDB.$new(name, new openedDBHandler());
-
+        this.openedDB.$new(name, new openedDBHandler({ open: false }));
         this.$activeDB = name;
         return this;
     };
 
     this.$set = function(name, data) {
-        this[name] = data;
+        this.openedDB.$get(name).$set('_db_', data);
         return this;
     };
 
-    this.$get = function(name) {
-        return this[name];
+    this.$get = function(name, properties) {
+        var _db = this.openedDB.$get(name).$get('_db_');
+
+        if (_db && properties) {
+            if ($isArray(properties)) {
+                var _ret = {};
+                properties.forEach(function(key) {
+                    _ret[key] = _db[key];
+                });
+
+                return _ret;
+            }
+
+            return _db[properties];
+        }
+
+        return _db;
     };
 
     this.$getTable = function(dbName, tableName) {
-        if (tableName && dbName && this[dbName] && this[dbName].tables[tableName]) {
-            return this[dbName].tables[tableName]
+        if (this.$get(dbName, 'tables').hasOwnProperty(tableName)) {
+            return this.$get(dbName, 'tables')[tableName];
         }
         return false;
     };
@@ -46,7 +60,7 @@ function _privateApi() {
     };
 
     this.removeTable = function(tbl, db) {
-        return delete this[db].tables[tbl];
+        return delete this.$get(db, 'tables')[tbl];
     };
 
     this.storageEventHandler = new $eventStacks();
@@ -85,9 +99,9 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
             _ret = { update: [], "delete": [], insert: [] };
 
         _task.update = function(cdata) {
-            expect(tbl.data).search(null, function(item, idx) {
+            expect(tbl.data).each(function(item, idx) {
                 _ret.update.push(item._data);
-                cdata.forEach(function(obj) {
+                expect(cdata).each(function(obj) {
                     if (item._ref === obj._ref) {
                         tbl.data[idx] = obj;
                     }
@@ -103,7 +117,7 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
         };
 
         _task.insert = function(cdata) {
-            cdata.forEach(function(obj) {
+            expect(cdata).each(function(obj) {
                 tbl.data.push(obj);
                 _ret.insert.push(obj._data);
             });
@@ -126,12 +140,15 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
 };
 
 _privateApi.prototype.getDbTablesNames = function(db) {
-    return Object.keys(this[db || this.$activeDB].tables);
+    return Object.keys(this.$get(db || this.$activeDB, 'tables'));
 };
 
 _privateApi.prototype.removeDB = function(db) {
-    if (this[db]) {
-        delete this[db];
+    var _dbApi = this.$getActiveDB(db);
+    if (_dbApi.$get('open')) {
+        _dbApi
+            .$destroy('_db_')
+            .$set('open', false)
         delStorageItem(db);
         updateDeletedRecord('database', { name: db });
         return dbSuccessPromiseObject('drop', 'Database(' + db + ') have been dropped');
@@ -140,13 +157,13 @@ _privateApi.prototype.removeDB = function(db) {
     return dbErrorPromiseObject('Unable to drop Database(' + db + ')');
 };
 
-_privateApi.prototype.$newTable = function(db, tbl, obj) {
-    this[db].tables[tbl] = obj;
+_privateApi.prototype.$newTable = function(db, tbl, tableDefinition) {
+    this.$get(db, 'tables')[tbl] = tableDefinition;
     return true;
 };
 
 _privateApi.prototype.$updateTableData = function(tbl, data) {
-    var tblRecord = this[this.$activeDB].tables[tbl];
+    var tblRecord = this.$getTable(this.$activeDB, tbl);
     if (tblRecord) {
         tblRecord.data.push.apply(tblRecord.data, data);
     }
@@ -159,13 +176,19 @@ _privateApi.prototype.getTableCheckSum = function(db, tbl) {
 };
 
 _privateApi.prototype.isOpen = function(name) {
-    if (this.$get(name)) {
+    if (this.openedDB.$get(name).$get('open')) {
         return true
     }
 
-    this.openedDB.$get(name).$new('resolvers', new openedDBResolvers());
-    this.openedDB.$get(name).$new('resourceManager', new resourceManager(name));
-    this.openedDB.$get(name).$new('recordResolvers', new DBRecordResolvers(name));
+    this.openedDB
+        .$get(name)
+        .$set('open', true)
+        .$set('$tableExist', function(table) {
+            return $queryDB.$get(name, 'tables').hasOwnProperty(table);
+        })
+        .$new('resolvers', new openedDBResolvers())
+        .$new('resourceManager', new resourceManager(name))
+        .$new('recordResolvers', new DBRecordResolvers(name));
 };
 
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
@@ -261,30 +284,36 @@ _privateApi.prototype.setStorage = function(config, callback) {
         default:
             //setStorage
             //default storage to localStorage
-            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(_storage));
+            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(_storage, this.$activeDB));
             callback();
             break;
     }
 };
 
 
-function openedDBHandler() {
-    var _openedDB = {};
+function openedDBHandler(definition) {
+    var _holder = Object.create(definition || {});
 
     this.$new = function(name, value) {
-        if (!_openedDB[name]) {
-            _openedDB[name] = value;
+        if (!_holder[name]) {
+            _holder[name] = value;
         }
 
         return this;
     };
 
     this.$get = function(name) {
-        return _openedDB[name];
+        return _holder[name];
+    };
+
+    this.$set = function(name, value) {
+        _holder[name] = value;
+        return this;
     };
 
     this.$destroy = function(name) {
-        _openedDB[name] = null;
+        _holder[name] = null;
+        return this;
     };
 }
 

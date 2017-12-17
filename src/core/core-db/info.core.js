@@ -1,20 +1,23 @@
-DBEvent.prototype.info = function()
-{
+/**
+ * get the DATABASE info
+ * loop through the tables 
+ * generate a new table Object containing the information of each tables
+ */
+
+DBEvent.prototype.info = function() {
     var tableSet = {},
-        _db = $queryDB[this.name];
-    if(_db)
-    {
-      findInList.call(_db.tables,function(tblName,tbl)
-      {
-          tableSet[tblName] = {
-            records : (tbl.data || []).length,
-            columns : tbl.columns,
-            primaryKey : tbl.primaryKey,
-            foreignKey : tbl.foreignKey,
-            allowedMode : 'readwrite'
-          };
-      });
+        tables = $queryDB.$get(this.name, 'tables');
+    if (tables) {
+        findInList.call(tables, function(tblName, tbl) {
+            tableSet[tblName] = {
+                records: (tbl.data || []).length,
+                columns: tbl.columns,
+                primaryKey: tbl.primaryKey,
+                foreignKey: tbl.foreignKey,
+                allowedMode: 'readwrite'
+            };
+        });
     }
-    
+
     return tableSet;
 };
