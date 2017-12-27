@@ -68,6 +68,13 @@
           case ('table'):
               $queryDB.$getActiveDB(obj.db).$get('resourceManager').removeTableFromResource(obj.name);
               _delRecords[ref][obj.name] = obj.$hash || GUID();
+              /**
+               * check if table was renamed earlier
+               * remove it from th list
+               */
+              if (_delRecords['rename'][obj.name]) {
+                  delete _delRecords['rename'][obj.name];
+              }
               break;
           case ('rename'):
               $queryDB.$getActiveDB(obj.db).$get('resourceManager').renameTableResource(obj.oldName, obj.newName);

@@ -67,7 +67,8 @@ function jEliDBSynchronization(appName) {
             var api = 'dropTable',
                 data = deleteRecords.table,
                 message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server',
-                _task = "Table";
+                _task = "Table",
+                self = this;
             //check if database was remove from client
             if (deleteRecords.database[appName]) {
                 api = 'dropDataBase';
@@ -76,17 +77,35 @@ function jEliDBSynchronization(appName) {
                 _task = "Application";
             }
 
-            //set message to our console
-            setMessage(message);
+            /**
+             * Process renamed Tables before deleting
+             */
+            if ($isEqual(_task, 'Table') && Object.keys(deleteRecords.rename).length) {
+                setMessage('Renaming Tables on the server');
+                processRenamedTables()
+                    .then(mainRequest, this.fail);
+            }
 
-            var _options = syncHelper.setRequestData(appName, api, true),
-                $defer = new $p();
-            _options.data.remove = data;
-            _options.type = "DELETE";
 
-            //perform JSON Task
-            ajax(_options)
-                .then(this.done(_task), this.fail);
+            function processRenamedTables() {
+                return request('renameTable', 'PUT', 'renamed', deleteRecords.rename);
+            }
+
+            function request(_api, type, ref, data) {
+                var _options = syncHelper.setRequestData(appName, _api, true);
+                _options.data[ref] = data;
+                _options.type = type;
+                return ajax(_options);
+            }
+
+            function mainRequest() {
+                //set message to our console
+                setMessage(message);
+                request(api, 'DELETE', 'remove', data)
+                    .then(self.done(_task), self.fail);
+            }
+
+            mainRequest();
         }
     }
 
@@ -142,7 +161,9 @@ function jEliDBSynchronization(appName) {
                         }
                     }, function(err) {
                         setMessage('Pull Request has failed, please check your network');
-                        setMessage(err.data.message);
+                        if (err.data) {
+                            setMessage(err.data.message);
+                        }
                         syncHelper.killState(networkResolver);
                     });
             }
