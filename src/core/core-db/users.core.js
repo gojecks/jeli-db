@@ -4,7 +4,7 @@ DBEvent.prototype._users = function() {
     var syncService = new jEliDBSynchronization(this.name)
         .Entity()
         .configSync({}),
-        _secure = '_users',
+        _secure = '_.users_',
         $promise = new $p(),
         db = this,
         $defer = new DBPromise($promise);
@@ -16,7 +16,7 @@ DBEvent.prototype._users = function() {
                 //Put the Data
                 postData = { data: { insert: [_newInfo] } };
             //use the db API Method
-            db.api('POST', '/create/user', postData, _secure)
+            db.api('PUT', '/create/user', postData, _secure)
                 .then(function(res) {
                     //Put the new user
                     var ret = dbSuccessPromiseObject('createUser', "User Created successfully");
@@ -78,7 +78,7 @@ DBEvent.prototype._users = function() {
     function updateUser(userData) {
         if (userData) {
             //post our request to server
-            db.api('POST', '/update/user', { data: { update: [userData] } }, _secure)
+            db.api('PUT', '/update/user', { data: { update: [userData] } }, _secure)
                 .then(function(res) {
                     res.state = "updateUser";
                     res.result.message = "User Updated successfully";

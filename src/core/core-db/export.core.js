@@ -1,19 +1,21 @@
-DBEvent.prototype['export'] = function(type) {
+DBEvent.prototype['export'] = function(table, type) {
     var type = type || 'csv',
-        exp = new jExport(type);
+        exp = new jExport(type),
+        data = $queryDB.$getTable(this.name, table).data.slice();
 
     //getValue
-    function getValueInArray(data) {
+    function getValueInArray(cdata) {
         var ret = []
-        for (var key in data) {
-            ret.push(data[key]);
-        }
+        expect(cdata).each(function(item) {
+            ret.push($isObject(item) ? JSON.stringify(item) : item);
+        });
 
         return ret;
     }
 
     return ({
-        initialize: function(data, title) {
+        initialize: function(title) {
+
             //Parse the data of its not an OBJECT
             if (!data) {
                 return dbSuccessPromiseObject("export", "unable to export data, invalid table data")
@@ -29,7 +31,7 @@ DBEvent.prototype['export'] = function(type) {
                 //set label
                 exp.row(Object.keys(data[0]._data));
                 //set the data
-                expect(data).search(null, function(item) {
+                expect(data).each(function(item) {
                     exp.row(getValueInArray(item._data));
                 });
             }

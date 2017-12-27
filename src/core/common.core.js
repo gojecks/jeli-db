@@ -10,10 +10,7 @@
 
   //condition setter
   function setCondition(spltQuery) {
-      var whereTask = spltQuery.slice(parseInt(spltQuery.indexOf("where") + 1)),
-          whereString = whereTask.join(''),
-          checkTask = ($isJsonString(whereString) ? maskedEval(whereString) : whereString);
-      return checkTask;
+      return jSonParser(spltQuery.slice(parseInt(spltQuery.indexOf("where") + 1)).join(''));
   }
 
   //Function to retrieve storage Data
@@ -46,6 +43,11 @@
       return ({ started: new Date().getTime(), lastUpdated: new Date().getTime(), resourceManager: {} });
   }
 
+  /**
+   * 
+   * @param {*} ref 
+   * @param {*} obj 
+   */
 
   function updateDeletedRecord(ref, obj) {
       var checker = getStorageItem($queryDB.$delRecordName),
@@ -75,7 +77,14 @@
       checker[obj.db] = _delRecords;
       setStorageItem($queryDB.$delRecordName, checker);
   }
+
   //Property Watch
+  /**
+   * 
+   * @param {*} obj 
+   * @param {*} type 
+   * @param {*} callBack 
+   */
   function defineProperty(obj, type, callBack) {
       //set watch on stack
       Object.defineProperty(obj, type, {
@@ -87,7 +96,10 @@
   }
 
   var inUpdateProgress = 0;
-
+  /**
+   * 
+   * @param {*} fn 
+   */
   function fireEvent(fn) {
       if (inUpdateProgress) {
           setTimeout(function() {
@@ -118,15 +130,19 @@
       return recur(2, "-") + recur(1, "-") + recur(1, "-") + recur(1, "-") + recur(3);
   }
 
-  function buildSelectQuery(query) {
+  /**
+   * 
+   * @param {*} query 
+   */
+  function buildSelectQuery(query, entryPoint) {
       var definition = {};
-      if (query.length > 3) {
-          if ($isJsonString(query[3])) {
-              definition = maskedEval(query[3]);
+      if (query.length > entryPoint) {
+          if ($isJsonString(query[entryPoint])) {
+              definition = jSonParser(query[entryPoint]);
           } else {
               // splice our query
               // set definition
-              [].concat.call(query).splice(3).map(function(qKey) {
+              [].concat.call(query).splice(entryPoint).map(function(qKey) {
                   qKey = qKey.replace(/\((.*?)\)/, "~$1").split("~");
                   // function Query
                   if (qKey.length > 1) {

@@ -94,7 +94,7 @@ function jEliDBTBL(tableInfo) {
 
     //Table constructor
     function constructTable(cFn) {
-        expect(tableInfo.data).search(null, function(item, idx) {
+        expect(tableInfo.data).each(function(item, idx) {
             //perform task if argument is a function
             if ($isFunction(cFn)) {
                 cFn(item);
@@ -131,12 +131,20 @@ function jEliDBTBL(tableInfo) {
         return this;
     }
 
+    /**
+     * 
+     * @param {*} columnName 
+     * @param {*} config 
+     */
     function columnAction(columnName, config) {
-        if ($isString(columnName)) {
-            var nColumn = {};
-            nColumn[columnName] = config ? config : {};
+        if (columnName && ($isObject(columnName) || $isString(columnName))) {
+            var nColumn = columnName;
+            if ($isString(nColumn)) {
+                nColumn = {};
+                nColumn[columnName] = config ? config : {};
+            }
 
-            tableInfo.columns[0] = extend({}, tableInfo.columns[0], nColumn);
+            tableInfo.columns[0] = extend(true, tableInfo.columns[0], nColumn);
             //reconstruct the table
             constructTable();
 

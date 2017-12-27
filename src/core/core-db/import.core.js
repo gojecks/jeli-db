@@ -16,13 +16,11 @@ DBEvent.prototype.import = function(table, handler) {
         });
 
     //check if handler
-    handler = handler || _def;
+    handler = extend(true, _def, handler || {});
     if (table && $isString(table)) {
         if (!$queryDB.$getActiveDB(this.name).$get('$tableExist')(table)) {
             createTable = true;
-            if (handler.logService) {
-                handler.logService('Table(' + table + ') was not found!!');
-            }
+            handler.logService('Table(' + table + ') was not found!!');
         }
     } else {
         handler.logService('Table is required');

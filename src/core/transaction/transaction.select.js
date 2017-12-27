@@ -172,8 +172,7 @@ function transactionSelect(selectFields, definition) {
             startLogic = joinOn[0].split("."),
             innerLogic = joinOn[1].split("."),
             queryMatchIsLeft = $isEqual($self.tables[$removeWhiteSpace(joinObj.table)], startLogic[0]),
-            isRightClause = $isEqual('right', clause),
-            $logicChecker = externalQuery(joinObj.on);
+            isRightClause = $isEqual('right', clause);
         /**
          * compare the matching tables
          */
@@ -325,7 +324,7 @@ function transactionSelect(selectFields, definition) {
         }
 
         //return the processed Data
-        return $self.getColumn(new $query($self.tableInfo.data.slice(), queryDefinition.ref)._(queryDefinition.where), queryDefinition);
+        return $self.getColumn(new $query(removeJeliDataStructure($self.tableInfo.data.slice()))._(queryDefinition.where), queryDefinition);
     }]);
 
     /*

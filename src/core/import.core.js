@@ -2,130 +2,28 @@
 
 function jFileReader() {
     var handler = {
-            onselect: function() {},
-            onSuccess: function() {},
-            onError: function() {},
-            onload: function loadHandler(event) {
-                processData(event.target.result);
-            },
-            selectedFile: null
+        onselect: function() {},
+        onSuccess: function() {},
+        onError: function() {},
+        onload: function loadHandler(event) {
+            processData(event.target.result);
         },
-        fileData = { columns: [], data: [], skippedData: [] };
+        selectedFile: null
+    };
 
 
-
+    /**
+     * 
+     * @param {*} content 
+     */
     function processData(content) {
-
-        function convertToObject(data) {
-            var okeys;
-
-            function setValue(cdata) {
-                var ret = {};
-                if (okeys.length === cdata.length) {
-                    for (var i in cdata) {
-                        ret[okeys[i]] = ((!isNaN(Number(cdata[i]))) ? Number(cdata[i]) : cdata[i]);
-                    }
-
-                    fileData.data.push(ret);
-                } else {
-                    fileData.skippedData.push(cdata);
-                }
-            }
-
-            function setData() {
-                for (var i = 1; i <= data.length; i++) {
-                    if (data[i] && !$isEmpty(data[i][0])) {
-                        var value = data[i][0].split(",");
-                        setValue(value);
-                    }
-
-                }
-            }
-
-            if (data && !fileData.data.length) {
-                okeys = fileData.columns = data[0][0].split(",");
-                setData();
-            }
-
-            handler.onSuccess(fileData);
-        }
-
-
-        function csv() {
-            var allTextLines = content.split(/\r\n|\n/);
-            var lines = [];
-            for (var i = 0; i < allTextLines.length; i++) {
-                var data = allTextLines[i].split(';');
-                var tarr = [];
-                for (var j = 0; j < data.length; j++) {
-                    tarr.push(data[j]);
-                }
-
-                lines.push(tarr);
-            }
-
-            return lines;
-        }
-
-        function html() {
-            var div = element('<div />').html(content),
-                tr = div[0].querySelectorAll('tr'),
-                lines = [];
-
-            //Function to remove td 
-            function removeTD(row) {
-
-                var td = row.childNodes,
-                    tarr = [],
-                    data = [];
-                for (var t in td) {
-                    data.push(td[t].textContent);
-                }
-
-                tarr.push(data.join(','));
-
-                //return tarr
-                return tarr;
-            }
-
-            if (tr.length) {
-                for (var row in tr) {
-                    if (tr[row].tagName) {
-                        lines.push(removeTD(tr[row]));
-                    }
-                }
-            }
-
-
-            return lines;
-        }
-
-        //Json importer
-        function json() {
-            if (content) {
-                var dContent = JSON.parse(content);
-                fileData.columns = Object.keys(dContent[0]);
-                fileData.data = dContent;
-
-                return dContent;
-            }
-        }
-
-        function getFileType() {
-            return handler.selectedFile.name.split('.')[1];
-        }
-
-
-        var _extensions = ({
-            csv: csv,
-            html: html,
-            json: json
-        });
-
         //initialize the file
-        var fileType = getFileType();
-        if (fileType && _extensions[fileType]) {
-            convertToObject(_extensions[fileType]());
+        var fileType = handler.selectedFile.name.split('.')[1],
+            importModule = new importModules();
+        if (fileType && importModule[fileType]) {
+            handler.onSuccess(importModule[fileType](content));
+        } else {
+            handler.onError("Unsupported File Format");
         }
     }
 
@@ -169,3 +67,93 @@ function jFileReader() {
         });
     };
 }
+
+/**
+ * 
+ * @param {*} type 
+ */
+
+function importModules(type) {
+    var okeys;
+    this.fileData = { columns: [], data: [], skippedData: [] };
+    /**
+     * 
+     * @param {*} cdata 
+     */
+    this.setValue = function(cdata) {
+        var ret = {};
+        if (okeys.length === cdata.length) {
+            for (var i in cdata) {
+                ret[okeys[i]] = ((!isNaN(Number(cdata[i]))) ? Number(cdata[i]) : cdata[i]);
+            }
+
+            this.fileData.data.push(ret);
+        } else {
+            this.fileData.skippedData.push(cdata);
+        }
+    }
+
+    this.setData = function(data) {
+        okeys = this.fileData.columns = data[0][0].split(",");
+        for (var i = 1; i <= data.length; i++) {
+            if (data[i] && !$isEmpty(data[i][0])) {
+                var value = data[i][0].split(",");
+                this.setValue(value);
+            }
+        }
+    };
+}
+
+importModules.prototype.json = function(content) {
+    this.fileData.data = JSON.parse(content || '[]');
+    this.fileData.columns = Object.keys(this.fileData.data[0]);
+    return this.fileData;
+};
+
+importModules.prototype.html = function(content) {
+    var div = element('<div />').html(content),
+        tr = div[0].querySelectorAll('tr'),
+        lines = [];
+
+    //Function to remove td 
+    function removeTD(row) {
+        var td = row.childNodes,
+            tarr = [],
+            data = [];
+        expect(td).each(function(_td) {
+            data.push(_td.textContent);
+        });
+
+        tarr.push(data.join(','));
+        //return tarr
+        return tarr;
+    }
+
+    if (tr.length) {
+        expect(tr).each(function(trow) {
+            if (trow.tagName) {
+                lines.push(removeTD(trow));
+            }
+        });
+    }
+
+    this.setData(lines);
+    return this.fileData;
+};
+
+importModules.prototype.csv = function(content) {
+    var allTextLines = content.split(/\r\n|\n/);
+    var lines = [];
+    for (var i = 0; i < allTextLines.length; i++) {
+        var data = allTextLines[i].split(';');
+        var tarr = [];
+        for (var j = 0; j < data.length; j++) {
+            tarr.push(data[j]);
+        }
+
+        lines.push(tarr);
+    }
+
+    this.setData(lines);
+    return this.fileData;
+};

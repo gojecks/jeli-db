@@ -126,13 +126,25 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                     ret.message = e.message;
                     error = true;
                 } finally {
-                    defer[!error ? 'resolve' : 'reject'](ret);
                     $self.errLog = [];
-
                     if (expect(["insert", "update", "delete"]).contains(ex[0]) && !error) {
-                        // life processor
-                        liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0]);
+                        /**
+                         * Sync to the backend
+                         * Available only when live is define in configuration
+                         * @param {TABLE_NAME}
+                         * @param {DB_NAME}
+                         * @return {FUNCTION}
+                         */
+                        liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0], function(state) {
+                            return function(res) {
+                                ret.$ajax = extend({}, res.data);
+                                defer[state](ret);
+                            }
+                        });
+
                         jEliUpdateStorage($self.tableInfo.DB_NAME, $self.tableInfo.TBL_NAME);
+                    } else {
+                        defer[!error ? 'resolve' : 'reject'](ret);
                     }
                 }
             }

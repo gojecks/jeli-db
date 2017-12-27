@@ -17,7 +17,7 @@
                     .transaction(table.length > 1 ? table : table[0])
                     .onSuccess(function(e) {
                         e.result
-                            .select(query[1], buildSelectQuery(query))
+                            .select(query[1], buildSelectQuery(query, 3))
                             .execute()
                             .onSuccess(handler.onSuccess)
                             .onError(handler.onError);

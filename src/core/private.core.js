@@ -13,8 +13,11 @@ function _privateApi() {
     this.openedDB = new openedDBHandler();
     this.$setActiveDB = function(name) {
         // open the DB
-        this.openedDB.$new(name, new openedDBHandler({ open: false }));
-        this.$activeDB = name;
+        if (!this.openedDB.$hasOwnProperty(name)) {
+            this.openedDB.$new(name, new openedDBHandler({ open: false }));
+            this.$activeDB = name;
+        }
+
         return this;
     };
 
@@ -100,27 +103,26 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
 
         _task.update = function(cdata) {
             expect(tbl.data).each(function(item, idx) {
-                _ret.update.push(item._data);
                 expect(cdata).each(function(obj) {
                     if (item._ref === obj._ref) {
                         tbl.data[idx] = obj;
                     }
                 });
             });
+
+            _ret.update.push.apply(_ret.update, cdata.map(function(_item_) { return _item_._data; }));
         };
 
         _task['delete'] = function(cdata) {
             tbl.data = tbl.data.filter(function(item) {
-                _ret['delete'].push(item._ref);
                 return !$inArray(item._ref, cdata);
             });
+            _ret['delete'].push.apply(_ret['delete'], cdata.map(function(_item_) { return _item_._ref; }));
         };
 
         _task.insert = function(cdata) {
-            expect(cdata).each(function(obj) {
-                tbl.data.push(obj);
-                _ret.insert.push(obj._data);
-            });
+            tbl.data.push.apply(tbl.data, cdata);
+            _ret.insert.push.apply(_ret.insert, cdata.map(function(_item_) { return _item_._data; }));
         };
 
         if (tbl) {
@@ -148,7 +150,7 @@ _privateApi.prototype.removeDB = function(db) {
     if (_dbApi.$get('open')) {
         _dbApi
             .$destroy('_db_')
-            .$set('open', false)
+            .$set('open', false);
         delStorageItem(db);
         updateDeletedRecord('database', { name: db });
         return dbSuccessPromiseObject('drop', 'Database(' + db + ') have been dropped');
@@ -180,23 +182,31 @@ _privateApi.prototype.isOpen = function(name) {
         return true
     }
 
+    if (this.openedDB.$get(name).$hasOwnProperty('closed')) {
+        this.openedDB.$get(name).$destroy('closed');
+        return;
+    }
+
     this.openedDB
         .$get(name)
         .$set('open', true)
         .$set('$tableExist', function(table) {
             return $queryDB.$get(name, 'tables').hasOwnProperty(table);
         })
+        .$set('dataTypes', new DataTypeHandler())
         .$new('resolvers', new openedDBResolvers())
         .$new('resourceManager', new resourceManager(name))
         .$new('recordResolvers', new DBRecordResolvers(name));
 };
 
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
-    delete this.openedDB[name];
     if (removeFromStorage) {
         this.removeDB(name);
+    } else {
+        this.openedDB.$get(name)
+            .$set('open', false)
+            .$set('closed', true);
     }
-
 };
 
 _privateApi.prototype.$getActiveDB = function(req) {
@@ -290,32 +300,6 @@ _privateApi.prototype.setStorage = function(config, callback) {
     }
 };
 
-
-function openedDBHandler(definition) {
-    var _holder = Object.create(definition || {});
-
-    this.$new = function(name, value) {
-        if (!_holder[name]) {
-            _holder[name] = value;
-        }
-
-        return this;
-    };
-
-    this.$get = function(name) {
-        return _holder[name];
-    };
-
-    this.$set = function(name, value) {
-        _holder[name] = value;
-        return this;
-    };
-
-    this.$destroy = function(name) {
-        _holder[name] = null;
-        return this;
-    };
-}
 
 // create a new privateApi Instance
 var $queryDB = new _privateApi(),

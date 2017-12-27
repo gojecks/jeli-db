@@ -1,6 +1,8 @@
 //api AJAX request
 //@params : request Type , State , postData, table_name
 //
+
+
 DBEvent.prototype.api = function(type, state, postData, tbl) {
     //state needs to be split for accuracy
     if (expect(state).contains("/")) {
