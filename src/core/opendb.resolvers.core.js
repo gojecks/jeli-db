@@ -11,7 +11,8 @@ function openedDBResolvers() {
         interceptor: function() {},
         deletedRecords: {
             table: {},
-            database: {}
+            database: {},
+            rename: {}
         },
         handler: {
             onSuccess: function() {},

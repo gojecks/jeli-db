@@ -1,11 +1,13 @@
 /*** Table Code **/
 
 function jEliDBTBL(tableInfo) {
-    this.info = {
+    var info = {
         _DBNAME_: tableInfo.DB_NAME,
         tableName: tableInfo.TBL_NAME
     };
 
+
+    this.info = info;
     this.Alter = {};
     this.Alter.drop = function(columnName) {
         if ($isString(columnName) && tableInfo.columns[0][columnName]) {
@@ -27,14 +29,51 @@ function jEliDBTBL(tableInfo) {
     };
 
     this.Alter.add = function(type) {
-            return ({
-                key: keyAction,
-                index: indexAction,
-                mode: modeAction,
-                column: columnAction
+        return ({
+            key: keyAction,
+            index: indexAction,
+            mode: modeAction,
+            column: columnAction
+        });
+    };
+
+    /**
+     * Rename Table
+     */
+    this.Alter.rename = function(newTableName) {
+        if (newTableName && !$isEqual(newTableName, tableInfo.TBL_NAME)) {
+            // rename the tableInfo
+            if ($queryDB.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(newTableName)) {
+                return "Table already exists";
+            }
+
+
+            /**
+             * broadcastEvent
+             */
+            //update the deletedRecords
+            $queryDB.$taskPerformer.updateDeletedRecord('rename', {
+                oldName: tableInfo.TBL_NAME,
+                newName: newTableName,
+                $hash: tableInfo.$hash,
+                db: tableInfo.DB_NAME
             });
+
+            $queryDB.replicateTable(tableInfo.DB_NAME, tableInfo.TBL_NAME, newTableName, true);
+            $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onRenameTable'), [tableInfo.TBL_NAME, newTableName]);
+            info.tableName = tableInfo.TBL_NAME = newTableName;
+            /**
+             * updated storage
+             */
+            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+
+            return "Table renamed successfully";
         }
-        //get All the column
+
+        return "Invalid TABLE NAME";
+    };
+
+    //get All the column
     this.columns = function() {
         return jEliDeepCopy(tableInfo.columns[0]);
     };

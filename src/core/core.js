@@ -119,6 +119,7 @@ function jEliDB(name, version) {
                                     $queryDB.$set(name, dbTables);
                                     $queryDB.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [Object.keys(dbTables.tables)]);
                                     setStorageItem(name, dbTables);
+
                                     //start the DB
                                     startDB();
                                 });

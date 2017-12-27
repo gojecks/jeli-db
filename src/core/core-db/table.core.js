@@ -1,3 +1,7 @@
+/**
+ * @param {*} name
+ * @param {*} mode 
+ */
 DBEvent.prototype.table = function(name, mode) {
     var defer = new $p();
     //get the requested table

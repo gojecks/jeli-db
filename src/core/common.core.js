@@ -51,7 +51,7 @@
 
   function updateDeletedRecord(ref, obj) {
       var checker = getStorageItem($queryDB.$delRecordName),
-          _resolvers = $queryDB.$getActiveDB().$get('resolvers');
+          _resolvers = $queryDB.$getActiveDB(obj.db).$get('resolvers');
       if (checker && checker[obj.db]) {
           _resolvers.register('deletedRecords', checker[obj.db]);
       } else {
@@ -63,13 +63,20 @@
 
       //Update the resource control
       //only when its table
-      if ($isEqual(ref, 'table')) {
-          $queryDB.$getActiveDB().$get('resourceManager').removeTableFromResource(obj.name);
-      }
-
       var _delRecords = _resolvers.getResolvers('deletedRecords');
-
-      _delRecords[ref][obj.name] = obj.$hash || GUID();
+      switch (ref) {
+          case ('table'):
+              $queryDB.$getActiveDB(obj.db).$get('resourceManager').removeTableFromResource(obj.name);
+              _delRecords[ref][obj.name] = obj.$hash || GUID();
+              break;
+          case ('rename'):
+              $queryDB.$getActiveDB(obj.db).$get('resourceManager').renameTableResource(obj.oldName, obj.newName);
+              _delRecords[ref][obj.oldName] = obj.newName;
+              break;
+          case ('database'):
+              _delRecords[ref][obj.name] = obj.$hash || GUID();
+              break;
+      }
 
 
       //extend the delete Object

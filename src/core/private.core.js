@@ -52,6 +52,17 @@ function _privateApi() {
         return false;
     };
 
+    this.replicateTable = function(dbName, oldTable, newTable, removeTable) {
+        var currentDB = this.$get(dbName);
+        if (currentDB && currentDB.tables[oldTable]) {
+            currentDB.tables[newTable] = currentDB.tables[oldTable];
+            currentDB.tables[newTable].TBL_NAME = newTable;
+            if (removeTable) {
+                delete currentDB.tables[oldTable];
+            }
+        }
+    }
+
     this.$getTableOptions = function(dbName, tableName, option) {
         return (this.$getTable(dbName, tableName) || {})[option];
     };
@@ -178,17 +189,16 @@ _privateApi.prototype.getTableCheckSum = function(db, tbl) {
 };
 
 _privateApi.prototype.isOpen = function(name) {
-    if (this.openedDB.$get(name).$get('open')) {
+    var _openedDB = this.openedDB.$get(name);
+    if (_openedDB.$get('open')) {
         return true
     }
 
-    if (this.openedDB.$get(name).$hasOwnProperty('closed')) {
-        this.openedDB.$get(name).$destroy('closed');
+    if (_openedDB.$hasOwnProperty('closed')) {
+        _openedDB.$destroy('closed');
         return;
     }
-
-    this.openedDB
-        .$get(name)
+    _openedDB
         .$set('open', true)
         .$set('$tableExist', function(table) {
             return $queryDB.$get(name, 'tables').hasOwnProperty(table);
@@ -197,6 +207,8 @@ _privateApi.prototype.isOpen = function(name) {
         .$new('resolvers', new openedDBResolvers())
         .$new('resourceManager', new resourceManager(name))
         .$new('recordResolvers', new DBRecordResolvers(name));
+    _openedDB = null;
+
 };
 
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
@@ -261,8 +273,7 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
 };
 
 _privateApi.prototype.setStorage = function(config, callback) {
-
-    if (this.$get(this.$activeDB)) {
+    if (this.openedDB.$get(this.$activeDB).$hasOwnProperty('_storage_')) {
         callback();
         return;
     }
@@ -271,7 +282,7 @@ _privateApi.prototype.setStorage = function(config, callback) {
     // check for storage type
     switch (_storage.toLowerCase()) {
         case ('indexeddb'):
-            this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback));
+            this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback, this.$activeDB));
             break;
         case ('sqlite'):
         case ('sqlitecipher'):

@@ -249,37 +249,30 @@ function sqliteStorage(type, config, CB) {
             data.forEach(function(_data) {
                 _dbApi.insert(tbl, _data);
             });
-        });
-
-    $queryDB.storageEventHandler
+        })
         .subscribe(eventNamingIndex(dbName, 'update'), function(tbl, data) {
             data.forEach(function(_data) {
                 _dbApi.update(tbl, _data, " WHERE _ref='" + _data._ref + "'")
                     .then(function() {}, txError);
             });
-        });
-
-    $queryDB.storageEventHandler
+        })
         .subscribe(eventNamingIndex(dbName, 'delete'), function(tbl, data) {
             data.forEach(function(_data) {
                 _dbApi.delete(tbl, " WHERE _ref=?", [_data._ref || _data])
                     .then(function() {}, txError);
             });
+        })
+        .subscribe(eventNamingIndex(dbName, 'onCreateTable'), createTable)
+        .subscribe(eventNamingIndex(dbName, 'onDropTable'), _dbApi.dropTable)
+        .subscribe(eventNamingIndex(dbName, 'onTruncateTable'), _dbApi.delete)
+        .subscribe(eventNamingIndex(dbName, 'onResolveSchema'), function(tables) {
+            tables.forEach(function(tbl) {
+                createTable(tbl);
+            });
+        })
+        .subscribe(eventNamingIndex(dbName, 'onRenameTable'), function(oldTableName, newTableName) {
+            console.log(arguments);
         });
-
-    $queryDB.storageEventHandler
-        .subscribe(eventNamingIndex(dbName, 'onCreateTable'), createTable);
-
-
-    $queryDB.storageEventHandler
-        .subscribe(eventNamingIndex(dbName, 'onDropTable'), _dbApi.dropTable);
-
-    $queryDB.storageEventHandler.subscribe(eventNamingIndex(dbName, 'onTruncateTable'), _dbApi.delete);
-    $queryDB.storageEventHandler.subscribe(eventNamingIndex(dbName, 'onResolveSchema'), function(tables) {
-        tables.forEach(function(tbl) {
-            createTable(tbl);
-        });
-    });
 
     function createTable(tbl) {
         _dbApi.createTable('CREATE TABLE IF NOT EXISTS ' + tbl + ' (_ref unique, _data)');

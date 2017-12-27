@@ -1,6 +1,6 @@
   //query string performer
-  DBEvent.prototype.jQl = function(query, handler) {
-      var taskType = $remArrayWhiteSpace(query.split(/(?:-)/gi), $remLastWhiteSpace),
+  DBEvent.prototype.jQl = function(query, handler, parser) {
+      var taskType = $remArrayWhiteSpace(this.jQl.parser(query, parser || {}).split(/(?:-)/gi), $remLastWhiteSpace),
           taskPerformerObj = customPlugins.$getAll(),
           task = taskType[0].toLowerCase();
 
@@ -9,4 +9,12 @@
       }
 
       return handler.onError(dbErrorPromiseObject("Invalid command passed, use -help for help"));
+  };
+
+
+
+  DBEvent.prototype.jQl.parser = function(query, replacer) {
+      return query.replace(/\%(.*?)\%/g, function(a, key) {
+          return replacer.hasOwnProperty(key) ? replacer[key] : key;
+      })
   };
