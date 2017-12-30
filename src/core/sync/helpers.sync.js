@@ -1,3 +1,7 @@
+/**
+ * Synchronization Helper
+ */
+
 var syncHelper = {};
 syncHelper.printSyncLog = function(networkResolver, appName) {
     var _syncLog = this.process.getProcess(appName).getSet('syncLog');
@@ -10,8 +14,6 @@ syncHelper.printSyncLog = function(networkResolver, appName) {
             })
         });
     }
-
-    this.process.destroyProcess(appName);
 };
 
 syncHelper.process = {
@@ -35,7 +37,17 @@ syncHelper.process = {
         this.$process[appName] = null;
     },
     getProcess: function(appName) {
-        return this.$process[appName] || {}
+        return this.$process[appName] || null;
+    },
+    getApplicationApiKey: function(appName, networkResolver) {
+        syncHelper.setMessage('Retrieving API key....', networkResolver);
+        var options = syncHelper.setRequestData(appName, 'apikey', true),
+            _this = this;
+        options.type = 'POST';
+        return ajax(options).then(function(res) {
+            syncHelper.setMessage('Retrieved API key', networkResolver);
+            _this.getProcess(appName).getSet('apiKey', res.data);
+        });
     }
 };
 
@@ -52,11 +64,13 @@ syncHelper.setMessage = function(log, networkResolver) {
 };
 
 //function fakeTable
-syncHelper.createFakeTable = function() {
+syncHelper.createFakeTable = function(appName, tbl) {
     return ({
         $hash: null,
         data: [],
-        columns: [{}]
+        columns: [{}],
+        DB_NAME: appName,
+        TBL_NAME: tbl
     });
 };
 
@@ -66,7 +80,8 @@ syncHelper.setTable = function(tbl) {
 };
 
 syncHelper.setRequestData = function(appName, state, ignore, tbl) {
-    var options = $queryDB.buildOptions(appName, tbl, state);
+    var options = $queryDB.buildOptions(appName, tbl, state),
+        process = this.process.getProcess(appName);
     //ignore post data
     if (!ignore) {
         switch (state.toLowerCase()) {
@@ -80,6 +95,12 @@ syncHelper.setRequestData = function(appName, state, ignore, tbl) {
                 options.data.postData = resources;
                 break;
         }
+    }
+    /**
+     * add the api_key to the Authorization Header
+     */
+    if (process && process.getSet('apiKey')) {
+        options.headers.Authorization += ' ' + process.getSet('apiKey').api_key;
     }
 
     return options;
@@ -127,13 +148,19 @@ syncHelper.pullResource = function(appName) {
 
 
 //@Function Name KillState
-syncHelper.killState = function(networkResolver) {
-    networkResolver.handler.onError(dbErrorPromiseObject("Completed with Errors, please check log"));
+syncHelper.killState = function(appName) {
+    this.process.getProcess(appName)
+        .getSet('networkResolver')
+        .handler.onError(dbErrorPromiseObject("Completed with Errors, please check log"));
+    this.process.destroyProcess(appName);
 };
 
 //@FN NAME finalizeProcess();
-syncHelper.finalizeProcess = function(networkResolver) {
-    networkResolver.handler.onSuccess(dbSuccessPromiseObject("sync", 'Synchronization Complete without errors'));
+syncHelper.finalizeProcess = function(appName) {
+    this.process.getProcess(appName)
+        .getSet('networkResolver')
+        .handler.onSuccess(dbSuccessPromiseObject("sync", 'Synchronization Complete without errors'));
+    this.process.destroyProcess(appName);
 };
 
 //@Function Name Push
@@ -163,7 +190,7 @@ syncHelper.push = function(appName, tbl, data, state) {
 //@return AJAX promise Object
 
 syncHelper.pullTable = function(appName, tbl) {
-    syncHelper.setMessage('Retrieving Table Records', $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver);
+    syncHelper.setMessage('---Retrieving ' + tbl + ' schema---', $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver);
     return ajax(syncHelper.setRequestData(appName, 'pull', false, tbl));
 };
 

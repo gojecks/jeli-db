@@ -6,62 +6,59 @@
   @param: tableName
 **/
 
-function syncConflictChecker(appName, resourceChecker,tbl)
-{
-  var serverTbl = [],
-      clientTbl = $queryDB.$getTable(appName , tbl),
-      $promise = new $p(),
-      networkResolver = $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver,
-      $process = syncHelper.process.getProcess(appName);
-  //getLatest from server
-  if(resourceChecker)
-  {
+function syncConflictChecker(appName, resourceChecker, tbl) {
+    var serverTbl = [],
+        clientTbl = $queryDB.$getTable(appName, tbl),
+        $promise = new $p(),
+        $process = syncHelper.process.getProcess(appName),
+        networkResolver = $process.getSet('networkResolver');
+    //getLatest from server
+    if (resourceChecker) {
 
-     if(!syncHelper.entity)
-      {
-        syncHelper.entity = [tbl];
-      }
+        if (!syncHelper.entity) {
+            syncHelper.entity = [tbl];
+        }
         //Perform Merge
         //client table was found
-        if(clientTbl)
-        {
+        if (clientTbl) {
             syncHelper.pullTable(appName, tbl)
-            .then(function(tblResult)
-            {
-                serverTbl = tblResult.data._data || syncHelper.createFakeTable();;
-                if(serverTbl)
-                {
-                  var $diff = syncDataComparism(serverTbl, clientTbl, resourceChecker, networkResolver);
-                  if($diff.hashChanged)
-                  {
-                    syncHelper.setMessage('Lastest Update found on the Server', networkResolver);
+                .then(function(tblResult) {
+                    serverTbl = tblResult.data._data;
+                    if (serverTbl) {
+                        var $diff = syncDataComparism(serverTbl, clientTbl, resourceChecker, networkResolver);
+                        if ($diff.hashChanged) {
+                            syncHelper.setMessage('Lastest Update found on the Server', networkResolver);
 
-                    if(networkResolver.conflictResolver && $isFunction(networkResolver.conflictResolver))
-                    {
-                        networkResolver.conflictResolver.apply(networkResolver.conflictResolver,[serverResponse, clientResponse]);
+                            if (networkResolver.conflictResolver && $isFunction(networkResolver.conflictResolver)) {
+                                networkResolver.conflictResolver.apply(networkResolver.conflictResolver, [serverResponse, clientResponse]);
+                            }
+
+                            //reject the promise
+                            $promise
+                                .reject({ status: "error", conflictRecord: serverTbl, code: 402 });
+                            return;
+                        }
+
+
+                        //data have changed after last pull
+                        syncHelper.printSyncLog(networkResolver, appName);
+                        //update
+                        $promise
+                            .resolve({ status: "success", pushRecord: $process.getSet('syncLog')[tbl], code: 200 });
+
+                    } else {
+                        //data have changed after last pull
+                        syncHelper.setMessage('Table schema was not found on the SERVER', networkResolver);
+                        //update
+                        $promise
+                            .resolve({ status: "success", pushRecord: false, code: 200 });
                     }
-                    
-                    //reject the promise
-                    $promise
-                    .reject({status:"error",conflictRecord:serverTbl,code:402});
-                    return;
-                  }
-
-
-                  //data have changed after last pull
-                    syncHelper.printSyncLog(networkResolver, appName);
-                     //update
-                    $promise
-                    .resolve({status:"success",pushRecord:$process.getSet('syncLog')[tbl],code:200});
-
-                }
-            },function(mergeResponse)
-            {
-                syncHelper.setMessage('unable to check for conflict, please check your internet setting', networkResolver);
-                syncHelper.killState(networkResolver);
-            });
-        }    
+                }, function(mergeResponse) {
+                    syncHelper.setMessage('unable to check for conflict, please check your internet setting', networkResolver);
+                    syncHelper.killState(appName);
+                });
+        }
     }
 
-  return $promise;
+    return $promise;
 }

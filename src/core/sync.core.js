@@ -1,4 +1,7 @@
-//Sync Functionality
+/**
+ * 
+ * @param {*} appName 
+ */
 function jEliDBSynchronization(appName) {
     var networkResolver = $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver,
         $process = syncHelper.process.startSyncProcess(appName);
@@ -50,62 +53,83 @@ function jEliDBSynchronization(appName) {
                 }
 
                 if (_task === 'Table') {
-                    new startSyncState(appName, serverResource).process();
+                    new startSyncState(appName, serverResource).process(true);
                 } else {
-                    syncHelper.finalizeProcess(networkResolver);
+                    syncHelper.finalizeProcess(appName);
                 }
             }
         };
 
         this.fail = function(res) {
             setMessage('Failed to synchronize, unabled to resolve with the server, please try again');
-            syncHelper.killState(networkResolver);
+            syncHelper.killState(appName);
         };
 
 
         this.process = function() {
-            var api = 'dropTable',
-                data = deleteRecords.table,
-                message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server',
-                _task = "Table",
-                self = this;
-            //check if database was remove from client
-            if (deleteRecords.database[appName]) {
-                api = 'dropDataBase';
-                data = deleteRecords.database;
-                message = "Droping " + appName + " Application from the server";
-                _task = "Application";
-            }
+            var self = this;
+            /**
+             * get the Application API
+             */
+            syncHelper
+                .process
+                .getApplicationApiKey(appName, networkResolver)
+                .then(function() {
+                    mainProcess();
+                }, function() {
+                    setMessage('Failed to retrieve Application Key');
+                    self.fail();
+                });
 
             /**
-             * Process renamed Tables before deleting
+             * Main sync Process
              */
-            if ($isEqual(_task, 'Table') && Object.keys(deleteRecords.rename).length) {
-                setMessage('Renaming Tables on the server');
-                processRenamedTables()
-                    .then(mainRequest, this.fail);
+
+            function mainProcess(apiKey) {
+                var api = 'dropTable',
+                    data = deleteRecords.table,
+                    message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server',
+                    _task = "Table";
+                //check if database was remove from client
+                if (deleteRecords.database[appName]) {
+                    api = 'dropDataBase';
+                    data = deleteRecords.database;
+                    message = "Droping " + appName + " Application from the server";
+                    _task = "Application";
+                }
+
+
+                /**
+                 * Process renamed Tables before deleting
+                 */
+                if ($isEqual(_task, 'Table') && Object.keys(deleteRecords.rename).length) {
+                    setMessage('Renaming Tables on the server');
+                    processRenamedTables()
+                        .then(mainRequest, self.fail);
+                    return;
+                }
+
+
+                function processRenamedTables() {
+                    return request('renameTable', 'PUT', 'renamed', deleteRecords.rename);
+                }
+
+                function request(_api, type, ref, data) {
+                    var _options = syncHelper.setRequestData(appName, _api, true);
+                    _options.data[ref] = data;
+                    _options.type = type;
+                    return ajax(_options);
+                }
+
+                function mainRequest() {
+                    //set message to our console
+                    setMessage(message);
+                    request(api, 'DELETE', 'remove', data)
+                        .then(self.done(_task), self.fail);
+                }
+
+                mainRequest();
             }
-
-
-            function processRenamedTables() {
-                return request('renameTable', 'PUT', 'renamed', deleteRecords.rename);
-            }
-
-            function request(_api, type, ref, data) {
-                var _options = syncHelper.setRequestData(appName, _api, true);
-                _options.data[ref] = data;
-                _options.type = type;
-                return ajax(_options);
-            }
-
-            function mainRequest() {
-                //set message to our console
-                setMessage(message);
-                request(api, 'DELETE', 'remove', data)
-                    .then(self.done(_task), self.fail);
-            }
-
-            mainRequest();
         }
     }
 
@@ -139,11 +163,11 @@ function jEliDBSynchronization(appName) {
                                     } else {
                                         //failed to set resource
                                         setMessage('Resource synchronization failed');
-                                        syncHelper.killState(networkResolver);
+                                        syncHelper.killState(appName);
                                     }
                                 }, function() {
                                     setMessage('Resource synchronization failed, please check your log');
-                                    syncHelper.killState(networkResolver);
+                                    syncHelper.killState(appName);
                                 });
                         } else {
                             var _delRecordManager = getStorageItem($queryDB.$delRecordName),
@@ -164,7 +188,7 @@ function jEliDBSynchronization(appName) {
                         if (err.data) {
                             setMessage(err.data.message);
                         }
-                        syncHelper.killState(networkResolver);
+                        syncHelper.killState(appName);
                     });
             }
         } else {
@@ -176,6 +200,7 @@ function jEliDBSynchronization(appName) {
     function configSync(config, forceSync) {
         networkResolver = extend({}, networkResolver, config || {});
         $process.getSet('forceSync', forceSync);
+        $process.getSet('networkResolver', networkResolver);
 
         //check for production state
         if (!networkResolver.inProduction) {
