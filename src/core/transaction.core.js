@@ -135,11 +135,11 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                          * @param {DB_NAME}
                          * @return {FUNCTION}
                          */
-                        liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0], function(state) {
-                            return function(res) {
-                                ret.$ajax = extend({}, res.data);
-                                defer[state](ret);
-                            }
+                        liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0], function(res) {
+                            ret.$ajax = extend({}, res.data);
+                            defer['resolve'](ret);
+                        }, function() {
+                            defer['reject'](ret);
                         });
 
                         jEliUpdateStorage($self.tableInfo.DB_NAME, $self.tableInfo.TBL_NAME);
