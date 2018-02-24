@@ -47,19 +47,22 @@ function jEliDBTBL(tableInfo) {
                 return "Table already exists";
             }
 
+            //update the deletedRecords
+            var $resource = $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
+            if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
+                $queryDB.$taskPerformer.updateDeletedRecord('rename', {
+                    oldName: tableInfo.TBL_NAME,
+                    newName: newTableName,
+                    $hash: tableInfo.$hash,
+                    db: tableInfo.DB_NAME
+                });
+            }
 
+            $resource.renameTableResource(tableInfo.TBL_NAME, newTableName);
+            $queryDB.replicateTable(tableInfo.DB_NAME, tableInfo.TBL_NAME, newTableName, true);
             /**
              * broadcastEvent
              */
-            //update the deletedRecords
-            $queryDB.$taskPerformer.updateDeletedRecord('rename', {
-                oldName: tableInfo.TBL_NAME,
-                newName: newTableName,
-                $hash: tableInfo.$hash,
-                db: tableInfo.DB_NAME
-            });
-
-            $queryDB.replicateTable(tableInfo.DB_NAME, tableInfo.TBL_NAME, newTableName, true);
             $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onRenameTable'), [tableInfo.TBL_NAME, newTableName]);
             info.tableName = tableInfo.TBL_NAME = newTableName;
             /**
@@ -108,22 +111,23 @@ function jEliDBTBL(tableInfo) {
         }
 
         //update the deletedRecords
-        $queryDB.$taskPerformer.updateDeletedRecord('table', {
-            name: tableInfo.TBL_NAME,
-            $hash: tableInfo.$hash,
-            db: tableInfo.DB_NAME
-        });
+        var $resource = $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
+        if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
+            $queryDB.$taskPerformer.updateDeletedRecord('table', {
+                name: tableInfo.TBL_NAME,
+                $hash: tableInfo.$hash,
+                db: tableInfo.DB_NAME
+            });
+        }
 
+        $resource.removeTableFromResource(tableInfo.TBL_NAME);
         /**
           broadcast event
         **/
         $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onDropTable'), [tableInfo.TBL_NAME]);
 
         //delete the table from DB
-        if ($queryDB.removeTable(tableInfo.TBL_NAME, tableInfo.DB_NAME)) {
-            //push stack
-            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
-        }
+        $queryDB.removeTable(tableInfo.TBL_NAME, tableInfo.DB_NAME, true);
 
         return dbSuccessPromiseObject("drop", "Table (" + tableInfo.TBL_NAME + ") was dropped successfully");
     };
