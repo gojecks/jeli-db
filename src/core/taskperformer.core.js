@@ -7,7 +7,14 @@
             this.del = delStorageItem;
         };
 
-        _publicApi.prototype.updateDB = function(name, tblName, updateFn) {
+        /**
+         * 
+         * @param {*} name 
+         * @param {*} tblName 
+         * @param {*} updateFn 
+         * @param {*} lastSynced 
+         */
+        _publicApi.prototype.updateDB = function(name, tblName, updateFn, lastSynced) {
             //put the data to DB
             if (name) {
                 //update the table lastModified
@@ -23,31 +30,33 @@
 
                 }
 
-                setStorageItem(name, self.$get(name));
                 //update DB key
                 var dbRef = self.$getActiveDB().$get('resourceManager').getResource();
                 if (dbRef) {
                     dbRef.lastUpdated = +new Date;
+                    dbRef.lastSyncedDate = lastSynced || dbRef.lastSyncedDate;
 
                     if (tblName && table) {
                         if (!dbRef.resourceManager[tblName]) {
                             dbRef.resourceManager[tblName] = {
-                                $hash: null,
+                                $hash: table.$hash,
                                 lastModified: +new Date,
-                                created: +new Date,
-                                _ref: null
+                                created: table.created || +new Date
                             };
                         }
 
-                        //extend the DB resource Control
-                        for (var i in dbRef.resourceManager[tblName]) {
-                            dbRef.resourceManager[tblName][i] = table[i];
-                        }
+                        /**
+                         * set last sync date for table
+                         */
+                        dbRef.resourceManager[tblName].lastSyncedDate = lastSynced || dbRef.resourceManager[tblName].lastSyncedDate || null;
+
                     }
 
                     //update
                     self.$getActiveDB().$get('resourceManager').setResource(dbRef);
                 }
+
+                setStorageItem(name, self.$get(name));
                 //check if storage have been cleared by user
                 if (!dbRef) {
                     this.storageChecker(name);
@@ -55,23 +64,22 @@
             }
         };
 
+        /**
+         * 
+         * @param {*} name 
+         */
         _publicApi.prototype.initializeDB = function(name) {
             //set recordResolvers
-            if (!self.$getActiveDB().$get('resourceManager').getResource()) {
+            if (!self.$getActiveDB().$get('resourceManager').$isExists()) {
                 return false;
             } else {
                 //retrieve current DB items
-                var storageData = getStorageItem(name),
-                    $delRecords = getStorageItem(self.$delRecordName);
+                var storageData = getStorageItem(name);
                 //set delRecords
                 if (storageData) {
                     self.$set(name, storageData);
-
-                    if ($delRecords) {
-                        //update deleted records
-                        self.$getActiveDB().$get('resolvers').register('deletedRecords', $delRecords);
-                    }
-
+                    // clean up data
+                    storageData = null;
                     return true;
                 }
             }
@@ -79,6 +87,10 @@
             return false;
         };
 
+        /**
+         * 
+         * @param {*} name 
+         */
         _publicApi.prototype.storageChecker = function(name) {
             self.$getActiveDB().$get('resourceManager').setResource(getDBSetUp(name))
         }
