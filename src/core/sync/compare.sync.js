@@ -32,7 +32,7 @@
           var checkDeletedTables = networkResolver.deletedRecords.table[server.TBL_NAME];
           if (checkDeletedTables) {
               if (!$isEqual(checkDeletedTables, server.$hash)) {
-                  syncHelper.setMessage('Table (' + tbl + ') was dropped on your local DB, but have lastest changes', networkResolver);
+                  syncHelper.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server', networkResolver);
                   changes.hashChanged++;
               }
           } else {
