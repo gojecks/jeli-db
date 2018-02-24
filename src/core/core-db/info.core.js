@@ -10,7 +10,7 @@ DBEvent.prototype.info = function() {
     if (tables) {
         findInList.call(tables, function(tblName, tbl) {
             tableSet[tblName] = {
-                records: (tbl.data || []).length,
+                records: (tbl.data || []).length || tbl._records,
                 columns: tbl.columns,
                 primaryKey: tbl.primaryKey,
                 foreignKey: tbl.foreignKey,

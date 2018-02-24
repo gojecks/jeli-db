@@ -34,105 +34,6 @@ function jEliDBSynchronization(appName) {
         }
     }
 
-    /**
-     * 
-     * @param {*} deleteRecords 
-     * @param {*} serverResource 
-     */
-
-    function deleteSyncState(deleteRecords, serverResource) {
-
-        this.done = function(_task) {
-            return function(res) {
-                //update the delRecords
-                if (res.data.removed.length) {
-                    var _delRecordManager = getStorageItem($queryDB.$delRecordName);
-                    delete _delRecordManager[appName];
-                    //update the storage
-                    setStorageItem($queryDB.$delRecordName, _delRecordManager);
-                }
-
-                if (_task === 'Table') {
-                    new startSyncState(appName, serverResource).process(true);
-                } else {
-                    syncHelper.finalizeProcess(appName);
-                }
-            }
-        };
-
-        this.fail = function(res) {
-            setMessage('Failed to synchronize, unabled to resolve with the server, please try again');
-            syncHelper.killState(appName);
-        };
-
-
-        this.process = function() {
-            var self = this;
-            /**
-             * get the Application API
-             */
-            syncHelper
-                .process
-                .getApplicationApiKey(appName, networkResolver)
-                .then(function() {
-                    mainProcess();
-                }, function() {
-                    setMessage('Failed to retrieve Application Key');
-                    self.fail();
-                });
-
-            /**
-             * Main sync Process
-             */
-
-            function mainProcess(apiKey) {
-                var api = 'dropTable',
-                    data = deleteRecords.table,
-                    message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server',
-                    _task = "Table";
-                //check if database was remove from client
-                if (deleteRecords.database[appName]) {
-                    api = 'dropDataBase';
-                    data = deleteRecords.database;
-                    message = "Droping " + appName + " Application from the server";
-                    _task = "Application";
-                }
-
-
-                /**
-                 * Process renamed Tables before deleting
-                 */
-                if ($isEqual(_task, 'Table') && Object.keys(deleteRecords.rename).length) {
-                    setMessage('Renaming Tables on the server');
-                    processRenamedTables()
-                        .then(mainRequest, self.fail);
-                    return;
-                }
-
-
-                function processRenamedTables() {
-                    return request('renameTable', 'PUT', 'renamed', deleteRecords.rename);
-                }
-
-                function request(_api, type, ref, data) {
-                    var _options = syncHelper.setRequestData(appName, _api, true);
-                    _options.data[ref] = data;
-                    _options.type = type;
-                    return ajax(_options);
-                }
-
-                function mainRequest() {
-                    //set message to our console
-                    setMessage(message);
-                    request(api, 'DELETE', 'remove', data)
-                        .then(self.done(_task), self.fail);
-                }
-
-                mainRequest();
-            }
-        }
-    }
-
     // @Process Entity State FN
     /**
      * 
@@ -148,8 +49,9 @@ function jEliDBSynchronization(appName) {
             if (networkResolver.dirtyCheker) {
                 syncHelper.pullResource(appName)
                     .then(function(response) {
-                        var resourceChecker = response.data;
-                        if (!resourceChecker.resource) {
+                        var resourceChecker = response.data,
+                            $deleteManager = $queryDB.$getActiveDB(appName).$get('resolvers').deleteManager(appName);
+                        if (!resourceChecker.resource && !$deleteManager.isDeletedDataBase()) {
                             //first time using jEliDB
                             setMessage('Server Resource was not found');
                             setMessage('Creating new resource on the server');
@@ -170,16 +72,17 @@ function jEliDBSynchronization(appName) {
                                     syncHelper.killState(appName);
                                 });
                         } else {
-                            var _delRecordManager = getStorageItem($queryDB.$delRecordName),
-                                removedSyncState = null,
-                                _pulledResource = resourceChecker.resource;
+                            syncHelper
+                                .process
+                                .getProcess(appName)
+                                .preparePostSync(resourceChecker.resource, $deleteManager.getRecords());
 
-                            if (_delRecordManager && _delRecordManager[appName]) {
+                            if ($deleteManager.isExists()) {
                                 //start deleted Sync State
-                                new deleteSyncState(_delRecordManager[appName], _pulledResource).process();
+                                new deleteSyncState(appName, $deleteManager.getRecords(), resourceChecker.resource).process();
                             } else {
                                 //start sync state
-                                new startSyncState(appName, _pulledResource).process();
+                                new startSyncState(appName, resourceChecker.resource).process();
                             };
 
                         }
@@ -201,6 +104,9 @@ function jEliDBSynchronization(appName) {
         networkResolver = extend({}, networkResolver, config || {});
         $process.getSet('forceSync', forceSync);
         $process.getSet('networkResolver', networkResolver);
+        $process.getSet('onMessage', function(msg) {
+            syncHelper.setMessage(msg, networkResolver);
+        });
 
         //check for production state
         if (!networkResolver.inProduction) {
@@ -213,7 +119,7 @@ function jEliDBSynchronization(appName) {
     }
 
     this.Entity = function(syncTables) {
-        syncHelper.entity = ($isArray(syncTables) ? syncTables : maskedEval(syncTables));
+        $process.getSet('entity', ($isArray(syncTables) ? syncTables : maskedEval(syncTables)));
         //set Message for Entity
         return ({
             configSync: configSync

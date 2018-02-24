@@ -5,6 +5,10 @@
           task = taskType[0].toLowerCase();
 
       if (taskType && taskPerformerObj[task]) {
+          if (taskPerformerObj[task].requiresParam && taskType.length === 1) {
+              return handler.onError(dbErrorPromiseObject("command requires parameters but got none,\n type help -[command]"));
+          }
+
           return taskPerformerObj[task].fn(taskType, handler)(this);
       }
 

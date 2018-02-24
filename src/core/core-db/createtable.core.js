@@ -28,11 +28,7 @@ DBEvent.prototype.createTbl = function(name, columns) {
             created: curTime,
             lastModified: curTime,
             $hash: GUID(),
-            _$: 1 //created locally
         }));
-
-        // update DB
-        jEliUpdateStorage(DB_NAME, name);
 
         /**
           broadcast event
