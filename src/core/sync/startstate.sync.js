@@ -5,39 +5,51 @@
    */
   function startSyncState(appName, resource) {
       var syncState = syncHelper.prepareSyncState(appName, resource),
-          networkResolver = syncHelper.process.getProcess(appName).getSet('networkResolver');
-      failedState = [],
+          $process = syncHelper.process.getProcess(appName),
+          networkResolver = $process.getSet('networkResolver'),
+          setMessage = $process.getSet('onMessage'),
+          failedState = [],
           queue = 0,
           pullRecordList = {},
           $defer = new $p();
+
       //processQueue()
       function processQueue(inc, state) {
-          var currentProcessTbl = syncState.tables[inc];
+          var currentProcessTbl = syncState.tables.pop();
           //set message status
-          syncHelper.setMessage('Synchronization started for table(' + currentProcessTbl + ')', networkResolver);
+          setMessage('Synchronization started for table(' + currentProcessTbl + ')');
           new synchronizeTable(currentProcessTbl)[state]();
           //increment queue
           queue++;
-
       }
 
       //Merge Db
+      /**
+       * 
+       * @param {*} serverData 
+       * @param {*} tbl 
+       */
       function mergeTbl(serverData, tbl) {
           //the local DB with SERVER DB
           $queryDB
               .$mergeTable(serverData, tbl)
               .then(function(suc) {
-                  $queryDB.$taskPerformer.updateDB(appName, tbl);
-                  syncHelper.setMessage(suc.message, networkResolver);
+                  $queryDB.$taskPerformer.updateDB(appName, tbl, null, +new Date);
+                  setMessage(suc.message);
                   nextQueue({ state: 'Success' }, 'push');
               }, function(fai) {
-                  syncHelper.setMessage(fai.message, networkResolver);
+                  setMessage(fai.message);
                   nextQueue({ state: 'Success' }, 'push');
               });
 
       }
 
       //UpdateHash Fn
+      /**
+       * 
+       * @param {*} tableToUpdate 
+       * @param {*} hash 
+       */
       function updateHash(tableToUpdate, hash) {
           if ($isString(tableToUpdate)) {
               tableToUpdate = $queryDB.$getTable(appName, tableToUpdate);
@@ -46,16 +58,24 @@
           //Update Hash
           tableToUpdate.$hash = hash;
           tableToUpdate.lastModified = +new Date;
-          delete tableToUpdate._$;
-          $queryDB.$taskPerformer.updateDB(appName);
+      }
+
+      function isDeletedTable(serverResource, tbl) {
+          var localResource = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
+          return (localResource.resourceManager[tbl] && (serverResource && !serverResource[tbl]) &&
+              localResource.resourceManager[tbl].lastSyncedDate);
       }
 
       //@Function Name adjustPushRecord
+      /**
+       * 
+       * @param {*} tbl 
+       */
       function processLocalUpdate(tbl) {
           var _recordResolvers = $queryDB.$getActiveDB(appName).$get('recordResolvers');
           if (tbl) {
               //get the current recordResolver state
-              var resolvedData = syncHelper.process.getProcess(appName).getSet('syncLog')[tbl],
+              var resolvedData = $process.getSet('syncLog')[tbl],
                   localResolved = _recordResolvers.$get(tbl),
                   toResolve = [];
 
@@ -70,9 +90,9 @@
 
                   //update the local tables
                   $queryDB.$updateTableData(tbl, toResolve);
-                  $queryDB.$taskPerformer.updateDB(appName, tbl);
               }
 
+              $queryDB.$taskPerformer.updateDB(appName, tbl, null, +new Date);
               //empty our local recordResolver
               _recordResolvers.$isResolved(tbl);
           }
@@ -86,14 +106,13 @@
       function synchronizeTable(currentProcessTbl) {
 
           this.push = function() {
-
               function pushErrorState() {
                   failedState.push(currentProcessTbl);
                   nextQueue({ state: 'Error', failedTables: failedState }, 'push');
               }
 
               function pushSuccessState($hash) {
-                  syncHelper.setMessage('Push completed for table(' + currentProcessTbl + ')', networkResolver);
+                  setMessage('Push completed for table(' + currentProcessTbl + ')');
                   if ($hash) {
                       updateHash(currentProcessTbl, $hash);
                   }
@@ -102,6 +121,10 @@
               }
 
               //Allow Push State
+              /**
+               * 
+               * @param {*} data 
+               */
               function allowPushState(data) {
                   //api : /sync/state
                   //sync state can only be done by Authorized Application
@@ -115,15 +138,36 @@
                           } else {
                               pushErrorState();
                           }
-
                       }, function(pushErrorResponse) {
                           pushErrorState();
                       });
               }
 
               if (!resource || (resource && !resource.resourceManager[currentProcessTbl])) {
-                  syncHelper.setMessage('New Table created and needs to sync with Server', networkResolver);
-                  allowPushState(false);
+                  /**
+                   * check is current processing table has been deleted from server
+                   * if true
+                   *    confirm with user before dropping the table on the client DB
+                   * if confirmed
+                   *    drop the table and update the resoure
+                   */
+                  if (isDeletedTable(resource.resourceManager, currentProcessTbl)) {
+                      setMessage(currentProcessTbl + ' doesn\'t exist on the server');
+                      if (networkResolver.resolveDeletedTable(currentProcessTbl)) {
+                          $queryDB.removeTable(currentProcessTbl, appName, true);
+                          $queryDB.$getActiveDB(appName).$get('resourceManager').removeTableFromResource(currentProcessTbl);
+                          setMessage(currentProcessTbl + ' removed from local DB');
+                      }
+
+                      nextQueue({ state: 'error' }, 'push');
+                      return;
+                  } else {
+                      /**
+                       * synchronize Newly created Table to the server
+                       */
+                      setMessage('New Table created and needs to sync with Server');
+                      allowPushState(false);
+                  }
               } else {
                   syncConflictChecker(appName, resource, currentProcessTbl)
                       .then(function(response) {
@@ -138,21 +182,22 @@
                           }
 
                       }, function(response) {
-                          if (confirm('Update your table(' + currentProcessTbl + ') with Server records (yes/no)')) {
-                              syncHelper.setMessage('Updating Local(' + currentProcessTbl + ') with Server(' + currentProcessTbl + ')', networkResolver);
-                              mergeTbl(response.conflictRecord, currentProcessTbl);
-                          } else {
-                              if (syncHelper.process.getProcess(appName).getSet('forceSync')) {
-                                  syncHelper.setMessage('sync was called with -force:yes', networkResolver);
-                                  allowPushState(false);
-                                  return;
-                              }
-                              syncHelper.setMessage('skipped merging process for this process', networkResolver);
-                              nextQueue({ state: 'Error' }, 'push');
+                          if ($isFunction(networkResolver.conflictResolver)) {
+                              networkResolver.conflictResolver.apply(networkResolver, [response, currentProcessTbl, mergeTbl, failedConflictResolver]);
                           }
                       });
               }
           };
+
+          function failedConflictResolver() {
+              if ($process.getSet('forceSync')) {
+                  setMessage('sync was called with -force:yes');
+                  allowPushState(false);
+                  return;
+              }
+              setMessage('skipped merging process for this process');
+              nextQueue({ state: 'Error' }, 'push');
+          }
 
           //Pull State
           this.pull = function() {
@@ -177,9 +222,24 @@
       var finishQueue = (function() {
           var states = ({
               push: function(response) {
-                  syncHelper.finalizeProcess(appName);
-                  //remove deleteRecords
-                  $queryDB.$taskPerformer.del($queryDB.$delRecordName);
+                  if (syncState.postSync.length) {
+                      setMessage('Syncing down --' + JSON.stringify(syncState.postSync) + '--');
+                      syncHelper
+                          .syncDownTables(appName, syncState.postSync, resource)
+                          .then(finalize, function(err) {
+                              setMessage('Error syncing down, please try again later');
+                              finalize();
+                          });
+
+                      return;
+                  }
+                  finalize();
+
+                  function finalize() {
+                      syncHelper.finalizeProcess(appName);
+                      //remove deleteRecords
+                      $queryDB.$taskPerformer.del($queryDB.$delRecordName);
+                  }
               },
               pull: function() {
                   $defer.resolve({
@@ -194,9 +254,9 @@
           //parameter : XMLHTTPRESPONSE Object
           return function(state, response) {
               syncHelper.printSyncLog(networkResolver, appName);
-              if ($isEqual(syncState.tables.length, queue)) {
+              if (!syncState.tables.length) {
                   if (failedState.length) {
-                      syncHelper.setMessage('synchronization failed for ' + failedState.join(','), networkResolver);
+                      setMessage('synchronization failed for ' + failedState.join(','));
                       networkResolver.handler.onError(dbErrorPromiseObject(response));
                       $defer.reject(response);
                   } else {
@@ -212,7 +272,7 @@
        * @param {*} state 
        */
       function nextQueue(response, state) {
-          if (syncState.tables.length >= (queue + 1)) {
+          if (syncState.tables.length) {
               processQueue(queue, state);
           } else {
               //Finalized all tables
@@ -235,13 +295,12 @@
        * End process when unable to retireve API key
        */
       function endProcess() {
-          syncHelper.setMessage('Unable to retrieve API key', networkResolver);
+          setMessage('Unable to retrieve API key');
           syncHelper.killState(appName);
       }
 
       this.process = function(loadedApiKey) {
           if (!loadedApiKey) {
-              syncHelper
               syncHelper
                   .process
                   .getApplicationApiKey(appName, networkResolver)
