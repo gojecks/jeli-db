@@ -18,39 +18,52 @@ function jEliDB(name, version) {
 
         if (name) {
             //set the current active DB
-            $queryDB.$setActiveDB(name);
-            // set the storage type
-            $queryDB.setStorage(config, function() {
-                //set isOpened flag to true
-                //so that debug is not posible when in production
-                if ($queryDB.isOpen(name)) {
-                    if (!config.isLoginRequired) {
-                        errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
+            $queryDB.$setActiveDB(name)
+                // set the storage type
+                .setStorage(config, function() {
+                    //set isOpened flag to true
+                    //so that debug is not posible when in production
+                    if ($queryDB.isOpen(name)) {
+                        if (!config.isLoginRequired) {
+                            errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
+                        }
                     }
-                }
 
 
-                //set production flag
-                //register our configuration
-                _activeDBApi = $queryDB.$getActiveDB();
-                _activeDBApi
-                    .$get('resolvers')
-                    .register(config)
-                    .register('inProduction', inProduction);
+                    //set production flag
+                    //register our configuration
+                    _activeDBApi = $queryDB.$getActiveDB();
+                    var isDeletedDB = _activeDBApi
+                        .$get('resolvers')
+                        .register(config)
+                        .register('inProduction', inProduction)
+                        /**
+                         * initialize the deleteManager
+                         * check if DB exists in the delete storage
+                         * @return {boolean} 
+                         */
+                        .deleteManager(name)
+                        .init()
+                        .isDeletedDataBase();
 
-                //This is useful when client trys to login in user before loading the DB
-                if (config.isLoginRequired) {
-                    startLoginMode();
-                    return promise;
-                }
+                    if (isDeletedDB) {
+                        initializeDeleteMode();
+                        return promise;
+                    }
 
-                if (!$queryDB.$taskPerformer.initializeDB(name) && config.serviceHost) {
-                    initializeDBSuccess();
-                } else {
-                    startDB();
-                }
+                    //This is useful when client trys to login in user before loading the DB
+                    if (config.isLoginRequired) {
+                        startLoginMode();
+                        return promise;
+                    }
 
-            });
+                    if (!$queryDB.$taskPerformer.initializeDB(name) && config.serviceHost) {
+                        initializeDBSuccess();
+                    } else {
+                        startDB();
+                    }
+
+                });
 
             // Start DB
             function startDB() {
@@ -96,33 +109,16 @@ function jEliDB(name, version) {
             function initializeDBSuccess() {
                 //synchronize the server DB
                 syncHelper
+                    .process
+                    .startSyncProcess(name);
+                syncHelper
                     .pullResource(name)
                     .then(function(syncResponse) {
                         if (syncResponse.data.resource) {
-                            var resource = syncResponse.data.resource,
-                                _loadServerData = _activeDBApi.$get('resolvers').getResolvers('loadServerData') || [];
-                            _activeDBApi.$get('resourceManager').setResource(resource);
+                            _activeDBApi.$get('resourceManager').setResource(syncResponse.data.resource);
                             //Get the DB schema 
                             //for each Table
-                            syncHelper
-                                .getSchema(name, _loadServerData)
-                                .then(function(mergeResponse) {
-                                    //Create a new version of the DB
-                                    var dbTables = { tables: {}, 'version': version };
-
-                                    for (var tbl in mergeResponse.schemas) {
-                                        //set an empty data 
-                                        dbTables.tables[tbl] = mergeResponse.schemas[tbl];
-                                    }
-
-                                    //register DB to QueryDB
-                                    $queryDB.$set(name, dbTables);
-                                    $queryDB.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [Object.keys(dbTables.tables)]);
-                                    setStorageItem(name, dbTables);
-
-                                    //start the DB
-                                    startDB();
-                                });
+                            loadSchema(_activeDBApi.$get('resolvers').getResolvers('loadServerData') || []);
 
                         } else {
                             if (inProduction) {
@@ -131,15 +127,13 @@ function jEliDB(name, version) {
                             //no resource found on the server
                             handleFailedSync();
                         }
-                    }, function() {
-                        //failed to get resource
-                        handleFailedSync();
-                    });
+                    }, handleNetworkError('resource', "Failed to initialize DB", initializeDBSuccess));
             }
 
         } else {
             dbEvent.message = "There was an error creating your DB,";
             dbEvent.message += " either DB name or version number is missing";
+            dbEvent.mode = "errorMode";
             dbEvent.errorCode = 101;
 
             //reject the request
@@ -150,6 +144,68 @@ function jEliDB(name, version) {
         function handleFailedSync() {
             _activeDBApi.$get('resourceManager').setResource(getDBSetUp(name));
             startDB();
+        }
+
+        /**
+         * Function to handle deleted Database
+         */
+        function initializeDeleteMode() {
+            dbEvent.message = name + " database is deleted and pending sync, to re-initialize this Database please clean-up storage.";
+            dbEvent.mode = "deleteMode";
+            dbEvent.result = new DBEvent(name, version, ["name", "version", "jQl", "synchronize", "info", "close"]);
+            defer.reject(dbEvent);
+        }
+
+        /**
+         * 
+         * @param {*} state 
+         * @param {*} retryFN 
+         */
+        function handleNetworkError(state, msg, retryFN) {
+            dbEvent.mode = "AJAXErrorMode";
+            dbEvent.message = "[AJAXErrorMode]: " + msg;
+            dbEvent.result = new DBEvent(name, version, ["name", "version", "jQl", "close"]);
+
+            return function(res) {
+                if (res.data && res.data.message) {
+                    dbEvent.message = dbEvent.message + ", " + res.data.message
+                }
+
+                dbEvent.netData = ({
+                    status: res.status,
+                    state: state,
+                    $retry: retryFN
+                });
+
+                defer.reject(dbEvent);
+                dbEvent = {};
+            };
+        }
+
+        /**
+         * 
+         * @param {*} _loadServerData 
+         */
+        function loadSchema(_loadServerData) {
+            syncHelper
+                .getSchema(name, _loadServerData)
+                .then(function(mergeResponse) {
+                    //Create a new version of the DB
+                    var dbTables = { tables: {}, 'version': version };
+                    for (var tbl in mergeResponse.schemas) {
+                        //set an empty data 
+                        dbTables.tables[tbl] = mergeResponse.schemas[tbl];
+                    }
+                    //register DB to QueryDB
+                    $queryDB.$set(name, dbTables);
+                    $queryDB.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [Object.keys(dbTables.tables)]);
+                    setStorageItem(name, dbTables);
+
+                    //start the DB
+                    startDB();
+                }, handleNetworkError('schema', "Unable to load schema", function() {
+                    loadSchema(_loadServerData);
+                }));
         }
 
 

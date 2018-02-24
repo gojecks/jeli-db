@@ -40,7 +40,7 @@
   }
 
   function getDBSetUp(name) {
-      return ({ started: new Date().getTime(), lastUpdated: new Date().getTime(), resourceManager: {} });
+      return ({ started: new Date().getTime(), lastUpdated: new Date().getTime(), resourceManager: {}, lastSyncedDate: null });
   }
 
   /**
@@ -66,7 +66,6 @@
       var _delRecords = _resolvers.getResolvers('deletedRecords');
       switch (ref) {
           case ('table'):
-              $queryDB.$getActiveDB(obj.db).$get('resourceManager').removeTableFromResource(obj.name);
               _delRecords[ref][obj.name] = obj.$hash || GUID();
               /**
                * check if table was renamed earlier
@@ -77,11 +76,10 @@
               }
               break;
           case ('rename'):
-              $queryDB.$getActiveDB(obj.db).$get('resourceManager').renameTableResource(obj.oldName, obj.newName);
               _delRecords[ref][obj.oldName] = obj.newName;
               break;
           case ('database'):
-              _delRecords[ref][obj.name] = obj.$hash || GUID();
+              _delRecords[ref][obj.db] = obj.$hash || GUID();
               break;
       }
 
