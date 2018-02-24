@@ -4,6 +4,7 @@
 
 	jEliDB.plugins.jQl('export', {
 	    help: ['-export -[TBL_NAME] -type[(csv , html or json)]  -(d or p) (optional) -[fileName]'],
+	    requiresParam: true,
 	    fn: jExportPluginFn
 	});
 
@@ -34,6 +35,9 @@
 	            }
 
 	            return handler.onError.apply(handler.onError, [expRet]);
+	        } else {
+	            result.result.message = "export parameter required";
+	            return handler.onError(result);
 	        }
 	    };
 	}

@@ -3,6 +3,7 @@
 
  jEliDB.plugins.jQl('update', {
      help: ['-update -[tbl_name] -[data] -expression[ [where] [like]] -pushToServer[yes|no]'],
+     requiresParam: true,
      fn: updatePluginFn
  });
 

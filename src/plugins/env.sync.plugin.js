@@ -3,6 +3,7 @@
 
 jEliDB.plugins.jQl('sync', {
     help: ['-sync  (optional) -[tbl_name] -[force]'],
+    requiresParam: false,
     fn: syncPluginFn
 });
 

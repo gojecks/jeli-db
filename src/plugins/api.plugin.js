@@ -2,6 +2,7 @@
 //Environment Plugin 
 jEliDB.plugins.jQl('api', {
     help: ['api -url -method -[optional:data] -table'],
+    requiresParam: true,
     fn: apiPluginFn
 });
 

@@ -4,6 +4,7 @@
 
 jEliDB.plugins.jQl('import', {
     help: ['import -[table name] -[insert]'],
+    requiresParam: true,
     fn: jImportPluginFn
 });
 

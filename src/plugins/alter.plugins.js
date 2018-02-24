@@ -7,6 +7,7 @@ jEliDB.plugins.jQl('alter', {
         'Alter -[tbl_name] -a -m -[read : write]',
         'ALter -[tbl_name] -r -new_tbl_name'
     ],
+    requiresParam: true,
     fn: alterPluginFn
 });
 

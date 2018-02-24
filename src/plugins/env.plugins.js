@@ -2,6 +2,7 @@
 //Environment Plugin 
 jEliDB.plugins.jQl('env', {
     help: 'env -[usage|appkey]',
+    requiresParam: true,
     fn: envPluginFn
 });
 
