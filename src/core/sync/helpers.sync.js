@@ -1,58 +1,80 @@
 /**
  * Synchronization Helper
  */
+function syncHelperPublicApi() {
+    var self = this;
+    this.process = {
+        $process: {},
+        startSyncProcess: function(appName) {
+            this.$process[appName] = {
+                syncLog: {},
+                forceSync: false,
+                getSet: function(name, value) {
+                    if (arguments.length > 1) {
+                        this[name] = value;
+                    }
 
-var syncHelper = {};
-syncHelper.printSyncLog = function(networkResolver, appName) {
-    var _syncLog = this.process.getProcess(appName).getSet('syncLog');
+                    return this[name];
+                },
+                preparePostSync: function(resource, resourceRecords) {
+                    var tables = [];
+                    if (resource && resource.resourceManager) {
+                        tables = Object.keys(resource.resourceManager).filter(function(tbl) {
+                            return (!resourceRecords.rename[tbl] && !resourceRecords.table[tbl]);
+                        });
+                    }
+
+                    this.getSet('postSyncTables', tables);
+                },
+            };
+
+            return this.$process[appName];
+        },
+        destroyProcess: function(appName) {
+            this.$process[appName] = null;
+        },
+        getProcess: function(appName) {
+            return this.$process[appName] || null;
+        },
+        getApplicationApiKey: function(appName, networkResolver) {
+            self.setMessage('Retrieving API key....', networkResolver);
+            var options = self.setRequestData(appName, 'apikey', true),
+                _this = this;
+            options.type = 'POST';
+            return ajax(options).then(function(res) {
+                self.setMessage('Retrieved API key', networkResolver);
+                _this.getProcess(appName).getSet('apiKey', res.data);
+            });
+        }
+    };
+}
+
+/**
+ * 
+ * @param {*} networkResolver 
+ * @param {*} appName 
+ */
+syncHelperPublicApi.prototype.printSyncLog = function(networkResolver, appName) {
+    var _syncLog = this.process.getProcess(appName).getSet('syncLog'),
+        _self = this;
     for (var i in _syncLog) {
         this.setMessage('---Log for ' + i + ' table----', networkResolver);
         ["data", "columns"].forEach(function(log) {
-            syncHelper.setMessage(log.toUpperCase() + ' Changes: ' + _syncLog[i][log].changesFound, networkResolver);
+            _self.setMessage(log.toUpperCase() + ' Changes: ' + _syncLog[i][log].changesFound, networkResolver);
             ["delete", "insert", "update"].map(function(list) {
-                syncHelper.setMessage(list.toUpperCase() + " : " + _syncLog[i][log][list].length, networkResolver);
-            })
-        });
-    }
-};
-
-syncHelper.process = {
-    $process: {},
-    startSyncProcess: function(appName) {
-        this.$process[appName] = {
-            syncLog: {},
-            forceSync: false,
-            getSet: function(name, value) {
-                if (arguments.length > 1) {
-                    this[name] = value;
-                }
-
-                return this[name];
-            }
-        };
-
-        return this.$process[appName];
-    },
-    destroyProcess: function(appName) {
-        this.$process[appName] = null;
-    },
-    getProcess: function(appName) {
-        return this.$process[appName] || null;
-    },
-    getApplicationApiKey: function(appName, networkResolver) {
-        syncHelper.setMessage('Retrieving API key....', networkResolver);
-        var options = syncHelper.setRequestData(appName, 'apikey', true),
-            _this = this;
-        options.type = 'POST';
-        return ajax(options).then(function(res) {
-            syncHelper.setMessage('Retrieved API key', networkResolver);
-            _this.getProcess(appName).getSet('apiKey', res.data);
+                _self.setMessage(list.toUpperCase() + " : " + _syncLog[i][log][list].length, networkResolver);
+            });
         });
     }
 };
 
 //Sync Error Message Logger
-syncHelper.setMessage = function(log, networkResolver) {
+/**
+ * 
+ * @param {*} log 
+ * @param {*} networkResolver 
+ */
+syncHelperPublicApi.prototype.setMessage = function(log, networkResolver) {
     if (log) {
         log = '[' + new Date().toLocaleString() + '] : ' + log;
         if (networkResolver.logService) {
@@ -64,7 +86,12 @@ syncHelper.setMessage = function(log, networkResolver) {
 };
 
 //function fakeTable
-syncHelper.createFakeTable = function(appName, tbl) {
+/**
+ * 
+ * @param {*} appName 
+ * @param {*} tbl 
+ */
+syncHelperPublicApi.prototype.createFakeTable = function(appName, tbl) {
     return ({
         $hash: null,
         data: [],
@@ -75,11 +102,22 @@ syncHelper.createFakeTable = function(appName, tbl) {
 };
 
 //function to bypass undefined table in table set
-syncHelper.setTable = function(tbl) {
+/**
+ * 
+ * @param {*} tbl 
+ */
+syncHelperPublicApi.prototype.setTable = function(tbl) {
     return (!$isUndefined(tbl) && tbl || this.createFakeTable());
 };
 
-syncHelper.setRequestData = function(appName, state, ignore, tbl) {
+/**
+ * 
+ * @param {*} appName 
+ * @param {*} state 
+ * @param {*} ignore 
+ * @param {*} tbl 
+ */
+syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, tbl) {
     var options = $queryDB.buildOptions(appName, tbl, state),
         process = this.process.getProcess(appName);
     //ignore post data
@@ -91,8 +129,11 @@ syncHelper.setRequestData = function(appName, state, ignore, tbl) {
                 options.data.action = "overwrite";
                 break;
             case ('resource'):
-                var resources = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
-                options.data.postData = resources;
+                var resource = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
+                if (!resource.lastSyncedDate) {
+                    resource.lastSyncedDate = +new Date;
+                }
+                options.data.postData = resource;
                 break;
         }
     }
@@ -108,27 +149,43 @@ syncHelper.setRequestData = function(appName, state, ignore, tbl) {
 
 //@Fn Name prepareTables
 //@return ARRAY of tables
-syncHelper.prepareSyncState = function(appName, resource) {
-    var tbls = [];
+/**
+ * 
+ * @param {*} appName 
+ * @param {*} resource 
+ */
+syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
+    var tbls = [],
+        entities = this.process.getProcess(appName).getSet('entity');
     // check if table was requested
-    if ($isArray(this.entity) || $isArray(resource)) {
-        tbls = this.entity || resource;
+    if ($isArray(entities)) {
+        tbls = tbls.concat(entities);
     } else {
-        var localResource = getStorageItem(appName) || $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
-        if (localResource.tables || localResource.resourceManager) {
-            tbls = Object.keys(localResource.tables || localResource.resourceManager);
+        var localResource = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
+        if (localResource && localResource.resourceManager) {
+            tbls = Object.keys(localResource.resourceManager);
         }
     }
 
-    return ({ tables: tbls });
+    var postSyncTables = (this.process
+            .getProcess(appName)
+            .getSet('postSyncTables') || [])
+        .filter(function(tbl) { return !$inArray(tbl, tbls) });
+
+    return ({ tables: tbls, postSync: postSyncTables });
 };
 
-syncHelper.getSchema = function(appName, requiredData) {
+/**
+ * 
+ * @param {*} appName 
+ * @param {*} requiredData 
+ */
+syncHelperPublicApi.prototype.getSchema = function(appName, requiredData) {
     var _options = this.setRequestData(appName, 'schema', false, this.prepareSyncState(appName).tables),
         $defer = new $p();
     //set request for Data
     _options.data.fetchData = requiredData;
-    _options.type = "POST";
+    _options.type = "GET";
 
     ajax(_options)
         .then(function(res) {
@@ -142,13 +199,21 @@ syncHelper.getSchema = function(appName, requiredData) {
 
 //@Function pullResource
 //Pull Resource From the Server
-syncHelper.pullResource = function(appName) {
+/**
+ * 
+ * @param {*} appName 
+ */
+syncHelperPublicApi.prototype.pullResource = function(appName) {
     return ajax(this.setRequestData(appName, 'resource', true));
 };
 
 
 //@Function Name KillState
-syncHelper.killState = function(appName) {
+/**
+ * 
+ * @param {*} appName 
+ */
+syncHelperPublicApi.prototype.killState = function(appName) {
     this.process.getProcess(appName)
         .getSet('networkResolver')
         .handler.onError(dbErrorPromiseObject("Completed with Errors, please check log"));
@@ -156,7 +221,11 @@ syncHelper.killState = function(appName) {
 };
 
 //@FN NAME finalizeProcess();
-syncHelper.finalizeProcess = function(appName) {
+/**
+ * 
+ * @param {*} appName 
+ */
+syncHelperPublicApi.prototype.finalizeProcess = function(appName) {
     this.process.getProcess(appName)
         .getSet('networkResolver')
         .handler.onSuccess(dbSuccessPromiseObject("sync", 'Synchronization Complete without errors'));
@@ -165,12 +234,19 @@ syncHelper.finalizeProcess = function(appName) {
 
 //@Function Name Push
 //Objective : update the server database with client records
-syncHelper.push = function(appName, tbl, data, state) {
+/**
+ * 
+ * @param {*} appName 
+ * @param {*} tbl 
+ * @param {*} data 
+ * @param {*} state 
+ */
+syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
     var _activeDB = $queryDB.$getActiveDB(appName);
-    syncHelper.setMessage('Initializing Push State for table(' + tbl + ')', _activeDB.$get('resolvers').networkResolver);
+    this.setMessage('Initializing Push State for table(' + tbl + ')', _activeDB.$get('resolvers').networkResolver);
     //check state
     state = state || 'push';
-    var _options = syncHelper.setRequestData(appName, state, false, tbl);
+    var _options = this.setRequestData(appName, state, false, tbl);
     //update the table and not overwrite
     if (data) {
         if (!data.columns.diff) {
@@ -188,17 +264,42 @@ syncHelper.push = function(appName, tbl, data, state) {
 //@Function Name : pullTable
 //@objective : get all records from DB
 //@return AJAX promise Object
-
-syncHelper.pullTable = function(appName, tbl) {
-    syncHelper.setMessage('---Retrieving ' + tbl + ' schema---', $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver);
-    return ajax(syncHelper.setRequestData(appName, 'pull', false, tbl));
+/**
+ * 
+ * @param {*} appName 
+ * @param {*} tbl 
+ */
+syncHelperPublicApi.prototype.pullTable = function(appName, tbl) {
+    this.setMessage('---Retrieving ' + tbl + ' schema---', this.process.getProcess(appName).getSet('networkResolver'));
+    return ajax(this.setRequestData(appName, 'pull', false, tbl));
 };
 
 //@Function Name Pull
 //@Objective Pull Table from the server
 //@Return SyncState Object {}
-
-syncHelper.pull = function(appName) {
-    syncHelper.setMessage('Pull  State Started', $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver);
+/**
+ * 
+ * @param {*} appName 
+ */
+syncHelperPublicApi.prototype.pull = function(appName) {
+    this.setMessage('Pull  State Started', this.process.getProcess(appName).getSet('networkResolver'));
     return new startSyncState(appName).getDBRecords();
 };
+
+syncHelperPublicApi.prototype.syncDownTables = function(appName, tables, resource) {
+    var $resource = $queryDB.$getActiveDB(appName).$get('resourceManager');
+    return this
+        .getSchema(appName, tables)
+        .then(function(pendingTables) {
+            for (var tbl in pendingTables.schemas) {
+                $resource.putTableResource(resource.resourceManager[tbl]);
+                $queryDB.$newTable(appName, tbl, pendingTables.schemas[tbl]);
+            }
+            /**
+             * broadcast event
+             */
+            $queryDB.storageEventHandler.broadcast(eventNamingIndex(appName, 'onResolveSchema'), [tables]);
+        });
+};
+
+var syncHelper = new syncHelperPublicApi();
