@@ -18,7 +18,7 @@ function syncHelperPublicApi() {
                 },
                 preparePostSync: function(resource, resourceRecords) {
                     var tables = [];
-                    if (resource && resource.resourceManager) {
+                    if (resource && resource.resourceManager && !resourceRecords.database[appName]) {
                         tables = Object.keys(resource.resourceManager).filter(function(tbl) {
                             return (!resourceRecords.rename[tbl] && !resourceRecords.table[tbl]);
                         });
@@ -161,10 +161,7 @@ syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
     if ($isArray(entities)) {
         tbls = tbls.concat(entities);
     } else {
-        var localResource = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
-        if (localResource && localResource.resourceManager) {
-            tbls = Object.keys(localResource.resourceManager);
-        }
+        tbls = $queryDB.$getActiveDB(appName).$get('resourceManager').getTableNames() || [];
     }
 
     var postSyncTables = (this.process
@@ -181,11 +178,8 @@ syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
  * @param {*} requiredData 
  */
 syncHelperPublicApi.prototype.getSchema = function(appName, requiredData) {
-    var _options = this.setRequestData(appName, 'schema', false, this.prepareSyncState(appName).tables),
+    var _options = this.setRequestData(appName, 'schema', false, requiredData || []),
         $defer = new $p();
-    //set request for Data
-    _options.data.fetchData = requiredData;
-    _options.type = "GET";
 
     ajax(_options)
         .then(function(res) {
@@ -286,14 +280,23 @@ syncHelperPublicApi.prototype.pull = function(appName) {
     return new startSyncState(appName).getDBRecords();
 };
 
+/**
+ * 
+ * @param {*} appName 
+ * @param {*} tables 
+ * @param {*} resource 
+ */
 syncHelperPublicApi.prototype.syncDownTables = function(appName, tables, resource) {
     var $resource = $queryDB.$getActiveDB(appName).$get('resourceManager');
     return this
         .getSchema(appName, tables)
         .then(function(pendingTables) {
             for (var tbl in pendingTables.schemas) {
-                $resource.putTableResource(resource.resourceManager[tbl]);
-                $queryDB.$newTable(appName, tbl, pendingTables.schemas[tbl]);
+                if (resource.resourceManager[tbl]) {
+                    $resource.putTableResource(tbl, resource.resourceManager[tbl]);
+                    $queryDB.$newTable(appName, tbl, pendingTables.schemas[tbl]);
+                }
+
             }
             /**
              * broadcast event
