@@ -13,13 +13,15 @@ function resourceManager(name) {
      * @param {*} resource 
      */
     this.setResource = function(resource) {
-        _resource = resource || _resource;
+        _resource = resource || _resource || this.getResource();
         //set and save the resource
         setStorageItem(_resourceName, _resource);
+
+        return this;
     };
 
     this.$isExists = function() {
-        return !_resource;
+        return !!_resource;
     };
 
     this.removeResource = function() {
@@ -31,10 +33,18 @@ function resourceManager(name) {
         return _resource && _resource.resourceManager.hasOwnProperty(tbl) && _resource.resourceManager[tbl].lastSyncedDate;
     };
 
+    this.getDataBaseLastSyncDate = function() {
+        return _resource && _resource.lastSyncedDate;
+    };
+
     this.putTableResource = function(tbl, definition) {
         _resource.resourceManager[tbl] = definition;
         return this;
-    }
+    };
+
+    this.getTableNames = function() {
+        return _resource && _resource.resourceManager && Object.keys(_resource.resourceManager);
+    };
 }
 /**
  * 
