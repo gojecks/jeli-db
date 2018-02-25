@@ -30,6 +30,7 @@ function openedDBHandler(definition) {
 
     this.$destroy = function(name) {
         _holder[name] = null;
+        delete _holder[name];
         return this;
     };
 }

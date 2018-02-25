@@ -111,30 +111,31 @@ exportersModule.prototype.json = function() {
  * @param {*} fileType 
  */
 function exportGenerator(doc, fileType) {
-    if (doc && !$isEmpty(doc)) {
-
-        function getFileName(fileName) {
-            return fileName + "." + fileType;
-        }
-
-
-        return ({
-            download: function(fileName) {
-                var uri = encodeURI('data:text/' + fileType + ';charset=utf-8,' + doc),
-                    anchor = element('<a></a>')
-                    .attr({ href: uri, download: getFileName(fileName || GUID()) })
-                    .appendTo('body')
-                    .css('display', 'none');
-                //initiate click
-                anchor[0].click();
-                anchor.remove();
-
-                //print a message
-                return 'downloading file';
-            },
-            print: function() {
-                return doc;
-            }
-        });
+    function getFileName(fileName) {
+        return fileName + "." + fileType;
     }
+
+
+    return ({
+        download: function(fileName) {
+            var uri = encodeURI('data:text/' + fileType + ';charset=utf-8,' + doc),
+                anchor = document.createElement('a');
+            anchor.setAttribute('href', uri);
+            anchor.setAttribute('download', getFileName(fileName || GUID()));
+            anchor.style.display = 'none';
+            document.body.appendChild(anchor);
+            //initiate click
+            anchor.click();
+            document.body.removeChild(anchor);
+
+            //print a message
+            return 'downloading file';
+        },
+        print: function() {
+            if ($isObject(doc)) {
+                doc = JSON.stringify(doc);
+            }
+            return doc;
+        }
+    });
 }

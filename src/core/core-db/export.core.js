@@ -28,12 +28,14 @@ DBEvent.prototype['export'] = function(table, type) {
             } else {
                 //Open the exporter
                 exp.open(title);
-                //set label
-                exp.row(Object.keys(data[0]._data));
-                //set the data
-                expect(data).each(function(item) {
-                    exp.row(getValueInArray(item._data));
-                });
+                if (data.length) {
+                    //set label
+                    exp.row(Object.keys(data[0]._data));
+                    //set the data
+                    expect(data).each(function(item) {
+                        exp.row(getValueInArray(item._data));
+                    });
+                }
             }
 
             //close the exporter

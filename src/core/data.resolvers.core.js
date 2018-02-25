@@ -124,6 +124,12 @@ function DBRecordResolvers(name) {
                         table.$hash = $hash;
                     });
             }
+        },
+        $destroy: function() {
+            if (_records[name]) {
+                _records = {};
+                setStorageItem(_lRecordName, {});
+            }
         }
     });
 

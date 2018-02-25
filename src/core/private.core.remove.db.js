@@ -19,6 +19,7 @@ _privateApi.prototype.removeDB = function(db) {
         if (lastSyncedDate) {
             updateDeletedRecord('database', { db: db });
         } else {
+            _dbApi.$get('recordResolvers').$destroy();
             this.openedDB.$destroy(db);
         }
 

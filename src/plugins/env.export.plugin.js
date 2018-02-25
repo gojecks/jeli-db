@@ -13,25 +13,31 @@
 	    return function(db) {
 	        //export a table
 	        if (query.length > 2) {
-	            var expRet = db
-	                .export(query[1], query[2]) //type
-	                .initialize(query[5]);
-	            if (expRet && !expRet.state) {
-	                var type = null;
-	                switch (query[3]) {
-	                    case ('d'):
-	                        type = 'download';
-	                        break;
-	                    case ('p'):
-	                    case ('c'):
-	                        type = 'print';
-	                        break
-	                }
+	            try {
+	                var expRet = db
+	                    .export(query[1], query[2]) //type
+	                    .initialize(query[5]);
+	                if (expRet && !expRet.state) {
+	                    var type = null;
+	                    switch (query[3]) {
+	                        case ('d'):
+	                            type = 'download';
+	                            break;
+	                        case ('p'):
+	                        case ('c'):
+	                            type = 'print';
+	                            break
+	                    }
 
-	                if (type) {
-	                    result.result.message = expRet[type](query[4]);
-	                    return handler.onSuccess.apply(handler.onSuccess, [result]);
+	                    if (type) {
+	                        result.result.message = expRet[type](query[4]);
+	                        return handler.onSuccess.apply(handler.onSuccess, [result]);
+	                    }
 	                }
+	            } catch (e) {
+	                result.result.message = "there was an error processing export, please try again later.";
+	                console.log(e);
+	                return handler.onError(result);
 	            }
 
 	            return handler.onError.apply(handler.onError, [expRet]);
