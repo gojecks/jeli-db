@@ -52,6 +52,16 @@ function jEliDBSynchronization(appName) {
                         var resourceChecker = response.data,
                             $deleteManager = $queryDB.$getActiveDB(appName).$get('resolvers').deleteManager(appName);
                         if (!resourceChecker.resource && !$deleteManager.isDeletedDataBase()) {
+                            /**
+                             * Database synced but removed by some other users
+                             * killState and return false
+                             */
+                            if ($queryDB.$getActiveDB(appName).$get('resourceManager').getDataBaseLastSyncDate()) {
+                                setMessage("Database doesn't exists on the server");
+                                syncHelper.killState(appName);
+                                return false;
+                            }
+
                             //first time using jEliDB
                             setMessage('Server Resource was not found');
                             setMessage('Creating new resource on the server');
@@ -71,21 +81,23 @@ function jEliDBSynchronization(appName) {
                                     setMessage('Resource synchronization failed, please check your log');
                                     syncHelper.killState(appName);
                                 });
-                        } else {
-                            syncHelper
-                                .process
-                                .getProcess(appName)
-                                .preparePostSync(resourceChecker.resource, $deleteManager.getRecords());
 
-                            if ($deleteManager.isExists()) {
-                                //start deleted Sync State
-                                new deleteSyncState(appName, $deleteManager.getRecords(), resourceChecker.resource).process();
-                            } else {
-                                //start sync state
-                                new startSyncState(appName, resourceChecker.resource).process();
-                            };
-
+                            return true;
                         }
+
+                        syncHelper
+                            .process
+                            .getProcess(appName)
+                            .preparePostSync(resourceChecker.resource, $deleteManager.getRecords());
+
+                        if ($deleteManager.isExists()) {
+                            //start deleted Sync State
+                            new deleteSyncState(appName, $deleteManager.getRecords(), resourceChecker.resource).process();
+                        } else {
+                            //start sync state
+                            new startSyncState(appName, resourceChecker.resource).process();
+                        };
+
                     }, function(err) {
                         setMessage('Pull Request has failed, please check your network');
                         if (err.data) {
