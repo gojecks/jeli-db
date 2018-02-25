@@ -63,7 +63,7 @@
               }
 
 
-              if ($isEqual(_task, 'table') || $queryDB.$getActiveDB(appName).$get('resourceManager').$isExists()) {
+              if ($queryDB.$getActiveDB(appName).$get('resourceManager').$isExists()) {
                   new startSyncState(appName, serverResource).process(true);
               } else {
                   syncHelper.finalizeProcess(appName);
