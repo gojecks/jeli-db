@@ -60,6 +60,9 @@ function jEliDB(name, version) {
                     if (!$queryDB.$taskPerformer.initializeDB(name) && config.serviceHost) {
                         initializeDBSuccess();
                     } else {
+                        _activeDBApi
+                            .$get('resourceManager')
+                            .setResource();
                         startDB();
                     }
 
@@ -109,16 +112,15 @@ function jEliDB(name, version) {
             function initializeDBSuccess() {
                 //synchronize the server DB
                 syncHelper
-                    .process
-                    .startSyncProcess(name);
-                syncHelper
                     .pullResource(name)
                     .then(function(syncResponse) {
                         if (syncResponse.data.resource) {
-                            _activeDBApi.$get('resourceManager').setResource(syncResponse.data.resource);
+                            var tableNames = _activeDBApi.$get('resourceManager')
+                                .setResource(syncResponse.data.resource)
+                                .getTableNames();
                             //Get the DB schema 
                             //for each Table
-                            loadSchema(_activeDBApi.$get('resolvers').getResolvers('loadServerData') || []);
+                            loadSchema(tableNames);
 
                         } else {
                             if (inProduction) {
@@ -194,7 +196,9 @@ function jEliDB(name, version) {
                     var dbTables = { tables: {}, 'version': version };
                     for (var tbl in mergeResponse.schemas) {
                         //set an empty data 
-                        dbTables.tables[tbl] = mergeResponse.schemas[tbl];
+                        if (mergeResponse.schemas[tbl]) {
+                            dbTables.tables[tbl] = mergeResponse.schemas[tbl];
+                        }
                     }
                     //register DB to QueryDB
                     $queryDB.$set(name, dbTables);
