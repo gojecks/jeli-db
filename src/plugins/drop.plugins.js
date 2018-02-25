@@ -22,6 +22,7 @@ function dropPluginFn(query, handler) {
                         .table(query[2])
                         .onSuccess(function(tbl) {
                             var state = tbl.result.drop(flag);
+                            state.type = "table";
                             if ($isEqual(state.status, 'success')) {
                                 handler.onSuccess(state);
                             } else {
@@ -36,6 +37,7 @@ function dropPluginFn(query, handler) {
                     db
                         .drop(flag)
                         .onSuccess(function(state) {
+                            state.type = "database";
                             if ($isEqual(state.status, 'success')) {
                                 handler.onSuccess(state);
                             } else {
