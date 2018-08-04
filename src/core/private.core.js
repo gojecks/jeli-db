@@ -30,6 +30,10 @@ function _privateApi() {
         return this.$dbName + "_" + db;
     };
 
+    this.getDataResolverName = function(dbName) {
+        return "_l_" + dbName;
+    };
+
     /**
      * 
      * @param {*} name 

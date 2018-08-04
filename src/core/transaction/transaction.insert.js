@@ -97,7 +97,7 @@ function transactionInsert() {
 
                 // update offline
                 if (!disableOfflineCache) {
-                    $self.updateOfflineCache('insert', $self.getAllRef(processData));
+                    $self.updateOfflineCache('insert', $self.getAllRef(processedData));
                 }
 
                 /**

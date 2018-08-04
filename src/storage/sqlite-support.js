@@ -263,6 +263,28 @@ function sqliteStorage(type, config, CB) {
             return promise;
         }
 
+        _pub.dropTables = function(tables) {
+            if (!$isArray(tables)) {
+                errorBuilder('ERROR[SQL] : expected ArrayList<tbl>');
+            }
+
+            var $promise = new $p(),
+                qPromise = new promiseHandler($promise);
+
+            function run(tbl, tx) {
+                executeQuery = "DROP TABLE  IF EXISTS " + tbl;
+                tx.executeSql(executeQuery, [], qPromise.success, qPromise.error);
+            }
+
+            sqlInstance.transaction(function(transaction) {
+                expect(tables).each(function(tbl) {
+                    run(tbl, transaction);
+                });
+            });
+
+            return $promise;
+        };
+
         _pub.query = function(query, data) {
             var $promise = new $p();
             sqlInstance.transaction(function(tx) {
@@ -393,14 +415,24 @@ function sqliteStorage(type, config, CB) {
      * @param {*} newName 
      */
     publicApis.prototype.rename = function(oldName, newName, cb) {
-        var newData = copy(_privateStore[oldName], true);
-        expect(newData.tables).each(function(tbl) {
+        var newData = copy(_privateStore[oldName], true),
+            tablesData = {},
+            tbls = ['_JELI_STORE_'],
+            _self = this;
+        /**
+         * loop through tables
+         * store each table Data
+         */
+        expect(newData.tables).each(function(tbl, tblName) {
             tbl.DB_NAME = newName;
+            tablesData[tblName] = tbl.data.slice();
             tbl.data = [];
             tbl.lastModified = +new Date
+            tbls.push(tblName);
         });
         var bkInstance = useDB(createDB(newName, extend(config, { name: newName })));
-        var _self = this;
+        $queryDB.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
+        _dbApi.dropTables(tbls);
         /**
          * create our store
          */
@@ -409,23 +441,28 @@ function sqliteStorage(type, config, CB) {
                 /**
                  * insert into our store
                  */
-                bkInstance.insert('_JELI_STORE_', [{ _rev: newName, _data: newData }, {
+                bkInstance.insert('_JELI_STORE_', [{
+                        _rev: newName,
+                        _data: newData
+                    }, {
                         _rev: $queryDB.getResourceName(newName),
                         _data: _self.getItem($queryDB.getResourceName(oldName))
                     }, {
-                        _rev: "_l_",
-                        _data: _self.getItem('_l_')
+                        _rev: $queryDB.getDataResolverName(newName),
+                        _data: _self.getItem($queryDB.getDataResolverName(newName))
                     }])
                     .then(function() {
                         expect(newData.tables).each(createAndInsert);
                         (cb || noop)();
+                        _self.clear();
                     });
             });
 
         function createAndInsert(tbl, tblName) {
             bkInstance.createTable(tblName, ['_ref unique', '_data'])
                 .then(function() {
-                    bkInstance.insert(tblName, _privateStore[oldName].tables[tblName].data)
+                    bkInstance.insert(tblName, tablesData[tblName])
+                    delete tablesData[tblName];
                 });
         }
     };
