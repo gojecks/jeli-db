@@ -409,16 +409,11 @@ function sqliteStorage(type, config, CB) {
                 /**
                  * insert into our store
                  */
-                bkInstance.insert('_JELI_STORE_', { _rev: newName, _data: newData })
+                bkInstance.insert('_JELI_STORE_', [{ _rev: newName, _data: newData }, {
+                        _rev: $queryDB.getResourceName(newName),
+                        _data: _self.getItem($queryDB.getResourceName(oldName))
+                    }])
                     .then(function() {
-                        /**
-                         * insert data into store
-                         */
-                        bkInstance.insert($queryDB.getResourceName(newName), {
-                            _rev: $queryDB.getResourceName(newName),
-                            _data: _self.getItem($queryDB.getResourceName(oldName))
-                        });
-
                         expect(newData.tables).each(createAndInsert);
                         (cb || noop)();
                     });
@@ -427,7 +422,7 @@ function sqliteStorage(type, config, CB) {
         function createAndInsert(tbl, tblName) {
             bkInstance.createTable(tblName, ['_ref unique', '_data'])
                 .then(function() {
-                    bkInstance.insert(tblName, _privateStore[oldName][tblName].data)
+                    bkInstance.insert(tblName, _privateStore[oldName].tables[tblName].data)
                 });
         }
     };
