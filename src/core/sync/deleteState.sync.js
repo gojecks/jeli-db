@@ -84,7 +84,7 @@
            */
           syncHelper
               .process
-              .getApplicationApiKey(appName, syncHelper.process.getProcess(appName).getSet('networkResolver'))
+              .getApplicationApiKey(appName)
               .then(mainProcess, function() {
                   setMessage('Failed to retrieve Application Key');
                   self.fail();
@@ -128,10 +128,9 @@
               }
 
               function request(_api, type, ref, data) {
-                  var _options = syncHelper.setRequestData(appName, _api, true);
+                  var _options = syncHelper.setRequestData(appName, _api, true, type);
                   _options.data[ref] = data;
-                  _options.type = type;
-                  return ajax(_options);
+                  return $queryDB.$http(_options);
               }
 
               function mainRequest() {

@@ -70,7 +70,7 @@
          */
         _publicApi.prototype.initializeDB = function(name) {
             //set recordResolvers
-            if (self.$getActiveDB().$get('resourceManager').$isExists()) {
+            if (!self.$getActiveDB().$get('resourceManager').$isExists()) {
                 return false;
             } else {
                 //retrieve current DB items

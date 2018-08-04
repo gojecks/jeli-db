@@ -15,11 +15,7 @@ function jEliDBSynchronization(appName) {
 
     function syncResourceToServer() {
         setMessage('Resource synchronization started');
-        var _options = syncHelper.setRequestData(appName, 'resource', '', '');
-        _options.type = "PUT";
-
-        return ajax(_options);
-
+        return $queryDB.$http(syncHelper.setRequestData(appName, 'resource', '', '', 'PUT'));
     }
 
     function commit() {
@@ -29,9 +25,7 @@ function jEliDBSynchronization(appName) {
 
 
     function printLog() {
-        for (var log in networkResolver.logger) {
-            console.log(networkResolver.logger[log]);
-        }
+        networkResolver.logger.forEach(console.log);
     }
 
     // @Process Entity State FN
@@ -51,7 +45,7 @@ function jEliDBSynchronization(appName) {
                     .then(function(response) {
                         var resourceChecker = response.data,
                             $deleteManager = $queryDB.$getActiveDB(appName).$get('resolvers').deleteManager(appName);
-                        if (!resourceChecker.resource && !$deleteManager.isDeletedDataBase()) {
+                        if (resourceChecker && !resourceChecker.resource && !$deleteManager.isDeletedDataBase()) {
                             /**
                              * Database synced but removed by some other users
                              * killState and return false
@@ -59,7 +53,7 @@ function jEliDBSynchronization(appName) {
                             if ($queryDB.$getActiveDB(appName).$get('resourceManager').getDataBaseLastSyncDate()) {
                                 setMessage("Database doesn't exists on the server");
                                 syncHelper.killState(appName);
-                                return false;
+                                return $queryDB.removeDB(appName, true);
                             }
 
                             //first time using jEliDB

@@ -66,7 +66,11 @@ function transactionSelectColumn(data, definition) {
     }
 
     function limitTask(data) {
-        return data.splice(parseInt(definition.limit.split(',')[0]), parseInt(definition.limit.split(',')[1]));
+        if ($isNumber(definition.limit)) {
+            definition.limit = "0," + definition.limit;
+        }
+        var spltLimit = definition.limit.split(',');
+        return data.splice(parseInt(spltLimit[0]), parseInt(spltLimit[1]));
     }
 
 

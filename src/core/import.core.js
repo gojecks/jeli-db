@@ -19,7 +19,7 @@ function jFileReader() {
     function processData(content) {
         //initialize the file
         var fileType = handler.selectedFile.name.split('.')[1],
-            importModule = new importModules();
+            importModule = new importModules(fileType);
         if (fileType && importModule[fileType]) {
             handler.onSuccess(importModule[fileType](content));
         } else {
@@ -75,7 +75,7 @@ function jFileReader() {
 
 function importModules(type) {
     var okeys;
-    this.fileData = { columns: [], data: [], skippedData: [] };
+    this.fileData = { columns: [], data: [], skippedData: [], _type: type };
     /**
      * 
      * @param {*} cdata 
@@ -157,3 +157,11 @@ importModules.prototype.csv = function(content) {
     this.setData(lines);
     return this.fileData;
 };
+
+importModules.prototype.jql = function(content) {
+    this.fileData.data = content.split(/\r\n|\n/).filter(function(text) {
+        return text.trim().substr(0, 1) !== "#"
+    });
+
+    return this.fileData;
+}

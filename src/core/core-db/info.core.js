@@ -9,13 +9,14 @@ DBEvent.prototype.info = function() {
         tables = $queryDB.$get(this.name, 'tables');
     if (tables) {
         findInList.call(tables, function(tblName, tbl) {
-            tableSet[tblName] = {
+            tableSet[tblName] = copyFrom({
                 records: (tbl.data || []).length || tbl._records,
                 columns: tbl.columns,
                 primaryKey: tbl.primaryKey,
                 foreignKey: tbl.foreignKey,
-                allowedMode: 'readwrite'
-            };
+                allowedMode: 'readwrite',
+                lastModified: tbl.lastModified
+            }, true);
         });
     }
 

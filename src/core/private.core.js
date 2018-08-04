@@ -11,6 +11,11 @@ function _privateApi() {
     this.$taskPerformer = _privateTaskPerfomer(this);
     this.$activeDB = null;
     this.openedDB = new openedDBHandler();
+
+    /**
+     * 
+     * @param {*} name 
+     */
     this.$setActiveDB = function(name) {
         // open the DB
         if (!this.openedDB.$hasOwnProperty(name)) {
@@ -21,6 +26,15 @@ function _privateApi() {
         return this;
     };
 
+    this.getResourceName = function(db) {
+        return this.$dbName + "_" + db;
+    };
+
+    /**
+     * 
+     * @param {*} name 
+     * @param {*} data 
+     */
     this.$set = function(name, data) {
         this.openedDB.$get(name).$set('_db_', data);
         return this;
@@ -53,6 +67,11 @@ function _privateApi() {
         return _db;
     };
 
+    /**
+     * 
+     * @param {*} dbName 
+     * @param {*} tableName 
+     */
     this.$getTable = function(dbName, tableName) {
         if (this.$get(dbName, 'tables').hasOwnProperty(tableName)) {
             return this.$get(dbName, 'tables')[tableName];
@@ -60,6 +79,13 @@ function _privateApi() {
         return false;
     };
 
+    /**
+     * 
+     * @param {*} dbName 
+     * @param {*} oldTable 
+     * @param {*} newTable 
+     * @param {*} removeTable 
+     */
     this.replicateTable = function(dbName, oldTable, newTable, removeTable) {
         var currentDB = this.$get(dbName);
         if (currentDB && currentDB.tables[oldTable]) {
@@ -69,18 +95,35 @@ function _privateApi() {
                 delete currentDB.tables[oldTable];
             }
         }
-    }
+    };
 
+    /**
+     * 
+     * @param {*} dbName 
+     * @param {*} tableName 
+     * @param {*} option 
+     */
     this.$getTableOptions = function(dbName, tableName, option) {
         return (this.$getTable(dbName, tableName) || {})[option];
     };
 
+    /**
+     * 
+     * @param {*} data 
+     * @param {*} ref 
+     */
     this.$getDataByRef = function(data, ref) {
         return [].filter.call(data, function(item) {
             return item._ref === ref;
         })[0];
     };
 
+    /**
+     * 
+     * @param {*} tbl 
+     * @param {*} db 
+     * @param {*} updateStorage 
+     */
     this.removeTable = function(tbl, db, updateStorage) {
         if (delete this.$get(db, 'tables')[tbl] && updateStorage) {
             jEliUpdateStorage(db, tbl);
@@ -96,18 +139,32 @@ function _privateApi() {
     });
 }
 
+/**
+ * 
+ * @param {*} db 
+ */
 _privateApi.prototype.getDbTablesNames = function(db) {
     return Object.keys(this.$get(db || this.$activeDB, 'tables'));
 };
 
 
-
+/**
+ * 
+ * @param {*} db 
+ * @param {*} tbl 
+ * @param {*} tableDefinition 
+ */
 _privateApi.prototype.$newTable = function(db, tbl, tableDefinition) {
     this.$get(db, 'tables')[tbl] = extend({}, tableDefinition);
     this.$taskPerformer.updateDB(db, tbl);
     return true;
 };
 
+/**
+ * 
+ * @param {*} tbl 
+ * @param {*} data 
+ */
 _privateApi.prototype.$updateTableData = function(tbl, data) {
     var tblRecord = this.$getTable(this.$activeDB, tbl);
     if (tblRecord) {
@@ -117,10 +174,32 @@ _privateApi.prototype.$updateTableData = function(tbl, data) {
     return this;
 };
 
+/**
+ * 
+ * @param {*} oldName 
+ * @param {*} newName 
+ */
+_privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
+    var oldInstance = this.$getActiveDB(oldName);
+    oldInstance.$get('_storage_').rename(oldName, newName, function() {
+        oldInstance.$get('resourceManager').renameResource(newName);
+        cb();
+    });
+};
+
+/**
+ * 
+ * @param {*} db 
+ * @param {*} tbl 
+ */
 _privateApi.prototype.getTableCheckSum = function(db, tbl) {
     return this.$getTable(db, tbl).$hash;
 };
 
+/**
+ * 
+ * @param {*} name 
+ */
 _privateApi.prototype.isOpen = function(name) {
     var _openedDB = this.openedDB.$get(name);
     if (_openedDB.$get('open')) {
@@ -146,6 +225,11 @@ _privateApi.prototype.isOpen = function(name) {
 
 };
 
+/**
+ * 
+ * @param {*} name 
+ * @param {*} removeFromStorage 
+ */
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
     this.openedDB
         .$get(name)
@@ -163,16 +247,27 @@ _privateApi.prototype.closeDB = function(name, removeFromStorage) {
     }
 };
 
+/**
+ * 
+ * @param {*} req 
+ */
 _privateApi.prototype.$getActiveDB = function(req) {
     return this.openedDB.$get(req || this.$activeDB);
 };
 
-
+/**
+ * 
+ * @param {*} name 
+ * @param {*} db 
+ */
 _privateApi.prototype.getNetworkResolver = function(name, db) {
     return this.$getActiveDB(db).$get('resolvers').getResolvers(name) || '';
 };
-//generate a nonce
-//to protect CSRF
+
+/**
+ * 
+ * @param {*} name 
+ */
 _privateApi.prototype.getNonce = function(name) {
     //set new update
     var nonce = this.getNetworkResolver('nonce', name);

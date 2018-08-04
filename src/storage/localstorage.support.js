@@ -34,5 +34,16 @@
           return (_storage[name] || '').length;
       };
 
+      _publicApi_.rename = function(oldName, newName, cb) {
+          var oldData = this.getItem(oldName);
+          expect(oldData.tables).each(function(tbl) {
+              tbl.DB_NAME = newName;
+              tbl.lastModified = +new Date
+          });
+          this.setItem(newName, oldData);
+          this.removeItem(oldName);
+          (cb || noop)();
+      };
+
       return _publicApi_;
   }

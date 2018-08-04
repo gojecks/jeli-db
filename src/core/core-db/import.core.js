@@ -70,10 +70,43 @@ DBEvent.prototype.import = function(table, handler) {
             }
         }
 
+        function processJQL(data) {
+            var total = data.length,
+                start = 0,
+                result = {
+                    messages: []
+                };
+            process();
+
+            function process() {
+                if ($isEqual(total, start)) {
+                    return handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
+                }
+
+                var query = data[start];
+                start++;
+
+                db.jQl(query, {
+                    onSuccess: function(ret) {
+                        handler.logService(ret.result.message);
+                        process();
+                    },
+                    onError: function(err) {
+                        handler.logService(err.message + " on line : " + start);
+                        process();
+                    }
+                });
+            }
+        }
+
         this.onSuccess = function(data) {
             handler.logService('Imported ' + data.data.length + " records");
             if (data.skippedData.length) {
                 handler.logService('Skipped ' + data.skippedData.length + " records");
+            }
+
+            if ($isEqual(data._type, "jql")) {
+                return processJQL(data.data)
             }
 
             if (createTable) {

@@ -5,6 +5,7 @@ jEliDB.plugins.jQl('alter', {
         'Alter -[tbl_name] -a -f -columnName -[relative table]',
         'Alter -[tbl_name] -d -columnName',
         'Alter -[tbl_name] -a -m -[read : write]',
+        'Alter -[tbl_name] -a -u -config',
         'ALter -[tbl_name] -r -new_tbl_name'
     ],
     requiresParam: true,
@@ -27,22 +28,15 @@ function alterPluginFn(query, handler) {
                     var exp = query[query.length - 1],
                         key = query[query.length - 2],
                         type = 'new',
-                        task = taskType[query[3]];
+                        task = taskType[query[3]] || query[3];
                     switch (query[2]) {
                         case ('add'):
                         case ('a'):
 
-                            //options refers to "primary" | "foreign" keys
-                            //foreignkey requires a table to reference
-                            if (!$isEqual(task, 'column')) {
-                                key = exp;
-                                type = 'key';
-                            }
-
                             alt
                                 .result
                                 .Alter
-                                .add(type)[task](jSonParser(key), jSonParser(exp));
+                                .add[task](jSonParser(key || exp), jSonParser(exp));
 
                             break;
                         case ('drop'):

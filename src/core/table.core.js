@@ -28,14 +28,14 @@ function jEliDBTBL(tableInfo) {
         jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
     };
 
-    this.Alter.add = function(type) {
-        return ({
-            key: keyAction,
-            index: indexAction,
-            mode: modeAction,
-            column: columnAction
-        });
-    };
+    this.Alter.add = ({
+        primary: primaryAction,
+        unique: indexAction,
+        foreign: foreignAction,
+        mode: modeAction,
+        column: columnAction,
+
+    });
 
     /**
      * Rename Table
@@ -147,31 +147,39 @@ function jEliDBTBL(tableInfo) {
         });
     }
 
-    function keyAction(key, tableName) {
-        switch (type.toLowerCase()) {
-            case ('primary'):
-                if (key && tableInfo.columns[0][key]) {
-                    tableInfo.primaryKey = key;
-                    tableInfo.columns[0][key].primaryKey = true;
-                    //update the DB
-                    jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
-                }
-                break;
-            case ('foreign'):
-                if (key && tableName && tableInfo.columns[0][key]) {
-                    if (!tableInfo.foreignKey && $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(tableName)) {
-                        tableInfo.foreignKey = {
-                            key: key,
-                            table: tableName
-                        };
-                    }
-                    //update the DB
-                    jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
-                }
-                break;
+    /**
+     * 
+     * @param {*} key 
+     */
+    function primaryAction(key) {
+        if (key && tableInfo.columns[0][key]) {
+            tableInfo.primaryKey = key;
+            tableInfo.columns[0][key].primaryKey = true;
+            //update the DB
+            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
         }
 
         return this;
+    }
+
+    /**
+     * 
+     * @param {*} key 
+     * @param {*} tableName 
+     */
+    function foreignAction(key, tableName) {
+        if (key && tableName && tableInfo.columns[0][key]) {
+            if (!tableInfo.foreignKey && $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(tableName)) {
+                tableInfo.foreignKey = {
+                    key: key,
+                    table: tableName
+                };
+            }
+            //update the DB
+            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+        }
+
+        return this
     }
 
     /**

@@ -1,31 +1,33 @@
 //Cutom Plugins
 //Environment Plugin 
 jEliDB.plugins.jQl('env', {
-    help: 'env -[usage|appkey]',
+    help: 'env -[usage|appkey -key]',
     requiresParam: true,
     fn: envPluginFn
 });
 
 
 function envPluginFn(query, handler) {
-    var result = { state: query[0], result: { message: null } };
+    var ret = { state: query[0], result: {} };
     return function(db) {
         var task = db.env[query[1]];
         if (task) {
-            var ret = task();
-            if ($isObject(ret)) {
-                result.state = query[1];
-                ret.then(function(res) {
+            var _task = task(query[2]);
+            if ($isObject(_task)) {
+                ret.state = query[1];
+                _task.then(function(res) {
                     //set the state
-                    result.result.message = res;
-                    handler.onSuccess.apply(handler.onSuccess, [result]);
+                    ret.result = res;
+                    handler.onSuccess.apply(handler.onSuccess, [ret]);
                 }, function(err) {
-                    handler.onError.apply(handler.onError, [err]);
-                })
+                    handler.onError.apply(handler.onError, [err.data || {
+                        message: "There was a network error, please try again later"
+                    }]);
+                });
                 return true;
             } else {
-                result.result.message = ret;
-                return handler.onSuccess.apply(handler.onSuccess, [result]);
+                ret.result.message = _task;
+                return handler.onSuccess.apply(handler.onSuccess, [ret]);
             }
 
         }

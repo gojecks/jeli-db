@@ -65,16 +65,15 @@ function $query(data) {
 
         var _search = [],
             _setLogicPerformer = externalQuery(logic);
+        callback = callback || function(item) {
+            _search.push(item._data || item);
+        };
         //Query the required Data
         //Match the Result with Logic
         //@return : ARRAY Search result
         expect(data).each(function(item, idx) {
             if (_setLogicPerformer.call(null, item, idx)) {
-                if ($isFunction(callback)) {
-                    callback(item, idx);
-                } else {
-                    _search.push(item._data || item);
-                }
+                callback(item, idx);
             }
         });
 
@@ -88,8 +87,7 @@ function $query(data) {
 //@return : Function
 
 function externalQuery(logic, replacer) {
-    var keyLen,
-        pCondition;
+    var keyLen;
 
 
     function jsonMatcher(res1, res2) {
@@ -108,12 +106,13 @@ function externalQuery(logic, replacer) {
         });
 
         return keyLen === found;
-    };
+    }
 
     if (logic) {
         if (!$isObject(logic)) {
             logic = _parseCondition(splitStringCondition(logic), replacer);
         }
+
         keyLen = Object.keys(logic).length;
         return objectQueryTaskPerformer;
     }

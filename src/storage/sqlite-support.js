@@ -6,26 +6,21 @@ function sqliteStorage(type, config, CB) {
     //{name: "mySQLite.db", location: 'default'}
 
     var dbName = config.name,
-        privateApis = createDB(dbName),
         _storageTableName = "",
         _started = false,
         _privateStore = {},
-        _dbApi = useDB();
-
-    if (!privateApis) {
-        errorBuilder('No Plugin Support for ' + type);
-    }
+        _dbApi = useDB(createDB(dbName, config));
 
 
-    function createDB($dbName) {
+    function createDB($dbName, _config) {
         var ret = null;
         switch ((type || '').toLowerCase()) {
             case ('websql'):
-                ret = $isSupport.websql && window.openDatabase(dbName, '1.0', dbName + ' Storage for webSql', 50 * 1024 * 1024);
+                ret = $isSupport.websql && window.openDatabase($dbName, '1.0', $dbName + ' Storage for webSql', 50 * 1024 * 1024);
                 break;
             case ('sqlite'):
             case ('sqlitecipher'):
-                ret = (window.sqlitePlugin) && window.sqlitePlugin.openDatabase(config);
+                ret = (window.sqlitePlugin) && window.sqlitePlugin.openDatabase(_config);
                 break;
         }
 
@@ -34,7 +29,7 @@ function sqliteStorage(type, config, CB) {
 
 
     function loadAllData() {
-        queryPerfomrer('SELECT * FROM _JELI_STORE_', [])
+        _dbApi.query('SELECT * FROM _JELI_STORE_', [])
             .then(function(tx, results) {
                 var len = results.rows.length,
                     i;
@@ -52,8 +47,7 @@ function sqliteStorage(type, config, CB) {
             (CB || noop)();
             return;
         }
-        var inc = 0,
-            tableNames = Object.keys(_privateStore[dbName].tables);
+        var tableNames = Object.keys(_privateStore[dbName].tables);
 
         resolveTableData();
 
@@ -69,7 +63,7 @@ function sqliteStorage(type, config, CB) {
             _dbApi.select('select * from ' + current)
                 .then(function(tx, results) {
                     var len = results.rows.length,
-                        i, data = [];
+                        i;
                     for (i = 0; i < len; i++) {
                         _privateStore[dbName].tables[current].data.push({
                             _ref: results.rows.item(i)._ref,
@@ -81,21 +75,14 @@ function sqliteStorage(type, config, CB) {
                     resolveTableData();
                 });
         }
-
     }
 
 
-    function queryPerfomrer(query, data) {
-        var $promise = new $p();
-        privateApis.transaction(function(tx) {
-            tx.executeSql(query, data, $promise.resolve, $promise.reject);
-        });
+    function useDB(sqlInstance) {
 
-        return $promise;
-    }
-
-
-    function useDB() {
+        if (!sqlInstance) {
+            errorBuilder('No Plugin Support for ' + type);
+        }
 
         var _pub = {},
             _setData = function(data, setCol) {
@@ -116,26 +103,62 @@ function sqliteStorage(type, config, CB) {
                 });
             };
 
-        _pub.createTable = function(cQuery) {
+        function promiseHandler($promise) {
+            var succ = err = total = 0;
+            this.success = function() {
+                succ++;
+                finalize.apply(null, arguments);
+            };
+
+            this.error = function() {
+                err++;
+                finalize.apply(null, arguments);
+            };
+
+            var finalize = function() {
+                if ((succ + err) == total) {
+                    $promise.resolve({
+                        success: succ,
+                        failed: err
+                    });
+                }
+            };
+
+            this.setTotal = function(val) {
+                total = val;
+            };
+        }
+
+        _pub.createTable = function(tableName, columns) {
             var $promise = new $p();
-            privateApis.transaction(function(transaction) {
-                transaction.executeSql(cQuery, [], $promise.resolve, $promise.reject);
+            sqlInstance.transaction(function(transaction) {
+                transaction.executeSql('CREATE TABLE IF NOT EXISTS ' + tableName + ' (' + columns.join(',') + ')', [], $promise.resolve, $promise.reject);
             });
 
             return $promise;
         };
 
         _pub.insert = function(table, data) {
-            if (!table || !$isObject(data)) {
-                errorBuilder('Table and data is required');
+            if (!table || !$isArray(data)) {
+                errorBuilder('ERROR[SQL] : Table and data is required');
+            }
+            var $promise = new $p(),
+                qPromise = new promiseHandler($promise);
+
+            function run(item, tx) {
+                var columns = Object.keys(item),
+                    _cData = _setData(item),
+                    executeQuery = "INSERT OR REPLACE INTO " + table + " (" + columns.join(',') + ") VALUES (" + _cData.col.join(',') + ")";
+                tx.executeSql(executeQuery, _cData.val, qPromise.success, qPromise.error);
             }
 
-            var $promise = new $p(),
-                columns = Object.keys(data),
-                _cData = _setData(data),
-                executeQuery = "INSERT OR REPLACE INTO " + table + " (" + columns.join(',') + ") VALUES (" + _cData.col.join(',') + ")";
-            privateApis.transaction(function(transaction) {
-                transaction.executeSql(executeQuery, _cData.val, $promise.resolve, $promise.reject);
+
+
+            sqlInstance.transaction(function(transaction) {
+                qPromise.setTotal(data.length);
+                expect(data).each(function(item) {
+                    run(item, transaction)
+                });
             });
 
             return $promise;
@@ -143,49 +166,72 @@ function sqliteStorage(type, config, CB) {
 
         _pub.select = function(executeQuery, data) {
             if (!executeQuery) {
-                errorBuilder('Table is required');
+                errorBuilder('ERROR[SQL] : Table is required');
             }
 
             var $promise = new $p();
-            privateApis.transaction(function(transaction) {
+            sqlInstance.transaction(function(transaction) {
                 transaction.executeSql(executeQuery, data || [], $promise.resolve, $promise.reject);
             });
 
             return $promise;
         };
 
-        _pub.delete = function(table, where, ex) {
+        _pub.delete = function(table, data, where, ex) {
             if (!table) {
-                errorBuilder('Table and id is required');
+                errorBuilder('ERROR[SQL] : Table and data is required');
             }
 
-            ex = ex || [];
             var $promise = new $p(),
+                qPromise = new promiseHandler($promise);
+
+            function run(item, tx) {
                 executeQuery = "DELETE FROM " + table;
-            if (where) {
-                executeQuery += " " + where;
+                if (where) {
+                    executeQuery += " " + where;
+                    ex = [item[ex] || item];
+                }
+
+                tx.executeSql(executeQuery, ex || [], qPromise.success, qPromise.error);
             }
 
-            privateApis.transaction(function(transaction) {
-                transaction.executeSql(executeQuery, ex, $promise.resolve, $promise.reject);
+
+            sqlInstance.transaction(function(transaction) {
+                if (data) {
+                    qPromise.setTotal(data.length);
+                    expect(data).each(function(item) {
+                        run(item, transaction)
+                    });
+                } else {
+                    run({}, transaction);
+                }
             });
 
             return $promise;
         };
 
         _pub.update = function(table, data, where) {
-            if (!table || !$isObject(data)) {
-                errorBuilder('Table and data is required');
+            if (!table || !$isArray(data)) {
+                errorBuilder('ERROR[SQL] : Table and data is required');
             }
 
             var $promise = new $p(),
-                executeQuery = "UPDATE " + table + " SET ",
-                _cData = _setData(data, true);
+                qPromise = new promiseHandler($promise);
 
-            executeQuery += " " + _cData.col.join(',');
-            executeQuery += " " + (where) ? where : "";
-            privateApis.transaction(function(transaction) {
-                transaction.executeSql(executeQuery, _cData.val, $promise.resolve, $promise.reject);
+            function run(item, tx) {
+                var executeQuery = "UPDATE " + table + " SET ",
+                    _cData = _setData(item._data, true);
+
+                executeQuery += " " + _cData.col.join(',');
+                executeQuery += "  WHERE _ref='" + item._ref + "'";
+                tx.executeSql(executeQuery, _cData.val, qPromise.success, qPromise.error);
+            }
+
+            sqlInstance.transaction(function(transaction) {
+                qPromise.setTotal(data.length);
+                expect(data).each(function(item) {
+                    run(item, transaction)
+                });
             });
 
             return $promise;
@@ -193,13 +239,13 @@ function sqliteStorage(type, config, CB) {
 
         _pub.dropTable = function(table) {
             if (!table) {
-                errorBuilder('Table is required');
+                errorBuilder('ERROR[SQL] : Table is required');
             }
 
             var $promise = new $p(),
                 executeQuery = "DROP TABLE  IF EXISTS " + table;
 
-            privateApis.transaction(function(transaction) {
+            sqlInstance.transaction(function(transaction) {
                 transaction.executeSql(executeQuery, [], $promise.resolve, $promise.reject);
             });
 
@@ -210,12 +256,21 @@ function sqliteStorage(type, config, CB) {
             var $promise = new $p(),
                 executeQuery = "ALTER TABLE " + tbl + " ADD " + columnName + " " + type;
 
-            privateApis.transaction(function(transaction) {
+            sqlInstance.transaction(function(transaction) {
                 transaction.executeSql(executeQuery, [], $promise.resolve, $promise.reject);
             });
 
             return promise;
         }
+
+        _pub.query = function(query, data) {
+            var $promise = new $p();
+            sqlInstance.transaction(function(tx) {
+                tx.executeSql(query, data, $promise.resolve, $promise.reject);
+            });
+
+            return $promise;
+        };
 
         return _pub;
     };
@@ -246,21 +301,15 @@ function sqliteStorage(type, config, CB) {
 
     $queryDB.storageEventHandler
         .subscribe(eventNamingIndex(dbName, 'insert'), function(tbl, data) {
-            data.forEach(function(_data) {
-                _dbApi.insert(tbl, _data);
-            });
+            _dbApi.insert(tbl, data);
         })
         .subscribe(eventNamingIndex(dbName, 'update'), function(tbl, data) {
-            data.forEach(function(_data) {
-                _dbApi.update(tbl, _data, " WHERE _ref='" + _data._ref + "'")
-                    .then(function() {}, txError);
-            });
+            _dbApi.update(tbl, data)
+                .then(function() {}, txError);
         })
         .subscribe(eventNamingIndex(dbName, 'delete'), function(tbl, data) {
-            data.forEach(function(_data) {
-                _dbApi.delete(tbl, " WHERE _ref=?", [_data._ref || _data])
-                    .then(function() {}, txError);
-            });
+            _dbApi.delete(tbl, data, " WHERE _ref=?", '_ref')
+                .then(function() {}, txError);
         })
         .subscribe(eventNamingIndex(dbName, 'onCreateTable'), createTable)
         .subscribe(eventNamingIndex(dbName, 'onDropTable'), _dbApi.dropTable)
@@ -275,37 +324,53 @@ function sqliteStorage(type, config, CB) {
         });
 
     function createTable(tbl) {
-        _dbApi.createTable('CREATE TABLE IF NOT EXISTS ' + tbl + ' (_ref unique, _data)');
+        return _dbApi.createTable(tbl, ['_ref unique', '_data']);
     }
 
 
 
-    function publicApis() {};
+    function publicApis() {
+        /**
+         * 
+         * @param {*} name 
+         */
+        this.usage = function(name) {
+            return JSON.stringify(this.getItem(name) || '').length;
+        };
 
-    publicApis.prototype.setItem = function(name, item) {
-        if (item.tables) {
-            // remove the table from object
-            update(removeTableData(JSON.parse(JSON.stringify(item))));
-        } else {
-            update(item);
-        }
+        /**
+         * 
+         * @param {*} name 
+         */
+        this.getItem = function(name) {
+            return _privateStore[name];
+        };
 
+        /**
+         * 
+         * @param {*} name 
+         * @param {*} item 
+         */
+        this.setItem = function(name, item) {
+            if (item.tables) {
+                // remove the table from object
+                update(removeTableData(JSON.parse(JSON.stringify(item))));
+            } else {
+                update(item);
+            }
 
-        function update(newSet) {
-            queryPerfomrer('INSERT OR REPLACE INTO _JELI_STORE_ (_rev, _data) VALUES (?,?)', [name, JSON.stringify(newSet)])
-                .then(function() {
-                    _privateStore[name] = item;
-                });
-        }
+            function update(newSet) {
+                _dbApi.query('INSERT OR REPLACE INTO _JELI_STORE_ (_rev, _data) VALUES (?,?)', [name, JSON.stringify(newSet)])
+                    .then(function() {
+                        _privateStore[name] = item;
+                    });
+            }
 
-    };
-
-    publicApis.prototype.getItem = function(name) {
-        return _privateStore[name];
+        };
     };
 
     publicApis.prototype.removeItem = function(name) {
-        queryPerfomrer('DELETE FROM _JELI_STORE_ WHERE _rev=?', [name])
+        _dbApi.query('DELETE FROM _JELI_STORE_ WHERE _rev=?', [name])
             .then(function() {
                 delete _privateStore[name];
             });
@@ -313,21 +378,64 @@ function sqliteStorage(type, config, CB) {
         return true;
     };
 
-    publicApis.prototype.usage = function(name) {
-        return JSON.stringify(this.getItem(name) || '').length;
-    };
+
 
     publicApis.prototype.clear = function() {
-        queryPerfomrer('DELETE FROM _JELI_STORE_', [])
+        _dbApi.query('DELETE FROM _JELI_STORE_', [])
             .then(function() {
-                _privateStore[name] = {};
+                _privateStore = {};
             });
+    };
+
+    /**
+     * 
+     * @param {*} oldName 
+     * @param {*} newName 
+     */
+    publicApis.prototype.rename = function(oldName, newName, cb) {
+        var newData = copy(_privateStore[oldName], true);
+        expect(newData.tables).each(function(tbl) {
+            tbl.DB_NAME = newName;
+            tbl.data = [];
+            tbl.lastModified = +new Date
+        });
+        var bkInstance = useDB(createDB(newName, extend(config, { name: newName })));
+        var _self = this;
+        /**
+         * create our store
+         */
+        bkInstance.createTable('_JELI_STORE_', ["_rev unique", "_data"])
+            .then(function() {
+                /**
+                 * insert into our store
+                 */
+                bkInstance.insert('_JELI_STORE_', { _rev: newName, _data: newData })
+                    .then(function() {
+                        /**
+                         * insert data into store
+                         */
+                        bkInstance.insert($queryDB.getResourceName(newName), {
+                            _rev: $queryDB.getResourceName(newName),
+                            _data: _self.getItem($queryDB.getResourceName(oldName))
+                        });
+
+                        expect(newData.tables).each(createAndInsert);
+                        (cb || noop)();
+                    });
+            });
+
+        function createAndInsert(tbl, tblName) {
+            bkInstance.createTable(tblName, ['_ref unique', '_data'])
+                .then(function() {
+                    bkInstance.insert(tblName, _privateStore[oldName][tblName].data)
+                });
+        }
     };
 
 
     this.mockLocalStorage = function() {
         // create our store table
-        queryPerfomrer('CREATE TABLE IF NOT EXISTS _JELI_STORE_ (_rev unique, _data)', [])
+        _dbApi.query('CREATE TABLE IF NOT EXISTS _JELI_STORE_ (_rev unique, _data)', [])
             .then(loadAllData)
             .catch(function() {
                 errorBuilder(type + " catched to initialize our store");

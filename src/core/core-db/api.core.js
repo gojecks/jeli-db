@@ -2,7 +2,13 @@
 //@params : request Type , State , postData, table_name
 //
 
-
+/**
+ * 
+ * @param {*} type 
+ * @param {*} state 
+ * @param {*} postData 
+ * @param {*} tbl 
+ */
 DBEvent.prototype.api = function(type, state, postData, tbl) {
     //state needs to be split for accuracy
     if (expect(state).contains("/")) {
@@ -23,13 +29,14 @@ DBEvent.prototype.api = function(type, state, postData, tbl) {
         }
     }
 
-    ajax(_options)
+    $queryDB.$http(_options)
         .then(function(res) {
-            var ret = dbSuccessPromiseObject(state, "");
+            var ret = dbSuccessPromiseObject('api', "");
             ret.result = res.data;
+            ret.__api__ = state;
             $defer.resolve(ret);
         }, function(err) {
-            $defer.reject((err.data || {}).error);
+            $defer.reject((err.data || { message: "There was an error please try again later" }));
         });
 
     return $defer;

@@ -18,7 +18,7 @@ _privateApi.prototype.setStorage = function(config, callback) {
         case ('sqlite'):
         case ('sqlitecipher'):
         case ('websql'):
-            if ($inArray(_storage.toLowerCase(), ['sqlite', 'sqlitecipher']) && !window.sqlitePlugin) {
+            if ($inArray(_storage.toLowerCase(), ['sqlite', 'sqlitecipher', 'cordova.sqlite.adapter', 'sqlite.adapter']) && !window.sqlitePlugin) {
                 _storage = "websql";
             }
 
@@ -34,9 +34,17 @@ _privateApi.prototype.setStorage = function(config, callback) {
         case ('sessionstorage'):
         case ('memory'):
         default:
+            /**
+             * custom storage
+             */
+            if (window[_storage] && $isFunction(window[_storage])) {
+                this.$getActiveDB().$new('_storage_', new window[_storage](sqliteConfig, callback));
+                return;
+            }
+
             //setStorage
             //default storage to localStorage
-            this.$getActiveDB().$new('_storage_', $isSupport.localStorage && new jDBStorage(_storage, this.$activeDB));
+            this.$getActiveDB().$new('_storage_', new jDBStorage(_storage, this.$activeDB));
             callback();
             break;
     }

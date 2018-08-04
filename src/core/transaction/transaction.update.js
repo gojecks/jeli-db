@@ -1,8 +1,10 @@
-// @Function : update
-// @Arguments : parameter[0] (OBJECT || String),parameter[1] (STRING)
-// @Return {Object}
-// @ExecuteState : return Message {STRING}
-
+/**
+ * 
+ * @method Update
+ * @param {*} updateData 
+ * @param {*} query
+ * @return {OBJECT}
+ */
 function transactionUpdate(updateData, query) {
     var $self = this;
     //convert our query
@@ -79,7 +81,7 @@ function transactionUpdate(updateData, query) {
 
         //push records to our resolver
         if (!disableOfflineCache) {
-            $self.updateOfflineCache('update', rowsToUpdate);
+            $self.updateOfflineCache('update', $self.getAllRef(rowsToUpdate));
         }
 
         /**

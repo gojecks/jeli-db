@@ -17,7 +17,7 @@ function DBEvent(name, version, required) {
             return "unknown usuage";
         },
         logger: function() {
-            return $queryDB.$getActiveDB(name).$get('resourceManager').getResource();
+            return $queryDB.$getActiveDB(name).$get('resolvers').getResolvers('logger');
         },
         dataTypes: $queryDB.$getActiveDB(name).$get('dataTypes')
     };
@@ -32,11 +32,10 @@ function DBEvent(name, version, required) {
         //@Function Name getApiKey
         //Objective : get the current user APIKEY from the server
         //only when its available
-        this.env.appkey = function() {
+        this.env.appkey = function(key) {
             var _options = $queryDB.buildOptions(name, '', 'apikey'),
                 logService = $queryDB.getNetworkResolver('logService');
-            _options.type = "POST";
-
+            _options.data.key = key;
             logService('Retrieving Api Key and Secret..');
             //perform ajax call
             return ProcessRequest(_options);

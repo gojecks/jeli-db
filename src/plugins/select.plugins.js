@@ -10,7 +10,6 @@
     //-Where -column -like -expression 
     function selectPluginFn(query, handler) {
         var table = query[2].split(',');
-
         return function(db) {
             if (query.length > 1) {
                 //build table

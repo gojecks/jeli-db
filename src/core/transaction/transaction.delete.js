@@ -6,19 +6,31 @@
 function transactionDelete(query) {
     var $self = this,
         delItem = [];
-    new $query(this.tableInfo.data)._(query, function(item, idx) {
-        delItem.push(item);
-    });
+    if (query) {
+        if ($isObject(query) && query.hasOwnProperty('byRefs')) {
+            if (!$isArray(query.byRefs)) {
+                throw Error(["ByRefs requires ArrayList<ref>"]);
+            }
+
+            $self.tableInfo.data = $self.tableInfo.data.filter(function(item) {
+                return !$inArray(item._ref, query.byRefs);
+            });
+
+            delItem = query.byRefs;
+        } else {
+            new $query(this.tableInfo.data.slice())._(query, function(item, idx) {
+                delItem.push(item._ref);
+                $self.tableInfo.data.splice(idx, 1);
+            });
+        }
+    } else {
+        delItem = $self.getAllRef();
+    }
 
     this.executeState.push(["delete", function(disableOfflineCache) {
         if (!delItem.length) {
             throw Error(["No record(s) to remove"]);
         } else {
-            $self.tableInfo.data = $self.tableInfo.data.filter(function(item) {
-                return !$inArray(item, delItem);
-            });
-
-
             //push records to our resolver
             if (!disableOfflineCache) {
                 $self.updateOfflineCache('delete', delItem);

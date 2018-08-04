@@ -6,8 +6,7 @@ function transactionInsert() {
         _data = arguments,
         $self = this,
         tableInfo = $self.tableInfo,
-        columnObj = columnObjFn(tableInfo.columns[0]),
-        l;
+        columnObj = columnObjFn(tableInfo.columns[0]);
 
     /*
         Check if the our arguments is 1
@@ -21,29 +20,28 @@ function transactionInsert() {
     }
 
     if (_data.length && columnObj) {
-        for (l = 0; l <= _data.length - 1; l++) {
-            var type = ($isObject(_data[l]) ? 'object' : 'array'),
+        expect(_data).each(function(item, idx) {
+            var type = ($isObject(item) ? 'object' : 'array'),
                 cdata = {};
 
             //switch type
             switch (type) {
                 case ('object'):
-                    cdata = _data[l];
+                    cdata = item;
                     break;
                 case ('array'):
                     var columnKeys = Object.keys(columnObj),
                         k;
                     //loop through the 
                     for (k in columnKeys) {
-                        cdata[columnKeys[k]] = _data[l][k];
+                        cdata[columnKeys[k]] = item[k] || jSonParser(item);
                     }
                     break;
             }
 
-            if (processData(cdata, l)) {
+            if (processData(cdata, idx)) {
                 var tableConfig = tableInfo.columns[0],
-                    pData = extend({}, columnObj, cdata);
-
+                    pData = extend(true, columnObj, cdata);
 
                 // check indexing
                 var _dataExists = false,
@@ -71,11 +69,10 @@ function transactionInsert() {
                 //set obj ref GUID
                 if (!_dataExists) {
                     tableInfo.lastInsertId++;
-
                     //update the data to store
                     findInList.call(pData, function(i, n) {
                         //check auto_increment
-                        if (!n && tableConfig[i].hasOwnProperty('AUTO_INCREMENT')) {
+                        if ($isUndefined(n) && tableConfig[i].hasOwnProperty('AUTO_INCREMENT')) {
                             pData[i] = tableInfo.lastInsertId;
                         }
                     });
@@ -86,7 +83,8 @@ function transactionInsert() {
                     processedData.push(newSet);
                 }
             }
-        }
+        });
+
 
         if (!$isEqual(this.processState, "insert")) {
             this.executeState.push(["insert", function(disableOfflineCache) {
@@ -99,7 +97,7 @@ function transactionInsert() {
 
                 // update offline
                 if (!disableOfflineCache) {
-                    $self.updateOfflineCache('insert', processedData);
+                    $self.updateOfflineCache('insert', $self.getAllRef(processData));
                 }
 
                 /**

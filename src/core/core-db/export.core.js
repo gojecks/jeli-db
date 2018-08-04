@@ -1,7 +1,11 @@
-DBEvent.prototype['export'] = function(table, type) {
+/**
+ * @param {*} table
+ * @param {*} type
+ */
+DBEvent.prototype['export'] = function(type, table) {
     var type = type || 'csv',
         exp = new jExport(type),
-        data = $queryDB.$getTable(this.name, table).data.slice();
+        _table = $queryDB.$getTable(this.name, table);
 
     //getValue
     function getValueInArray(cdata) {
@@ -15,27 +19,24 @@ DBEvent.prototype['export'] = function(table, type) {
 
     return ({
         initialize: function(title) {
-
             //Parse the data of its not an OBJECT
-            if (!data) {
-                return dbSuccessPromiseObject("export", "unable to export data, invalid table data")
+            if (!_table) {
+                return dbErrorPromiseObject("unable to export table, empty or invalid table data");
             }
 
             //if export type was a JSON format
-            if ($isEqual(type, 'json')) {
+            if ($inArray(type, ['json', 'jql'])) {
                 //put the json data
-                exp.put(data);
+                exp.put(_table);
             } else {
                 //Open the exporter
                 exp.open(title);
-                if (data.length) {
-                    //set label
-                    exp.row(Object.keys(data[0]._data));
-                    //set the data
-                    expect(data).each(function(item) {
-                        exp.row(getValueInArray(item._data));
-                    });
-                }
+                //set label
+                exp.row(Object.keys(_table.columns[0]));
+                //set the data
+                expect((_table.data || []).slice()).each(function(item) {
+                    exp.row(getValueInArray(item._data));
+                });
             }
 
             //close the exporter

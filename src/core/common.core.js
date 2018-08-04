@@ -173,22 +173,24 @@
   }
 
   function columnObjFn(columns) {
-      var obj = {},
-          _dbDefaultValueMatcher = function(val) {
-              switch (val) {
-                  case ('CURRENT_TIMESTAMP'):
-                      val = +new Date;
-                      break;
-                  default:
-                      val = val || null;
-                      break;
-              }
+      var obj = {};
 
-              return val;
-          };
+      function _dbDefaultValueMatcher(def) {
+          if (def.hasOwnProperty('defaultValue')) {
+              if (def.defaultValue == "CURRENT_TIMESTAMP") {
+                  return +new Date;
+              } else if (def.defaultValue == "user_defined") {
+                  return def.userDefinedValue;
+              } else {
+                  return def.defaultValue;
+              }
+          }
+
+          return null;
+      };
 
       findInList.call(columns, function(idx, n) {
-          obj[idx] = _dbDefaultValueMatcher(n.defaultValue || n.default);
+          obj[idx] = _dbDefaultValueMatcher(n);
       });
 
       return obj;

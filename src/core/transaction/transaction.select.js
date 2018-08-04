@@ -33,7 +33,7 @@ function transactionSelect(selectFields, definition) {
         this.setDBError("Column_Name is required else use a wildcard (*)");
     }
 
-    var queryDefinition = extend({}, {
+    var queryDefinition = extend(true, {
         fields: selectFields,
         where: "",
         inClause: [],
@@ -41,7 +41,6 @@ function transactionSelect(selectFields, definition) {
         like: "",
         join: null
     }, definition || {});
-
 
     // check for duplicate definition
     if (queryDefinition.groupByStrict && queryDefinition.groupBy) {
@@ -70,7 +69,7 @@ function transactionSelect(selectFields, definition) {
 
         //Loop through queryColumn
         queryColumn.forEach(function(n) {
-            if (expect(n).contains(".")) {
+            if ($inArray(n, ".")) {
                 if ($self.isMultipleTable) {
                     n = n.replace(/\((.*?)\)/, "|$1").split("|");
                     if ($isEqual(n[0].toLowerCase(), 'case')) {
@@ -87,7 +86,6 @@ function transactionSelect(selectFields, definition) {
             }
         });
     }
-
 
     //FUnction for Join Clause
     //@Function Name : setJoinTypeFn
@@ -280,11 +278,16 @@ function transactionSelect(selectFields, definition) {
      * @param {*} idx 
      */
     function performInClauseQuery(item, idx) {
-        var inQuery = item.query.split(/(@)/gi).filter(function(item) {
-                return !("@".indexOf(item) > -1);
+        var inQuery = item.query.split(/(@)/gi).filter(function(citem) {
+                return !$inArray("@", citem);
             }),
             inQueryDefinition = buildSelectQuery(inQuery);
         inQueryDefinition.fields = inQuery[1];
+
+        if (!$self.tableInfo.hasOwnProperty(inQuery[2])) {
+            return $self.setDBError(inQuery[2] + " was not found, Include table in transaction");
+        }
+
         queryDefinition.where = queryDefinition.where.replace(
             item.replacer,
             "String(JSON.stringify(" + JSON.stringify($self.getColumn(new $query(removeJeliDataStructure($self.tableInfo[inQuery[2]].data.slice()))._(inQueryDefinition.where || ""), inQueryDefinition)) + ")).indexOf(" + item.contains + ") > -1;"

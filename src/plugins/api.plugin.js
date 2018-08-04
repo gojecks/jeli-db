@@ -18,6 +18,7 @@ function apiPluginFn(query, handler) {
             postData = maskedEval(query[3]),
             table = query[4] || '';
 
+
         db[query[0]](type, state, postData, table)
             .then(function(res) {
                 handler.onSuccess.apply(handler.onSuccess, [res]);

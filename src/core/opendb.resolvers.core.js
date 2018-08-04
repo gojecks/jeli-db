@@ -30,7 +30,8 @@ function openedDBResolvers() {
         },
         "app_id": "*",
         inProduction: false,
-        ignoreSync: []
+        ignoreSync: [],
+        $ajax: false
     });
 
     /**

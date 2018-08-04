@@ -2,7 +2,7 @@
  * 
  * @param {*} db 
  */
-_privateApi.prototype.removeDB = function(db) {
+_privateApi.prototype.removeDB = function(db, forceDelete) {
     if (this.openedDB.$hasOwnProperty(db)) {
         var _dbApi = this.$getActiveDB(db),
             _resource = _dbApi.$get('resourceManager'),
@@ -16,7 +16,7 @@ _privateApi.prototype.removeDB = function(db) {
         /**
          * only store deleted records when db is synced
          */
-        if (lastSyncedDate) {
+        if (lastSyncedDate && !forceDelete) {
             updateDeletedRecord('database', { db: db });
         } else {
             _dbApi.$get('recordResolvers').$destroy();

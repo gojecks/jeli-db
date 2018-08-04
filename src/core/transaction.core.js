@@ -28,13 +28,19 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
         return this.errLog.length;
     };
 
+    this.getAllRef = function(data) {
+        return [].map.call(data || this.tableInfo.data, function(item) {
+            return item._ref;
+        });
+    };
+
     //Check if Table Information is available from the DB
     if (!$isObject(tableInfo)) {
         errorBuilder('Unable to perform query at the moment, please try again later');
     }
 
     //Check the required Mode
-    if (expect(tblMode).contains('write')) {
+    if (expect(tblMode).contains('write') && !this.isMultipleTable) {
         this.insert = transactionInsert;
         this.update = transactionUpdate;
 
@@ -47,7 +53,6 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
         };
 
         this['delete'] = transactionDelete;
-
     }
 
     if (expect(tblMode).contains('read')) {
@@ -75,7 +80,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
         if (!expect($queryDB.getNetworkResolver('ignoreSync', tableInfo.DB_NAME)).contains(tableInfo.TBL_NAME) && data.length) {
             _recordResolvers
                 .$set(tableInfo.TBL_NAME)
-                .data(type, [].map.call(data, function(item) { return item._ref; }));
+                .data(type, data);
         }
     };
 

@@ -1,8 +1,8 @@
 //queryDB resourceManager
 
 function resourceManager(name) {
-    var _resource = null,
-        _resourceName = $queryDB.$dbName + "_" + name;
+    var _resourceName = $queryDB.$dbName + "_" + name,
+        _resource = getStorageItem(_resourceName);
 
     this.getResource = function() {
         return _resource || getStorageItem(_resourceName);
@@ -12,16 +12,23 @@ function resourceManager(name) {
      * 
      * @param {*} resource 
      */
-    this.setResource = function(resource) {
+    this.setResource = function(resource, _name) {
         _resource = resource || _resource || this.getResource();
         //set and save the resource
-        setStorageItem(_resourceName, _resource);
+        setStorageItem(_name || _resourceName, _resource);
 
         return this;
     };
 
     this.$isExists = function() {
         return !!_resource;
+    };
+
+    this.renameResource = function(newName) {
+        var resource = this.getResource();
+        resource.lastUpdated = +new Date;
+        this.setResource(resource, $queryDB.$dbName + "_" + newName)
+            .removeResource();
     };
 
     this.removeResource = function() {

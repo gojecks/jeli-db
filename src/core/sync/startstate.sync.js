@@ -23,6 +23,10 @@
           queue++;
       }
 
+      function cleanUp() {
+          syncState = $process = networkResolver = failedState = setMessage = failedState = pullRecordList = null;
+      }
+
       //Merge Db
       /**
        * 
@@ -233,20 +237,24 @@
 
                       return;
                   }
-                  finalize();
+                  finalize($isEqual(response.state.toLowerCase(), 'error') ? 'killState' : 'finalizeProcess');
 
-                  function finalize() {
-                      syncHelper.finalizeProcess(appName);
+                  function finalize(state) {
+                      syncHelper[state](appName);
                       //remove deleteRecords
                       $queryDB.$taskPerformer.del($queryDB.$delRecordName);
                   }
               },
-              pull: function() {
-                  $defer.resolve({
-                      state: 'Success',
-                      status: 200,
-                      data: pullRecordList
-                  });
+              pull: function(response) {
+                  if ($isEqual(response.state.toLowerCase(), 'error')) {
+                      $defer.resolve({
+                          state: 'Success',
+                          status: 200,
+                          data: pullRecordList
+                      });
+                  } {
+                      $defer.reject(response);
+                  }
               }
           });
 
@@ -254,15 +262,11 @@
           //parameter : XMLHTTPRESPONSE Object
           return function(state, response) {
               syncHelper.printSyncLog(networkResolver, appName);
-              if (!syncState.tables.length) {
-                  if (failedState.length) {
-                      setMessage('synchronization failed for ' + failedState.join(','));
-                      networkResolver.handler.onError(dbErrorPromiseObject(response));
-                      $defer.reject(response);
-                  } else {
-                      states[state](response);
-                  }
+              if (failedState.length) {
+                  setMessage('synchronization failed for ' + JSON.stringify(failedState));
               }
+              states[state](response);
+              cleanUp();
           };
       })();
 
@@ -287,7 +291,7 @@
           if (syncState.tables.length) {
               processQueue(queue, 'push');
           } else {
-              finishQueue('push', {});
+              finishQueue('push', { state: 'success' });
           }
       }
 
@@ -303,7 +307,7 @@
           if (!loadedApiKey) {
               syncHelper
                   .process
-                  .getApplicationApiKey(appName, networkResolver)
+                  .getApplicationApiKey(appName)
                   .then(startProcess, endProcess);
           } else {
               startProcess();

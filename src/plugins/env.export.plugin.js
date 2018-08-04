@@ -3,7 +3,7 @@
 	//env -export -type -name -download | print
 
 	jEliDB.plugins.jQl('export', {
-	    help: ['-export -[TBL_NAME] -type[(csv , html or json)]  -(d or p) (optional) -[fileName]'],
+	    help: ['-export -[TBL_NAME] -type[(csv , html, jql or json)]  -(d or p) (optional) -[fileName] -[title]'],
 	    requiresParam: true,
 	    fn: jExportPluginFn
 	});
@@ -15,16 +15,21 @@
 	        if (query.length > 2) {
 	            try {
 	                var expRet = db
-	                    .export(query[1], query[2]) //type
+	                    .export(query[2], query[1]) //type
+	                    // title
 	                    .initialize(query[5]);
-	                if (expRet && !expRet.state) {
+
+	                if (expRet && !expRet.status) {
 	                    var type = null;
 	                    switch (query[3]) {
 	                        case ('d'):
+	                        case ('download'):
 	                            type = 'download';
 	                            break;
 	                        case ('p'):
 	                        case ('c'):
+	                        case ('print'):
+	                        case ('console'):
 	                            type = 'print';
 	                            break
 	                    }
@@ -33,10 +38,11 @@
 	                        result.result.message = expRet[type](query[4]);
 	                        return handler.onSuccess.apply(handler.onSuccess, [result]);
 	                    }
+	                } else {
+	                    return handler.onError.apply(handler.onError, [expRet]);
 	                }
 	            } catch (e) {
 	                result.result.message = "there was an error processing export, please try again later.";
-	                console.log(e);
 	                return handler.onError(result);
 	            }
 

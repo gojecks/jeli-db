@@ -3,7 +3,7 @@
 //-env -import -tableName
 
 jEliDB.plugins.jQl('import', {
-    help: ['import -[table name] -[insert]'],
+    help: ['import -[table name] -[fileType]'],
     requiresParam: true,
     fn: jImportPluginFn
 });

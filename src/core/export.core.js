@@ -65,7 +65,7 @@ exportersModule.prototype.html = function() {
         },
         row: function(data) {
             var row = "<tr>";
-            if (data && ($isObject(data) || $isArray(data))) {
+            if (data && typeof data === "object") {
                 for (var cell in data) {
                     row += '<td>' + JSON.stringify(data[cell]) + '</td>';
                 }
@@ -96,13 +96,41 @@ exportersModule.prototype.html = function() {
 exportersModule.prototype.json = function() {
     var jsonExporter = [];
     return ({
-        put: function(data) {
-            jsonExporter = JSON.stringify(data);
+        put: function(table) {
+            jsonExporter = JSON.stringify((table.data || data).slice().map(function(item) {
+                return item._data
+            }));
         },
         close: function() {
             return new exportGenerator(jsonExporter, 'json')
         }
     });
+};
+
+exportersModule.prototype.jql = function() {
+    var queries = ['### JQL ###', '### generated ' + new Date().toLocaleString() + ' ###'];
+    return ({
+        put: function(table) {
+            // create table query
+            try {
+                queries.push("create -" + table.TBL_NAME + " -" + JSON.stringify(table.columns));
+                if (!$isEmptyObject(table.index)) {
+                    expect(table.index).each(function(obj, indx) {
+                        queries.push("alter -" + table.TBL_NAME + " -a -u -" + indx + " -" + JSON.stringify(obj));
+                    })
+                }
+
+                expect((table.data || []).slice()).each(function(item) {
+                    queries.push("insert -" + table.TBL_NAME + " -" + JSON.stringify(item._data));
+                });
+            } catch (e) {
+                queries("### unable to process files please try again  ###");
+            }
+        },
+        close: function() {
+            return new exportGenerator(queries.join('\n'), 'jql');
+        }
+    })
 };
 
 /**

@@ -1,4 +1,7 @@
-//add users
+/**
+ * Method: _users
+ * @return {*} OBJECT
+ */
 DBEvent.prototype._users = function() {
 
     var syncService = new jEliDBSynchronization(this.name)
@@ -12,7 +15,7 @@ DBEvent.prototype._users = function() {
     //Add user
     function addUser(uInfo) {
         if ($isObject(uInfo)) {
-            var _newInfo = ({ _ref: GUID(), _data: extend({}, { time: (+new Date), access: "*" }, uInfo) }),
+            var _newInfo = ({ _ref: GUID(), _data: extend(true, { time: (+new Date), access: "*" }, uInfo) }),
                 //Put the Data
                 postData = { data: { insert: [_newInfo] } };
             //use the db API Method
@@ -22,27 +25,24 @@ DBEvent.prototype._users = function() {
                     var ret = dbSuccessPromiseObject('createUser', "User Created successfully");
                     //if direct login after login
                     //set the getUserInfo and getAccessToken
-                    if (res.result.access_info) {
-                        ret.result.getUserInfo = function() {
-                            _newInfo.__uid = res.result.lastInsertId;
-                            return _newInfo;
-                        };
+                    ret.result.getUserInfo = function() {
+                        delete _newInfo._data.time;
+                        delete _newInfo._data.access;
+                        _newInfo.__uid = res.result.lastInsertId;
+                        return _newInfo;
+                    };
 
-                        ret.result.getLastInsertId = function() {
-                            return res.result.lastInsertId;
-                        };
+                    ret.result.getLastInsertId = function() {
+                        return res.result.lastInsertId;
+                    };
 
-                        ret.result.getAccessToken = function() {
-                            return res.result.access_info;
-                        };
+                    ret.result.getAccessToken = function() {
+                        return res.result.access_info;
+                    };
 
-                        ret.getResponseData = function() {
-                            return res.result;
-                        };
-
-                    } else {
-                        ret.result.data = res.result;
-                    }
+                    ret.getResponseData = function() {
+                        return res.result;
+                    };
 
                     if (res.result.ok) {
                         $promise.resolve(ret);
@@ -99,11 +99,7 @@ DBEvent.prototype._users = function() {
         syncService
             .getNumRows(queryData, _secure)
             .then(function(res) {
-                if (res._jDBNumRows) {
-                    $promise.reject('Already Exists');
-                } else {
-                    $promise.resolve({ isExists: false });
-                }
+                $promise.resolve({ isExists: res._jDBNumRows > 0 });
             }, $defer.reject);
 
         return $defer;
@@ -122,6 +118,7 @@ DBEvent.prototype._users = function() {
                 ret.result.getUserInfo = function() {
                     return res.result._rec[0];
                 };
+
                 ret.result.getAccessToken = function() {
                     return res.result.access_info;
                 };

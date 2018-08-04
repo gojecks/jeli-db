@@ -6,7 +6,7 @@ function syncHelperPublicApi() {
     this.process = {
         $process: {},
         startSyncProcess: function(appName) {
-            this.$process[appName] = {
+            this.$process[appName] = Object.create({
                 syncLog: {},
                 forceSync: false,
                 getSet: function(name, value) {
@@ -26,7 +26,7 @@ function syncHelperPublicApi() {
 
                     this.getSet('postSyncTables', tables);
                 },
-            };
+            });
 
             return this.$process[appName];
         },
@@ -36,14 +36,15 @@ function syncHelperPublicApi() {
         getProcess: function(appName) {
             return this.$process[appName] || null;
         },
-        getApplicationApiKey: function(appName, networkResolver) {
-            self.setMessage('Retrieving API key....', networkResolver);
-            var options = self.setRequestData(appName, 'apikey', true),
-                _this = this;
-            options.type = 'POST';
-            return ajax(options).then(function(res) {
-                self.setMessage('Retrieved API key', networkResolver);
-                _this.getProcess(appName).getSet('apiKey', res.data);
+        getApplicationApiKey: function(appName) {
+            var _appProcess = this.getProcess(appName),
+                options = self.setRequestData(appName, 'apikey', true);
+            options.data.key = "apiKey";
+            self.setMessage('Retrieving API key....', _appProcess.getSet('networkResolver'));
+            return $queryDB.$http(options).then(function(res) {
+                self.setMessage('Retrieved API key', _appProcess.getSet('networkResolver'));
+                _appProcess.getSet('applicationKey', res.data);
+                _appProcess = null;
             });
         }
     };
@@ -117,7 +118,7 @@ syncHelperPublicApi.prototype.setTable = function(tbl) {
  * @param {*} ignore 
  * @param {*} tbl 
  */
-syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, tbl) {
+syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, tbl, type) {
     var options = $queryDB.buildOptions(appName, tbl, state),
         process = this.process.getProcess(appName);
     //ignore post data
@@ -140,10 +141,12 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
     /**
      * add the api_key to the Authorization Header
      */
-    if (process && process.getSet('apiKey')) {
-        options.headers.Authorization += ' ' + process.getSet('apiKey').api_key;
+    if (process && process.hasOwnProperty('applicationKey')) {
+        options.headers.Authorization += ' ' + process.getSet('applicationKey').apiKey;
     }
 
+    // set request type if defined
+    options.type = type;
     return options;
 };
 
@@ -177,11 +180,11 @@ syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
  * @param {*} appName 
  * @param {*} requiredData 
  */
-syncHelperPublicApi.prototype.getSchema = function(appName, requiredData) {
-    var _options = this.setRequestData(appName, 'schema', false, requiredData || []),
+syncHelperPublicApi.prototype.getSchema = function(appName, requiredTable) {
+    var _options = this.setRequestData(appName, 'schema', false, requiredTable || []),
         $defer = new $p();
 
-    ajax(_options)
+    $queryDB.$http(_options)
         .then(function(res) {
             $defer.resolve(res.data);
         }, function(res) {
@@ -198,7 +201,7 @@ syncHelperPublicApi.prototype.getSchema = function(appName, requiredData) {
  * @param {*} appName 
  */
 syncHelperPublicApi.prototype.pullResource = function(appName) {
-    return ajax(this.setRequestData(appName, 'resource', true));
+    return $queryDB.$http(this.setRequestData(appName, 'resource', true));
 };
 
 
@@ -240,7 +243,7 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
     this.setMessage('Initializing Push State for table(' + tbl + ')', _activeDB.$get('resolvers').networkResolver);
     //check state
     state = state || 'push';
-    var _options = this.setRequestData(appName, state, false, tbl);
+    var _options = this.setRequestData(appName, state, false, tbl, 'PUT');
     //update the table and not overwrite
     if (data) {
         if (!data.columns.diff) {
@@ -250,9 +253,7 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
         }
     }
 
-    _options.type = "PUT";
-
-    return ajax(_options);
+    return $queryDB.$http(_options);
 };
 
 //@Function Name : pullTable
@@ -265,7 +266,7 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
  */
 syncHelperPublicApi.prototype.pullTable = function(appName, tbl) {
     this.setMessage('---Retrieving ' + tbl + ' schema---', this.process.getProcess(appName).getSet('networkResolver'));
-    return ajax(this.setRequestData(appName, 'pull', false, tbl));
+    return $queryDB.$http(this.setRequestData(appName, 'pull', false, tbl));
 };
 
 //@Function Name Pull

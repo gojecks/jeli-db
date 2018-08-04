@@ -7,7 +7,9 @@
 _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     var options = {},
         tbl = (($isArray(tbl)) ? JSON.stringify(tbl) : tbl),
-        cToken = $cookie('X-CSRF-TOKEN');
+        cToken = $cookie('X-CSRF-TOKEN'),
+        base64 = new Base64Fn();
+    options.__appName__ = dbName;
     options.url = this.getNetworkResolver('serviceHost', dbName);
     options.data = {};
     options.dataType = "json";
@@ -23,10 +25,10 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     //initialize our network interceptor
     (this.getNetworkResolver('interceptor', dbName) || function() {})(options, requestState);
 
-    options.data._o = new Base64Fn().encode(window.location.origin);
+    options.data._o = base64.encode(window.location.origin);
     options.data._p = window.location.pathname;
     options.data._h = window.location.host;
-    options.data._r = new Base64Fn().encode(dbName + ':' + requestState + ':' + (tbl || '') + ':' + +new Date + ':' + this.getNonce(dbName));
+    options.data._r = base64.encode(dbName + ':' + requestState + ':' + (tbl || '') + ':' + +new Date + ':' + this.getNonce(dbName));
 
     //options.getRequestHeader
     options.getResponseHeader = function(fn) {
@@ -37,4 +39,17 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     };
 
     return options;
+};
+
+/**
+ * 
+ * @param {*} options 
+ */
+_privateApi.prototype.$http = function(options) {
+    var $ajax = this.getNetworkResolver('$ajax', options.__appName__) || ajax;
+    if (!$isFunction($ajax)) {
+        errorBuilder('$http is not a function');
+    }
+
+    return $ajax(options);
 };

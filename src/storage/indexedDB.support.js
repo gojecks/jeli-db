@@ -98,17 +98,27 @@ function indexedDBStorage(CB, _dbName) {
             return this;
         };
 
-        this.clearStore = function(storeName, CB) {
-            var store = getObjectStore(storeName, 'readwrite');
-            var req = store.clear();
+        this.deleteFromStore = function(storeName, CB) {
+            try {
+                var store = getObjectStore(_storeName, 'readwrite');
+                var req = store.delete(storeName);
+                req.onsuccess = CB || noop;
+            } catch (e) {}
+        };
 
-            req.onsuccess = CB || noop;
+        this.clearStore = function(cb) {
+            try {
+                var store = getObjectStore(_storeName, 'readwrite');
+                var req = store.clear();
+                req.onsuccess = cb || noop;
+            } catch (e) {
+
+            }
         };
 
         this.getStoreItem = function(rev, CB) {
             var store = getObjectStore(_storeName, 'readonly'),
-                req = store.get(rev),
-                ret;
+                req = store.get(rev);
             req.onsuccess = CB(req);
         };
 
@@ -116,9 +126,7 @@ function indexedDBStorage(CB, _dbName) {
          * subscribe to storage event
          */
         $queryDB.storageEventHandler
-            .subscribe(eventNamingIndex(_dbName, 'onRenameTable'), function(oldTableName, newTableName) {
-                console.log(arguments);
-            })
+            .subscribe(eventNamingIndex(_dbName, 'onRenameTable'), function(oldTableName, newTableName) {})
     }
 
 
@@ -133,24 +141,57 @@ function indexedDBStorage(CB, _dbName) {
     }
 
     var _pApis = new indexedDbPrivateApi();
+    /**
+     * 
+     * @param {*} name 
+     * @param {*} item 
+     */
     publicApis.setItem = function(name, item) {
         _pApis.addStore(name, item);
     };
 
+    /**
+     * 
+     * @param {*} name 
+     */
     publicApis.getItem = function(name) {
         return _dataHolder[name];
     };
 
+    /**
+     * 
+     * @param {*} name 
+     */
     publicApis.removeItem = function(name) {
-        _pApis.clearStore(name, function() {
+        _pApis.deleteFromStore(name, function() {
             delete _dataHolder[name];
         });
     };
 
+    publicApis.clear = function() {
+        _pApis.clearStore(function() {
+            _dataHolder = {};
+        });
+    };
+
+    /**
+     * 
+     * @param {*} name 
+     */
     publicApis.usage = function(name) {
         return JSON.stringify(this.getItem(name) || '').length;
     };
 
+    publicApis.rename = function(oldName, newName, cb) {
+        var oldData = this.getItem(oldName);
+        expect(oldData.tables).each(function(tbl) {
+            tbl.DB_NAME = newName;
+            tbl.lastModified = +new Date
+        });
+        this.setItem(newName, oldData);
+        this.removeItem(oldName);
+        (cb || noop)();
+    };
 
     return publicApis;
 
