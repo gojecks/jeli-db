@@ -182,8 +182,8 @@ _privateApi.prototype.$updateTableData = function(tbl, data) {
 _privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
     var oldInstance = this.$getActiveDB(oldName);
     oldInstance.$get('_storage_').rename(oldName, newName, function() {
-        oldInstance.$get('resourceManager').renameResource(newName);
         cb();
+        $queryDB.closeDB(oldName, true);
     });
 };
 
@@ -231,20 +231,23 @@ _privateApi.prototype.isOpen = function(name) {
  * @param {*} removeFromStorage 
  */
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
-    this.openedDB
-        .$get(name)
-        .$set('open', false)
-        .$set('closed', true);
+    var openedDb = this.openedDB
+        .$get(name);
+    if (openedDb) {
+        openedDb
+            .$set('open', false)
+            .$set('closed', true);
 
-    if (removeFromStorage) {
-        this.openedDB
-            .$get(name)
-            .$get('resourceManager')
-            .removeResource();
-        // destroy the DB instance
-        delStorageItem(db);
-        this.openedDB.$destroy(name);
+        if (removeFromStorage) {
+            openedDb
+                .$get('resourceManager')
+                .removeResource();
+            // destroy the DB instance
+            delStorageItem(name);
+            this.openedDB.$destroy(name);
+        }
     }
+
 };
 
 /**

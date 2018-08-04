@@ -16,7 +16,6 @@ DBEvent.prototype.rename = function(newName) {
             } else {
                 defer.resolve(dbSuccessPromiseObject('rename', "Database renamed successfully"));
             }
-            $queryDB.closeDB(dbName, true);
         });
     }
 

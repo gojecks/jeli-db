@@ -1,7 +1,7 @@
 //queryDB resourceManager
 
 function resourceManager(name) {
-    var _resourceName = $queryDB.$dbName + "_" + name,
+    var _resourceName = $queryDB.getResourceName(name),
         _resource = getStorageItem(_resourceName);
 
     this.getResource = function() {
@@ -27,7 +27,7 @@ function resourceManager(name) {
     this.renameResource = function(newName) {
         var resource = this.getResource();
         resource.lastUpdated = +new Date;
-        this.setResource(resource, $queryDB.$dbName + "_" + newName)
+        this.setResource(resource, $queryDB.getResourceName(newName))
             .removeResource();
     };
 

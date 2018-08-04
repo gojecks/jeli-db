@@ -189,6 +189,7 @@ function indexedDBStorage(CB, _dbName) {
             tbl.lastModified = +new Date
         });
         this.setItem(newName, oldData);
+        this.setItem($queryDB.getResourceName(newName), this.getItem($queryDB.getResourceName(oldName)));
         this.removeItem(oldName);
         (cb || noop)();
     };
