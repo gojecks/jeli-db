@@ -42,6 +42,7 @@
           });
           this.setItem(newName, oldData);
           this.setItem($queryDB.getResourceName(newName), this.getItem($queryDB.getResourceName(oldName)));
+          $queryDB.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
           this.removeItem(oldName);
           (cb || noop)();
       };

@@ -412,6 +412,9 @@ function sqliteStorage(type, config, CB) {
                 bkInstance.insert('_JELI_STORE_', [{ _rev: newName, _data: newData }, {
                         _rev: $queryDB.getResourceName(newName),
                         _data: _self.getItem($queryDB.getResourceName(oldName))
+                    }, {
+                        _rev: "_l_",
+                        _data: _self.getItem('_l_')
                     }])
                     .then(function() {
                         expect(newData.tables).each(createAndInsert);

@@ -130,6 +130,13 @@ function DBRecordResolvers(name) {
                 _records = {};
                 setStorageItem(_lRecordName, {});
             }
+        },
+        rename: function(newName) {
+            if (_records[name]) {
+                _records[newName] = _records[name]
+                delete _records[name];
+                setStorageItem(_lRecordName, _records);
+            }
         }
     });
 
