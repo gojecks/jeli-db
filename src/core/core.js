@@ -32,7 +32,7 @@ function jEliDB(name, version) {
 
                     //set production flag
                     //register our configuration
-                    _activeDBApi = $queryDB.$getActiveDB();
+                    _activeDBApi = $queryDB.$getActiveDB(name);
                     var isDeletedDB = _activeDBApi
                         .$get('resolvers')
                         .register(config)

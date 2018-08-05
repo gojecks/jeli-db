@@ -21,6 +21,8 @@ function _privateApi() {
         if (!this.openedDB.$hasOwnProperty(name)) {
             this.openedDB.$new(name, new openedDBHandler({ open: false }));
             this.$activeDB = name;
+        } else if (!$isEqual(this.$activeDB, name)) {
+            this.$activeDB = name;
         }
 
         return this;
