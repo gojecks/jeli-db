@@ -17,11 +17,11 @@ function liveProcessor(tbl, dbName) {
      * @param {FUNCTION} CB
      */
     return function(type, cbSuccess, cbError) {
-        if ($queryDB.getNetworkResolver('live', dbName) && !expect($queryDB.getNetworkResolver('ignoreSync', dbName)).contains(tbl)) {
+        if ($queryDB.getNetworkResolver('live', dbName) && !$inArray(tbl, $queryDB.getNetworkResolver('ignoreSync', dbName))) {
             //process the request
             //Synchronize PUT STATE
             var dataToSync = $queryDB.$getActiveDB(dbName).$get('recordResolvers').$get(tbl, null, 'data');
-            if (expect(['update', 'insert', 'delete']).contains(type) && Object.keys(dataToSync.data[type]).length) {
+            if ($inArray(type, ['update', 'insert', 'delete']) && Object.keys(dataToSync.data[type]).length) {
                 syncService(dataToSync, cbSuccess, cbError);
             } else {
                 dataToSync = null;

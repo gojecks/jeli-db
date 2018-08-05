@@ -21,8 +21,7 @@ function DBRecordResolvers(name) {
      * @param {*} cref 
      */
     function resolveSyncData(tbl, type, cref) {
-        var recordsToSync = jEliDeepCopy(_records[tbl]),
-            canSync = false;
+        var recordsToSync = jEliDeepCopy(_records[tbl]);
         Object.keys(recordsToSync.data).map(function(cType) {
             Object.keys(recordsToSync.data[cType]).map(function(ref) {
                 if ($isEqual(cType, "delete")) {
@@ -81,15 +80,16 @@ function DBRecordResolvers(name) {
                             _records[tbl].data[type][ref] = true;
                         });
 
-                        setStorageItem(_lRecordName, _records);
+                        setStorageItem(_lRecordName, _records, name);
                     }
+
                 },
                 columns: function(type, data) {
                     if (data.length) {
                         //push the data to the list
                         _records[tbl].columns[type].push.apply(_records[tbl].columns[type], data);
 
-                        setStorageItem(_lRecordName, _records);
+                        setStorageItem(_lRecordName, _records, name);
                     }
                 }
             });
@@ -105,11 +105,11 @@ function DBRecordResolvers(name) {
             var lStorage;
             if (_records[tbl]) {
                 delete _records[tbl];
-                lStorage = getStorageItem(_lRecordName);
+                lStorage = getStorageItem(_lRecordName, name);
                 if (lStorage) {
                     //delete from localStorage
                     delete lStorage[tbl];
-                    setStorageItem(_lRecordName, lStorage);
+                    setStorageItem(_lRecordName, lStorage, name);
                 }
             }
 
@@ -128,17 +128,17 @@ function DBRecordResolvers(name) {
         $destroy: function() {
             if ($isEmptyObject(_records)) {
                 _records = {};
-                setStorageItem(_lRecordName, {});
+                setStorageItem(_lRecordName, {}, name);
             }
         },
         rename: function(newName) {
-            setStorageItem($queryDB.getDataResolverName(newName), _records);
+            setStorageItem($queryDB.getDataResolverName(newName), _records, name);
             delStorageItem(_lRecordName);
         }
     });
 
     if (name) {
-        var lStorage = getStorageItem(_lRecordName);
+        var lStorage = getStorageItem(_lRecordName, name);
         if (lStorage) {
             _records = lStorage;
         }

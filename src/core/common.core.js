@@ -15,16 +15,16 @@
 
   //Function to retrieve storage Data
   //@return OBJECT
-  function getStorageItem(item) {
+  function getStorageItem(item, db) {
       //return FN
-      return $queryDB.$getActiveDB().$get('_storage_').getItem(item);
+      return $queryDB.$getActiveDB(db).$get('_storage_').getItem(item);
   }
 
   //Function to Store storage data
   //@return JSON String
-  function setStorageItem(key, value) {
+  function setStorageItem(key, value, db) {
       if (key && value && $isObject(value)) {
-          $queryDB.$getActiveDB()
+          $queryDB.$getActiveDB(db)
               .$get('_storage_')
               .setItem(key, value);
       }

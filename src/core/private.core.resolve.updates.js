@@ -43,7 +43,8 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
                     $queryDB.storageEventHandler.broadcast(eventNamingIndex(db, name), [tbl.TBL_NAME, data[name]]);
                 }
             });
-            $promise.resolve(_ret);
+
+            $promise.resolve(copy(_ret, true));
         }
     } else {
         $promise.reject();

@@ -2,10 +2,10 @@
 
 function resourceManager(name) {
     var _resourceName = $queryDB.getResourceName(name),
-        _resource = getStorageItem(_resourceName);
+        _resource = getStorageItem(_resourceName, name);
 
     this.getResource = function() {
-        return _resource || getStorageItem(_resourceName);
+        return _resource || getStorageItem(_resourceName, name);
     };
 
     /**
@@ -15,7 +15,7 @@ function resourceManager(name) {
     this.setResource = function(resource, _name) {
         _resource = resource || _resource || this.getResource();
         //set and save the resource
-        setStorageItem(_name || _resourceName, _resource);
+        setStorageItem(_name || _resourceName, _resource, name);
 
         return this;
     };
@@ -33,7 +33,7 @@ function resourceManager(name) {
 
     this.removeResource = function() {
         _resource = null;
-        return delStorageItem(_resourceName);
+        return delStorageItem(_resourceName, name);
     };
 
     this.getTableLastSyncDate = function(tbl) {

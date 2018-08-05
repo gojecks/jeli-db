@@ -31,7 +31,7 @@
                 }
 
                 //update DB key
-                var dbRef = self.$getActiveDB().$get('resourceManager').getResource();
+                var dbRef = self.$getActiveDB(name).$get('resourceManager').getResource();
                 if (dbRef) {
                     dbRef.lastUpdated = +new Date;
                     dbRef.lastSyncedDate = lastSynced || dbRef.lastSyncedDate;
@@ -53,10 +53,10 @@
                     }
 
                     //update
-                    self.$getActiveDB().$get('resourceManager').setResource(dbRef);
+                    self.$getActiveDB(name).$get('resourceManager').setResource(dbRef);
                 }
 
-                setStorageItem(name, self.$get(name));
+                setStorageItem(name, self.$get(name), name);
                 //check if storage have been cleared by user
                 if (!dbRef) {
                     this.storageChecker(name);
@@ -70,7 +70,7 @@
          */
         _publicApi.prototype.initializeDB = function(name) {
             //set recordResolvers
-            if (!self.$getActiveDB().$get('resourceManager').$isExists()) {
+            if (!self.$getActiveDB(name).$get('resourceManager').$isExists()) {
                 return false;
             } else {
                 //retrieve current DB items
@@ -92,7 +92,7 @@
          * @param {*} name 
          */
         _publicApi.prototype.storageChecker = function(name) {
-            self.$getActiveDB().$get('resourceManager').setResource(getDBSetUp(name))
+            self.$getActiveDB(name).$get('resourceManager').setResource(getDBSetUp(name))
         }
 
         return (new _publicApi);

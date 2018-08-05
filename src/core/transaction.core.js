@@ -77,7 +77,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
       update offline cache
     **/
     this.updateOfflineCache = function(type, data) {
-        if (!expect($queryDB.getNetworkResolver('ignoreSync', tableInfo.DB_NAME)).contains(tableInfo.TBL_NAME) && data.length) {
+        if (!$inArray(tableInfo.TBL_NAME, $queryDB.getNetworkResolver('ignoreSync', tableInfo.DB_NAME)) && data.length) {
             _recordResolvers
                 .$set(tableInfo.TBL_NAME)
                 .data(type, data);
@@ -132,7 +132,7 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                     error = true;
                 } finally {
                     $self.errLog = [];
-                    if (expect(["insert", "update", "delete"]).contains(ex[0]) && !error) {
+                    if ($inArray(ex[0], ["insert", "update", "delete"]) && !error) {
                         /**
                          * Sync to the backend
                          * Available only when live is define in configuration
