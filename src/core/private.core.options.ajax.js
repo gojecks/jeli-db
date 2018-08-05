@@ -22,6 +22,16 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
         options.headers['X-CSRF-TOKEN'] = cToken;
     }
 
+    requestState = this.getRequestApi(requestState);
+
+    //state needs to be split for accuracy
+    if ($inArray("/", requestState)) {
+        requestState = requestState.split("/");
+        //remove the first slash
+        requestState.shift();
+        requestState = camelCase.call(requestState.join('-'));
+    }
+
     //initialize our network interceptor
     (this.getNetworkResolver('interceptor', dbName) || function() {})(options, requestState);
 
@@ -53,3 +63,32 @@ _privateApi.prototype.$http = function(options) {
 
     return $ajax(options);
 };
+
+_privateApi.prototype.getRequestApi = function(state) {
+    /**
+     * requestApis
+     */
+    var requestApis = {
+        remdb: "/drop/database",
+        remtbl: "/drop/table",
+        rentbl: "/rename/table",
+        sync: "/sync/state",
+        push: "/push/state",
+        resput: "/resource",
+        resget: "/resource",
+        pull: "/pull",
+        schema: "/schema",
+        query: "/query",
+        'delete': "/delete",
+        gnr: "/get/num/rows",
+        reauth: "/reauthorize",
+        crusr: '/create/user',
+        upusr: "/update/user",
+        authusr: "/authorize/user",
+        repdb: '/replicate/db',
+        rendb: '/rename/database',
+        poll: "/recent/updates"
+    };
+
+    return requestApis[state] || state;
+}

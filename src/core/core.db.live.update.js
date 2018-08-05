@@ -15,7 +15,7 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
         withRef = false;
 
     function pollUpdate() {
-        var _reqOptions = $queryDB.buildOptions(dbName, null, "update");
+        var _reqOptions = $queryDB.buildOptions(dbName, null, "poll");
         _reqOptions.data.ref = type;
         _reqOptions.data.type = _def;
 

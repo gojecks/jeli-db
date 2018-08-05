@@ -10,14 +10,6 @@
  * @param {*} tbl 
  */
 DBEvent.prototype.api = function(type, state, postData, tbl) {
-    //state needs to be split for accuracy
-    if (expect(state).contains("/")) {
-        state = state.split("/");
-        //remove the first slash
-        state.shift();
-        state = camelCase.call(state.join('-'));
-    }
-
     var _options = $queryDB.buildOptions(this.name, tbl, state),
         $defer = new $p();
     _options.type = type || 'GET';

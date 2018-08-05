@@ -10,6 +10,13 @@
           taskPerformerObj = customPlugins.$getAll(),
           task = taskType[0].toLowerCase();
 
+      /**
+       * pardon failed handler definition
+       */
+      handler = handler || {};
+      handler.onSuccess = handler.onSuccess || noop;
+      handler.onError = handler.onError || noop;
+
       if (taskType && taskPerformerObj[task]) {
           if (taskPerformerObj[task].disabled) {
               return handler.onError(dbErrorPromiseObject("command is diabled, to use command please enable it."));

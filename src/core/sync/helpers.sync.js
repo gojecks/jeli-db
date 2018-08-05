@@ -125,11 +125,11 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
     if (!ignore) {
         switch (state.toLowerCase()) {
             case ('push'):
-            case ('syncstate'):
+            case ('sync'):
                 options.data.postData = $queryDB.$getTable(appName, tbl);
                 options.data.action = "overwrite";
                 break;
-            case ('resource'):
+            case ('resput'):
                 var resource = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
                 if (!resource.lastSyncedDate) {
                     resource.lastSyncedDate = +new Date;
@@ -201,11 +201,10 @@ syncHelperPublicApi.prototype.getSchema = function(appName, requiredTable) {
  * @param {*} appName 
  */
 syncHelperPublicApi.prototype.pullResource = function(appName) {
-    return $queryDB.$http(this.setRequestData(appName, 'resource', true));
+    return $queryDB.$http(this.setRequestData(appName, 'resget', true));
 };
 
 
-//@Function Name KillState
 /**
  * 
  * @param {*} appName 

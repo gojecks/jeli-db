@@ -124,7 +124,7 @@
     get Num rows from DB
   **/
   clientService.prototype.getNumRows = function(query, tbl) {
-      var _options = syncHelper.setRequestData(this.appName, 'getNumRows', true, tbl);
+      var _options = syncHelper.setRequestData(this.appName, 'gnr', true, tbl);
       _options.data.query = { type: "_data", param: query, return_type: "num_rows" };
 
       return ProcessRequest(_options);
@@ -132,7 +132,7 @@
 
   //Revalidate Expired Users
   clientService.prototype.reAuthorize = function(data) {
-      var _options = syncHelper.setRequestData(this.appName, 'reauthorize', false, null, "POST");
+      var _options = syncHelper.setRequestData(this.appName, 'reauth', false, null, "POST");
       _options.data.postData = data;
       return ProcessRequest(_options);
   };

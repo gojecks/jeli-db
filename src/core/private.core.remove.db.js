@@ -6,7 +6,7 @@ _privateApi.prototype.removeDB = function(db, forceDelete) {
     if (this.openedDB.$hasOwnProperty(db)) {
         var _dbApi = this.$getActiveDB(db),
             _resource = _dbApi.$get('resourceManager'),
-            lastSyncedDate = _resource.getResource().lastSyncedDate;
+            lastSyncedDate = (_resource.getResource() || {}).lastSyncedDate;
         _dbApi
             .$destroy('_db_')
             .$set('open', false);

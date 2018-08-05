@@ -19,7 +19,7 @@ DBEvent.prototype._users = function() {
                 //Put the Data
                 postData = { data: { insert: [_newInfo] } };
             //use the db API Method
-            db.api('PUT', '/create/user', postData, _secure)
+            db.api('PUT', 'crusr', postData, _secure)
                 .then(function(res) {
                     //Put the new user
                     var ret = dbSuccessPromiseObject('createUser', "User Created successfully");
@@ -78,7 +78,7 @@ DBEvent.prototype._users = function() {
     function updateUser(userData) {
         if (userData) {
             //post our request to server
-            db.api('PUT', '/update/user', { data: { update: [userData] } }, _secure)
+            db.api('PUT', 'upusr', { data: { update: [userData] } }, _secure)
                 .then(function(res) {
                     res.state = "updateUser";
                     res.result.message = "User Updated successfully";
@@ -111,7 +111,7 @@ DBEvent.prototype._users = function() {
     function getUsers(queryData) {
         var postData = { param: queryData, limit: "JDB_SINGLE" };
         //post our request to server
-        db.api('POST', '/authorize/user', postData, _secure)
+        db.api('POST', 'authusr', postData, _secure)
             .then(function(res) {
                 var ret = dbSuccessPromiseObject('authorize', ""),
                     isAuthorized = res.result._rec.length;

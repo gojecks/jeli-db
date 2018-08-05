@@ -12,10 +12,11 @@
        * @param {*} res 
        */
       function cleanUp(task, res) {
-          var _delRecordManager = getStorageItem($queryDB.$delRecordName),
+          var _delRecordManager = getStorageItem($queryDB.$delRecordName, appName),
               _resData = res.data.renamed || res.data.removed,
               _totalTask = Object.keys(deleteRecords[task]),
-              _inc = 0;
+              _inc = 0,
+              _isDataBaseTask = $isEqual('database', task) && _resData[appName];
           // check if records are fully processed
           _totalTask.forEach(function(_name) {
               if (_resData[_name] && !$isArray(_resData[_name])) {
@@ -29,21 +30,25 @@
           /**
            * check is request type was database
            */
-          if ($isEqual('database', task) && _resData[appName]) {
+          if (_isDataBaseTask) {
               delete _delRecordManager[appName];
           }
 
           //update the storage
-          setStorageItem($queryDB.$delRecordName, _delRecordManager);
+          setStorageItem($queryDB.$delRecordName, _delRecordManager, appName);
           /**
            * reset deletedRecords
            */
           if ($isEqual(_inc, _totalTask.length)) {
-              $queryDB
-                  .$getActiveDB(appName)
-                  .$get('resolvers')
-                  .deleteManager()
-                  .reset();
+              if (_isDataBaseTask) {
+                  $queryDB.closeDB(appName, true);
+              } else {
+                  $queryDB
+                      .$getActiveDB(appName)
+                      .$get('resolvers')
+                      .deleteManager()
+                      .reset();
+              }
           }
 
           _delRecordManager = _resData = null;
@@ -63,7 +68,7 @@
               }
 
 
-              if ($queryDB.$getActiveDB(appName).$get('resourceManager').$isExists()) {
+              if (!$isEqual(_task, 'database')) {
                   new startSyncState(appName, serverResource).process(true);
               } else {
                   syncHelper.finalizeProcess(appName);
@@ -95,13 +100,13 @@
            */
 
           function mainProcess() {
-              var api = 'dropTable',
+              var api = 'remtbl',
                   data = deleteRecords.table,
                   message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server',
                   _task = "table";
               //check if database was remove from client
               if (deleteRecords.database[appName]) {
-                  api = 'dropDataBase';
+                  api = 'remdb';
                   data = deleteRecords.database;
                   message = "Droping " + appName + " Application from the server";
                   _task = "database";
@@ -121,14 +126,14 @@
 
 
               function processRenamedTables() {
-                  return request('renameTable', 'POST', 'renamed', deleteRecords.rename)
+                  return request("rentbl", 'POST', 'renamed', deleteRecords.rename)
                       .then(function(res) {
                           cleanUp('rename', res);
                       });
               }
 
               function request(_api, type, ref, data) {
-                  var _options = syncHelper.setRequestData(appName, _api, true, type);
+                  var _options = syncHelper.setRequestData(appName, _api, true, null, type);
                   _options.data[ref] = data;
                   return $queryDB.$http(_options);
               }
