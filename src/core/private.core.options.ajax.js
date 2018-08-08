@@ -87,7 +87,9 @@ _privateApi.prototype.getRequestApi = function(state) {
         authusr: "/authorize/user",
         repdb: '/replicate/db',
         rendb: '/rename/database',
-        poll: "/recent/updates"
+        poll: "/recent/updates",
+        rmdbauth: "/database/users/rights/remove",
+        adbauth: "/database/users/rights/add"
     };
 
     return requestApis[state] || state;

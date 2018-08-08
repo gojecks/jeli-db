@@ -3,7 +3,6 @@
  * @return {*} OBJECT
  */
 DBEvent.prototype._users = function() {
-
     var syncService = new jEliDBSynchronization(this.name)
         .Entity()
         .configSync({}),
@@ -12,10 +11,13 @@ DBEvent.prototype._users = function() {
         db = this,
         $defer = new DBPromise($promise);
 
-    //Add user
+    /**
+     * 
+     * @param {*} uInfo 
+     */
     function addUser(uInfo) {
         if ($isObject(uInfo)) {
-            var _newInfo = ({ _ref: GUID(), _data: extend(true, { time: (+new Date), access: "*" }, uInfo) }),
+            var _newInfo = ({ _ref: GUID(), _data: extend(true, { time: (+new Date) }, uInfo) }),
                 //Put the Data
                 postData = { data: { insert: [_newInfo] } };
             //use the db API Method
@@ -58,7 +60,10 @@ DBEvent.prototype._users = function() {
         return $defer;
     }
 
-    //removeUser
+    /**
+     * 
+     * @param {*} uInfo 
+     */
     function removeUser(uInfo) {
         if ($isObject(uInfo)) {
             syncService
@@ -74,7 +79,10 @@ DBEvent.prototype._users = function() {
     }
 
 
-    //updateUsers 
+    /**
+     * 
+     * @param {*} userData 
+     */
     function updateUser(userData) {
         if (userData) {
             //post our request to server
@@ -93,8 +101,9 @@ DBEvent.prototype._users = function() {
 
 
     /**
-      Method: isExists
-    **/
+     * 
+     * @param {*} queryData 
+     */
     function isExists(queryData) {
         syncService
             .getNumRows(queryData, _secure)
@@ -107,7 +116,10 @@ DBEvent.prototype._users = function() {
 
 
 
-    //getUser
+    /**
+     * 
+     * @param {*} queryData 
+     */
     function getUsers(queryData) {
         var postData = { param: queryData, limit: "JDB_SINGLE" };
         //post our request to server
@@ -134,7 +146,14 @@ DBEvent.prototype._users = function() {
             });
 
         return $defer;
+    }
 
+    function removeUserAuthority(postData) {
+        return db.api('DELETE', 'rmdbauth', postData);
+    }
+
+    function addUserAuthority(postData) {
+        return db.api('PUT', 'adbauth', postData)
     }
 
     return ({
@@ -142,6 +161,8 @@ DBEvent.prototype._users = function() {
         remove: removeUser,
         authorize: getUsers,
         updateUser: updateUser,
-        isExists: isExists
+        isExists: isExists,
+        addAuthority: addUserAuthority,
+        removeAuthority: removeUserAuthority
     });
 };
