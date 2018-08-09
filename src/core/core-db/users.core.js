@@ -135,7 +135,7 @@ DBEvent.prototype._users = function() {
                 };
 
                 ret.result.isPasswordReset = function() {
-                    return res.result.hasOwnProperty('forcePasswordReset');
+                    return res.result._rec.hasOwnProperty('forcePasswordReset');
                 };
                 //resolve the promise
                 if (!res.result.hasOwnProperty('access_info')) {

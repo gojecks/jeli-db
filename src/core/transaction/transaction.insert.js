@@ -16,10 +16,14 @@ function transactionInsert() {
     if (_data.length === 1) {
         if ($isArray(_data[0])) {
             _data = _data[0];
+        } else if ($isObject(_data[0])) {
+            _data = [_data[0]];
+        } else if ($isString(_data[0])) {
+            this.setDBError("Invalid dataType, accepted types are  (ARRAY or OBJECT)");
         }
     }
 
-    if (_data.length && columnObj) {
+    if (_data.length && columnObj && !this.hasError()) {
         expect(_data).each(function(item, idx) {
             var type = ($isObject(item) ? 'object' : 'array'),
                 cdata = {};

@@ -11,7 +11,9 @@ function insertPluginFn(query, handler) {
         result = false;
 
     return function(db) {
-
+        if ($isString(data)) {
+            return handler.onError({ state: "insert", message: "Invalid dataType, accepted types are  (ARRAY or OBJECT)" });
+        }
         //insert into the table
         db
             .transaction(tblName, "writeonly")

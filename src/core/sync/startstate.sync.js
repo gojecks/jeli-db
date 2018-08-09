@@ -227,12 +227,12 @@
           var states = ({
               push: function(response) {
                   if (syncState.postSync.length) {
-                      setMessage('Syncing down --' + JSON.stringify(syncState.postSync) + '--');
+                      setMessage('Synching down --' + JSON.stringify(syncState.postSync) + '--');
                       syncHelper
                           .syncDownTables(appName, syncState.postSync, resource)
                           .then(finalize, function(err) {
-                              setMessage('Error syncing down, please try again later');
-                              finalize();
+                              setMessage('Error synching down, please try again later');
+                              finalize('killState');
                           });
 
                       return;
@@ -240,7 +240,9 @@
                   finalize($isEqual(response.state.toLowerCase(), 'error') ? 'killState' : 'finalizeProcess');
 
                   function finalize(state) {
-                      syncHelper[state](appName);
+                      if (state && $isFunction(syncHelper[state])) {
+                          syncHelper[state](appName);
+                      }
                       //remove deleteRecords
                       $queryDB.$taskPerformer.del($queryDB.$delRecordName);
                   }
