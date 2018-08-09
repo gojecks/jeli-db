@@ -1,6 +1,7 @@
 /**
  * 
  * @param {*} db 
+ * @param {*} forceDelete 
  */
 _privateApi.prototype.removeDB = function(db, forceDelete) {
     if (this.openedDB.$hasOwnProperty(db)) {

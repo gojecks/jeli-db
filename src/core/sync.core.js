@@ -18,19 +18,12 @@ function jEliDBSynchronization(appName) {
         return $queryDB.$http(syncHelper.setRequestData(appName, 'resput', '', '', 'PUT'));
     }
 
-    function commit() {
-        setMessage('Commit State Started');
-    }
-
-
-
     function printLog() {
         networkResolver.logger.forEach(console.log);
     }
 
-    // @Process Entity State FN
     /**
-     * 
+     * Process Entity State FN
      * @param {*} handler 
      */
     function processEntity(handler) {

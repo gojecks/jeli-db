@@ -14,8 +14,8 @@
        * pardon failed handler definition
        */
       handler = handler || {};
-      handler.onSuccess = handler.onSuccess || noop;
-      handler.onError = handler.onError || noop;
+      handler.onSuccess = handler.onSuccess || function() {};
+      handler.onError = handler.onError || function() {};
 
       if (taskType && taskPerformerObj[task]) {
           if (taskPerformerObj[task].disabled) {

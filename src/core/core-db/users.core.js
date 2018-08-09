@@ -125,24 +125,27 @@ DBEvent.prototype._users = function() {
         //post our request to server
         db.api('POST', 'authusr', postData, _secure)
             .then(function(res) {
-                var ret = dbSuccessPromiseObject('authorize', ""),
-                    isAuthorized = res.result._rec.length;
+                var ret = dbSuccessPromiseObject('authorize', "");
                 ret.result.getUserInfo = function() {
-                    return res.result._rec[0];
+                    return res.result._rec;
                 };
 
                 ret.result.getAccessToken = function() {
                     return res.result.access_info;
                 };
+
+                ret.result.isPasswordReset = function() {
+                    return res.result.hasOwnProperty('forcePasswordReset');
+                };
                 //resolve the promise
-                if (!isAuthorized) {
+                if (!res.result.hasOwnProperty('access_info')) {
                     $promise.reject(dbErrorPromiseObject('Unable to log user in'))
                 } else {
                     $promise.resolve(ret);
                 }
 
-            }, function() {
-                $promise.reject(dbErrorPromiseObject('Unable to log user in'));
+            }, function(err) {
+                $promise.reject(dbErrorPromiseObject(err.message));
             });
 
         return $defer;

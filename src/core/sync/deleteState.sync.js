@@ -19,7 +19,7 @@
               _isDataBaseTask = $isEqual('database', task) && _resData[appName];
           // check if records are fully processed
           _totalTask.forEach(function(_name) {
-              if (_resData[_name] && !$isArray(_resData[_name])) {
+              if (_resData.hasOwnProperty(_name) && !$isObject(_resData[_name])) {
                   delete _delRecordManager[appName][task][_name];
                   _inc++;
               } else {
@@ -77,7 +77,12 @@
       };
 
       this.fail = function(res) {
-          setMessage('Failed to synchronize, unabled to resolve with the server, please try again');
+          if (res.data && res.data.removed) {
+              expect(res.data.removed).each(function(obj) {
+                  setMessage(obj.message || "Unable to perform requested action.");
+              });
+          }
+          setMessage('Failed to synchronize, please try again');
           syncHelper.killState(appName);
       };
 
