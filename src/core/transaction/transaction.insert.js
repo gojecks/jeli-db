@@ -89,34 +89,33 @@ function transactionInsert() {
             }
         });
 
-
-        if (!$isEqual(this.processState, "insert")) {
-            this.executeState.push(["insert", function(disableOfflineCache) {
-                //errorLog Must be empty
-                if ($self.hasError()) {
-                    //clear processed Data
-                    processedData = [];
-                    throw new Error($self.getError());
-                }
-
-                // update offline
-                if (!disableOfflineCache) {
-                    $self.updateOfflineCache('insert', $self.getAllRef(processedData));
-                }
-
-                /**
-                    broadcast event
-                **/
-                $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
-
-                //push records to our resolver
-
-                return updateTable(processedData.length);
-            }]);
-        }
-
-        this.processState = "insert";
     }
+    if (!$isEqual(this.processState, "insert")) {
+        this.executeState.push(["insert", function(disableOfflineCache) {
+            //errorLog Must be empty
+            if ($self.hasError()) {
+                //clear processed Data
+                processedData = [];
+                throw new Error($self.getError());
+            }
+
+            // update offline
+            if (!disableOfflineCache) {
+                $self.updateOfflineCache('insert', $self.getAllRef(processedData));
+            }
+
+            /**
+                broadcast event
+            **/
+            $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
+
+            //push records to our resolver
+
+            return updateTable(processedData.length);
+        }]);
+    }
+
+    this.processState = "insert";
 
 
     function processData(cData, dataRef) {
