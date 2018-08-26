@@ -9,7 +9,7 @@ DBEvent.prototype.info = function() {
         tables = $queryDB.$get(this.name, 'tables');
     if (tables) {
         findInList.call(tables, function(tblName, tbl) {
-            tableSet[tblName] = copyFrom({
+            tableSet[tblName] = copy({
                 records: (tbl.data || []).length || tbl._records,
                 columns: tbl.columns,
                 primaryKey: tbl.primaryKey,

@@ -21,34 +21,40 @@ function DBRecordResolvers(name) {
      * @param {*} cref 
      */
     function resolveSyncData(tbl, type, cref) {
-        var recordsToSync = jEliDeepCopy(_records[tbl]);
-        Object.keys(recordsToSync.data).map(function(cType) {
-            Object.keys(recordsToSync.data[cType]).map(function(ref) {
-                if ($isEqual(cType, "delete")) {
-                    recordsToSync.data[cType][ref] = true;
-                } else {
-                    recordsToSync.data[cType][ref] = $queryDB.$getDataByRef($queryDB.$getTableOptions(name, tbl, 'data') || [], ref);
-                }
-            });
-        });
+        var recordsToSync = jEliDeepCopy(_records[tbl]),
+            _newSyncData = {};
 
         /**
          * user specifies the type and ref to resolve
          * type : @types
          * ref : @ref DATA || COLUMN
          */
-        if (cref) {
-            var newRet = {};
-            newRet[cref] = {};
-            if (type) {
-                newRet[cref][type] = recordsToSync[cref][type];
-                return newRet;
+        if (type) {
+            _newSyncData[type] = ($isEqual(type, "delete") ? {} : []);
+        } else {
+            _newSyncData.data = {
+                'delete': {},
+                update: [],
+                insert: []
             }
-            newRet[cref] = recordsToSync[cref];
-            return newRet;
         }
 
-        return recordsToSync;
+        Object.keys(_newSyncData.data).map(function(cType) {
+            Object.keys(recordsToSync.data[cType]).map(function(ref) {
+                if ($isEqual(cType, "delete")) {
+                    _newSyncData.data[cType][ref] = true;
+                } else {
+                    var data = $queryDB.$getDataByRef($queryDB.$getTableOptions(name, tbl, 'data') || [], ref);
+                    if (data) {
+                        _newSyncData.data[cType].push(data);
+                    }
+                }
+            });
+        });
+
+        recordsToSync = null;
+
+        return _newSyncData;
     }
 
     var _records = {},

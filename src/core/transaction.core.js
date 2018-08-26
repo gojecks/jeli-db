@@ -141,7 +141,7 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                          * @return {FUNCTION}
                          */
                         liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0], function(res) {
-                            ret.$ajax = extend({}, res.data);
+                            ret.$ajax = extend(true, (res || {}.data));
                             defer['resolve'](ret);
                         }, function() {
                             defer['reject'](ret);

@@ -21,7 +21,7 @@ function syncConflictChecker(appName, resourceChecker, tbl) {
     //client table was found
     syncHelper.pullTable(appName, tbl)
         .then(function(tblResult) {
-            serverTbl = tblResult.data._data;
+            serverTbl = (tblResult.data || {})._data;
             if (serverTbl) {
                 var $diff = syncDataComparism(serverTbl, clientTbl, resourceChecker, networkResolver);
                 if ($diff.hashChanged) {

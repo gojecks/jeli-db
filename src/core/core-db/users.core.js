@@ -3,10 +3,7 @@
  * @return {*} OBJECT
  */
 DBEvent.prototype._users = function() {
-    var syncService = new jEliDBSynchronization(this.name)
-        .Entity()
-        .configSync({}),
-        _secure = '_.users_',
+    var _secure = '',
         $promise = new $p(),
         db = this,
         $defer = new DBPromise($promise);
@@ -66,8 +63,10 @@ DBEvent.prototype._users = function() {
      */
     function removeUser(uInfo) {
         if ($isObject(uInfo)) {
-            syncService
-                .delete(_secure, [uInfo])
+            var ref = {};
+            ref[uInfo._ref] = true;
+
+            db.api('DELETE', 'usr_del', { data: { delete: ref } })
                 .then(function(res) {
                     $promise.resolve(dbSuccessPromiseObject('removeUser', "User removed successfully"));
                 }, function() {
@@ -86,7 +85,7 @@ DBEvent.prototype._users = function() {
     function updateUser(userData) {
         if (userData) {
             //post our request to server
-            db.api('PUT', 'upusr', { data: { update: [userData] } }, _secure)
+            db.api('PUT', 'upusr', { data: { update: [userData] } })
                 .then(function(res) {
                     res.state = "updateUser";
                     res.result.message = "User Updated successfully";
@@ -105,10 +104,9 @@ DBEvent.prototype._users = function() {
      * @param {*} queryData 
      */
     function isExists(queryData) {
-        syncService
-            .getNumRows(queryData, _secure)
+        db.api('GET', 'usr_exists', queryData)
             .then(function(res) {
-                $promise.resolve({ isExists: res._jDBNumRows > 0 });
+                $promise.resolve(res.result);
             }, $defer.reject);
 
         return $defer;
@@ -123,7 +121,7 @@ DBEvent.prototype._users = function() {
     function getUsers(queryData) {
         var postData = { param: queryData, limit: "JDB_SINGLE" };
         //post our request to server
-        db.api('POST', 'authusr', postData, _secure)
+        db.api('POST', 'authusr', postData)
             .then(function(res) {
                 var ret = dbSuccessPromiseObject('authorize', "");
                 ret.result.getUserInfo = function() {
@@ -151,12 +149,24 @@ DBEvent.prototype._users = function() {
         return $defer;
     }
 
+    /**
+     * 
+     * @param {*} postData 
+     */
     function removeUserAuthority(postData) {
         return db.api('DELETE', 'rmdbauth', postData);
     }
 
+    /**
+     * 
+     * @param {*} postData 
+     */
     function addUserAuthority(postData) {
         return db.api('PUT', 'adbauth', postData)
+    }
+
+    function validatePasswd(postData) {
+        return db.api('POST', 'vldpaswd', postData);
     }
 
     return ({
@@ -164,6 +174,7 @@ DBEvent.prototype._users = function() {
         remove: removeUser,
         authorize: getUsers,
         updateUser: updateUser,
+        validatePassword: validatePasswd,
         isExists: isExists,
         addAuthority: addUserAuthority,
         removeAuthority: removeUserAuthority

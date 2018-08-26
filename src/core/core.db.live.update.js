@@ -14,13 +14,76 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
         $payLoad,
         withRef = false;
 
-    function pollUpdate() {
+    /**
+     * 
+     * @param {*} _payload 
+     * @param {*} syncId 
+     */
+    function generatePayload(_payload, syncId) {
         var _reqOptions = $queryDB.buildOptions(dbName, null, "poll");
         _reqOptions.data.ref = type;
-        _reqOptions.data.type = _def;
+        _reqOptions.data.type = _def,
+            _queryPayload = {};
+        if (tbl) {
+            _queryPayload[tbl] = {
+                query: $isFunction(_payload) ? _payload() : _payload
+            };
+        }
 
+        if ($isEqual(type, 'db')) {
+            if (!_payload) {
+                $queryDB.getDbTablesNames(dbName).forEach(function(name) {
+                    _queryPayload[name] = {};
+                });
+            } else {
+                _queryPayload = ($isFunction(_payload)) ? _payload() : _payload;
+            }
+        }
+
+        for (var _tbl in _queryPayload) {
+            _queryPayload[_tbl].checksum = $queryDB.getTableCheckSum(dbName, _tbl);
+            if (syncId) {
+                _queryPayload[_tbl].syncId = syncId;
+            }
+        }
+
+        _reqOptions.data.payload = _queryPayload;
+
+        return _reqOptions;
+    }
+
+    /**
+     * 
+     * @param {*} report 
+     */
+    function startChunkState(report) {
+        var totalRecordsToSync = report.total;
+
+        function chunkRequest() {
+            pollRequest(generatePayload($payLoad, report.syncId))
+                .then(function(res) {
+                    totalRecordsToSync -= report.total_per_request;
+                    updatePromiserHandler(res);
+                    if (totalRecordsToSync > 0) {
+                        chunkRequest();
+                    } else {
+                        polling();
+                    }
+                }, function() {
+                    setTimeout(chunkRequest, 5000);
+                });
+        }
+
+        chunkRequest();
+    }
+
+    function updatePromiserHandler(res) {
         var promiseData = {};
-
+        /**
+         * 
+         * @param {*} _tbl 
+         * @param {*} _data 
+         */
         function resolvePromise(_tbl, _data) {
             $queryDB
                 .$resolveUpdate(dbName, _tbl, _data, withRef)
@@ -34,95 +97,88 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
                         });
 
                     promiseData[_tbl] = cdata;
-
                 });
         }
 
-        var _queryPayload = {};
-        if (tbl) {
-            _queryPayload[tbl] = {
-                query: $isFunction($payLoad) ? $payLoad() : $payLoad
-            };
+        for (var _tbl in res.data) {
+            resolvePromise(_tbl, res.data[_tbl]);
         }
 
+        var _promise = dbSuccessPromiseObject('onUpdate', '');
+        _promise.result.getData = function(key, tblName) {
+            if (!key || !tblName) {
+                return null;
+            }
 
-        switch (type) {
-            case ('db'):
-                if (!$payLoad) {
-                    $queryDB.getDbTablesNames(dbName).forEach(function(name) {
-                        _queryPayload[name] = {};
-                    });
-                } else {
-                    _queryPayload = ($isFunction($payLoad)) ? $payLoad() : $payLoad;
-                }
-                break;
-        }
+            tblName = tblName || tbl;
 
-        for (var _tbl in _queryPayload) {
-            _queryPayload[_tbl].checksum = $queryDB.getTableCheckSum(dbName, _tbl);
-        }
+            return (key && promiseData[tblName][key]) ? promiseData[tblName][key] : [];
+        };
 
-        _reqOptions.data.payload = _queryPayload;
+        _promise.result.getCheckSum = function(tblName) {
+            return promiseData[tblName || tbl].checksum;
+        };
+        _promise.result.getAllUpdates = function() {
+            return promiseData;
+        };
 
+        _promise.result.getTable = function(tblName) {
+            return promiseData[tblName || tbl];
+        };
+
+        _promise.count = function(tblName) {
+            var total = 0;
+            _def.forEach(function(type) {
+                total += promiseData[tblName || tbl][type].length;
+            });
+
+            return total;
+        };
+
+        _callback(_promise);
+    }
+
+
+
+    function pollUpdate() {
         /**
          * 
          * @param {*} res 
          */
         function processResponse(res) {
-            for (var _tbl in res.data) {
-                resolvePromise(_tbl, res.data[_tbl]);
+            if ($isEqual(res.type, 'report')) {
+                return startChunkState(res);
             }
-
-            var _promise = dbSuccessPromiseObject('onUpdate', '');
-            _promise.result.getData = function(key, tblName) {
-                if (!key || !tblName) {
-                    return null;
-                }
-
-                tblName = tblName || tbl;
-
-                return (key && promiseData[tblName][key]) ? promiseData[tblName][key] : [];
-            };
-
-            _promise.result.getCheckSum = function(tblName) {
-                return promiseData[tblName || tbl].checksum;
-            };
-            _promise.result.getAllUpdates = function() {
-                return promiseData;
-            };
-
-            _promise.result.getTable = function(tblName) {
-                return promiseData[tblName || tbl];
-            };
-
-            _promise.count = function(tblName) {
-                var total = 0;
-                _def.forEach(function(type) {
-                    total += promiseData[tblName || tbl][type].length;
-                });
-
-                return total;
-            };
-
-            _callback(_promise);
-            polling();
-
+            updatePromiserHandler(res);
+            polling(ctimer);
         }
 
         /**
          * perform request
          */
-        ajax(_reqOptions)
-            .done(processResponse)
-            .fail(polling);
+        pollRequest(generatePayload($payLoad))
+            .then(processResponse, function() {
+                polling(ctimer);
+            });
     }
 
+    /**
+     * 
+     * @param {*} _reqOptions 
+     */
+    function pollRequest(_reqOptions) {
+        return ajax(_reqOptions);
+    }
+
+    /**
+     * 
+     * @param {*} start 
+     */
     function polling(start) {
         if (destroyed) { return; }
-
         timerId = setTimeout(function() {
             pollUpdate();
-        }, start || ctimer);
+        }, start);
     }
 
 
@@ -147,9 +203,7 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
                 withRef = allow;
                 return this;
             },
-            start: function(start) {
-                polling(start);
-            }
+            start: polling
         });
     };
 }

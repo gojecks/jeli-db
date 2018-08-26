@@ -164,8 +164,10 @@ function queryMatcher($query, $val, item) {
                 _fnd = $val > _val;
                 break;
             case ('$inArray'):
-            case ('$lk'):
                 _fnd = $inArray(_val, $val || []);
+                break;
+            case ('$lk'):
+                _fnd = String($val).search(_val) > -1;
                 break;
             case ('$notInArray'):
                 _fnd = !$inArray(_val, $val || []);

@@ -55,7 +55,6 @@ function transactionSelect(selectFields, definition) {
         this.setDBError("Expected Join clause to be an array");
     }
 
-
     //@Function Name processQueryData
     //@Arguments nill
     // 

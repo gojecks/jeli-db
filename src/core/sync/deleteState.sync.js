@@ -19,18 +19,22 @@
               _isDataBaseTask = $isEqual('database', task) && _resData[appName];
           // check if records are fully processed
           _totalTask.forEach(function(_name) {
-              if (_resData.hasOwnProperty(_name) && !$isObject(_resData[_name])) {
-                  delete _delRecordManager[appName][task][_name];
-                  _inc++;
+              if (_resData.hasOwnProperty(_name)) {
+                  if (!$isObject(_resData[_name]) && _resData[_name]) {
+                      delete _delRecordManager[appName][task][_name];
+                      _inc++;
+                  } else {
+                      setMessage(_resData[_name].message);
+                  }
               } else {
-                  setMessage(_resData[_name].reasons);
+                  setMessage('Unable to remove ' + task + "(" + _name + ') from the server');
               }
           });
 
           /**
            * check is request type was database
            */
-          if (_isDataBaseTask) {
+          if (_isDataBaseTask && $isEqual(_inc, _totalTask.length)) {
               delete _delRecordManager[appName];
           }
 

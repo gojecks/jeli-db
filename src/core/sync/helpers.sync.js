@@ -39,7 +39,7 @@ function syncHelperPublicApi() {
         getApplicationApiKey: function(appName) {
             var _appProcess = this.getProcess(appName),
                 options = self.setRequestData(appName, 'apikey', true);
-            options.data.key = "apiKey";
+            options.data.key = "api_key";
             self.setMessage('Retrieving API key....', _appProcess.getSet('networkResolver'));
             return $queryDB.$http(options).then(function(res) {
                 self.setMessage('Retrieved API key', _appProcess.getSet('networkResolver'));
@@ -142,7 +142,7 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
      * add the api_key to the Authorization Header
      */
     if (process && process.hasOwnProperty('applicationKey')) {
-        options.headers.Authorization += ' ' + process.getSet('applicationKey').apiKey;
+        options.headers.Jdb_App_Key = process.getSet('applicationKey').api_key;
     }
 
     // set request type if defined
