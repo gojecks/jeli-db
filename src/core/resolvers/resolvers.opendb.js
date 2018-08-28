@@ -41,7 +41,7 @@ function openedDBResolvers() {
      */
     this.register = function(name, value) {
         if ($isObject(name) && !value) {
-            this.networkResolver = extend(this.networkResolver, name);
+            this.networkResolver = extend(true, this.networkResolver, name);
         } else {
             this.networkResolver[name] = value;
         }

@@ -1,7 +1,6 @@
-//Extend _privateApi Functionality
-//set a new Method $getTable()
-//Function Name : $getTable
-//@Arguments : DB_NAME {STRING}, tableName {STRING}
+/**
+ * JELIDB INTERNAL CLASS
+ */
 function _privateApi() {
     //setup our DBName
     this.$dbName = "_resourceManager";

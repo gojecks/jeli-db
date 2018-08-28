@@ -1,7 +1,7 @@
 //Cutom Plugins
 //Environment Plugin 
 jEliDB.plugins.jQl('api', {
-    help: ['api -url -method -[optional:data] -table'],
+    help: ['api -state -[optional:data] -table'],
     requiresParam: true,
     fn: apiPluginFn
 });
@@ -13,10 +13,9 @@ jEliDB.plugins.jQl('api', {
 
 function apiPluginFn(query, handler) {
     return function(db) {
-        var type = query[2],
-            state = query[1],
-            postData = maskedEval(query[3]),
-            table = query[4] || '';
+        var state = query[1],
+            postData = maskedEval(query[2]),
+            table = query[3] || '';
 
 
         db[query[0]](type, state, postData, table)

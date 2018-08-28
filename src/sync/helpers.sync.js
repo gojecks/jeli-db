@@ -118,7 +118,7 @@ syncHelperPublicApi.prototype.setTable = function(tbl) {
  * @param {*} ignore 
  * @param {*} tbl 
  */
-syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, tbl, type) {
+syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, tbl) {
     var options = $queryDB.buildOptions(appName, tbl, state),
         process = this.process.getProcess(appName);
     //ignore post data
@@ -145,8 +145,6 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
         options.headers.Jdb_App_Key = process.getSet('applicationKey').api_key;
     }
 
-    // set request type if defined
-    options.type = type;
     return options;
 };
 
@@ -242,7 +240,7 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
     this.setMessage('Initializing Push State for table(' + tbl + ')', _activeDB.$get('resolvers').networkResolver);
     //check state
     state = state || 'push';
-    var _options = this.setRequestData(appName, state, false, tbl, 'PUT');
+    var _options = this.setRequestData(appName, state, false, tbl);
     //update the table and not overwrite
     if (data) {
         if (!data.columns.diff) {

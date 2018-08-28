@@ -15,7 +15,7 @@ function jEliDBSynchronization(appName) {
 
     function syncResourceToServer() {
         setMessage('Resource synchronization started');
-        return $queryDB.$http(syncHelper.setRequestData(appName, 'resput', '', '', 'PUT'));
+        return $queryDB.$http(syncHelper.setRequestData(appName, 'resput', '', ''));
     }
 
     function printLog() {

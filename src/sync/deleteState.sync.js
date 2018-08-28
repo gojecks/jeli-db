@@ -135,14 +135,14 @@
 
 
               function processRenamedTables() {
-                  return request("rentbl", 'POST', 'renamed', deleteRecords.rename)
+                  return request("rentbl", 'renamed', deleteRecords.rename)
                       .then(function(res) {
                           cleanUp('rename', res);
                       });
               }
 
-              function request(_api, type, ref, data) {
-                  var _options = syncHelper.setRequestData(appName, _api, true, null, type);
+              function request(_api, ref, data) {
+                  var _options = syncHelper.setRequestData(appName, _api, true, null);
                   _options.data[ref] = data;
                   return $queryDB.$http(_options);
               }
@@ -154,7 +154,7 @@
                   }
                   //set message to our console
                   setMessage(message);
-                  request(api, 'DELETE', 'remove', data)
+                  request(api, 'remove', data)
                       .then(self.done(_task), self.fail);
               }
 

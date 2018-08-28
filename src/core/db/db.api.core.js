@@ -9,12 +9,11 @@
  * @param {*} postData 
  * @param {*} tbl 
  */
-DBEvent.prototype.api = function(type, state, postData, tbl) {
+DBEvent.prototype.api = function(state, postData, tbl) {
     var _options = $queryDB.buildOptions(this.name, tbl, state),
         $defer = new $p();
-    _options.type = type || 'GET';
     if (postData) {
-        if (type.toLowerCase() === 'get') {
+        if ($isEqual(_options.type.toLowerCase(), 'get')) {
             _options.data.query = postData;
         } else {
             _options.data.postData = postData;

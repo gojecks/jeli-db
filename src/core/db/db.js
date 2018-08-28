@@ -19,10 +19,11 @@ function DBEvent(name, version, required) {
         logger: function() {
             return $queryDB.$getActiveDB(name).$get('resolvers').getResolvers('logger');
         },
-        dataTypes: $queryDB.$getActiveDB(name).$get('dataTypes')
+        dataTypes: $queryDB.$getActiveDB(name).$get('dataTypes'),
+        requestMapping: $queryDB.getNetworkResolver('requestMapping', name)
     };
 
-    if ($queryDB.getNetworkResolver('serviceHost')) {
+    if ($queryDB.getNetworkResolver('serviceHost', name)) {
         //add event listener to db
         this.onUpdate = jDBStartUpdate('db', name, null);
 

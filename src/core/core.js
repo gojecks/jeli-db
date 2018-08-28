@@ -37,6 +37,7 @@ function jEliDB(name, version) {
                         .$get('resolvers')
                         .register(config)
                         .register('inProduction', inProduction)
+                        .register('requestMapping', new RequestMapping(inProduction))
                         /**
                          * initialize the deleteManager
                          * check if DB exists in the delete storage
