@@ -1,7 +1,10 @@
 //Cutom Plugins
 //Environment Plugin 
 jEliDB.plugins.jQl('api', {
-    help: ['api -state -[optional:data] -table'],
+    help: ['api -state[STRING || OBJECT] -[optional:data] -table',
+        'state: OBJECT SCHEMA : {URL:STRING, METHOD:STRING, AUTH_TYPE:INT, body:ANY}',
+        'state: STRING - /api/request/path '
+    ],
     requiresParam: true,
     fn: apiPluginFn
 });

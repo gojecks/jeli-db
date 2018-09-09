@@ -3,6 +3,7 @@
  * @param {*} dbName 
  * @param {*} tbl 
  * @param {*} requestState 
+ * requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
  */
 _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     var options = {},
@@ -21,17 +22,13 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
         options.headers['X-CSRF-TOKEN'] = cToken;
     }
 
-    requestState = this.getNetworkResolver('requestMapping', dbName).get(requestState);
+    if (!$isObject(requestState)) {
+        requestState = this.getNetworkResolver('requestMapping', dbName).get(requestState);
+    }
+
     if (requestState) {
         options.url += requestState.URL;
-        //state needs to be split for accuracy
-        // if ($inArray("/", state)) {
-        //     state = state.split("/");
-        //     //remove the first slash
-        //     state.shift();
-        //     state = camelCase.call(state.join('-'));
-        // }
-
+        tbl = tbl || requestState.tbl;
         if ($isArray(tbl)) {
             tbl = JSON.stringify(tbl);
         }

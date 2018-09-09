@@ -60,7 +60,9 @@ function RequestMapping(disableAdminApi, appName) {
 
         $queryDB.$http($queryDB.buildOptions(appName, '', '/load'))
             .then(function(res) {
-                CUSTOM_API = extend(true, CUSTOM_API, res.result || []);
+                if ($isArray(res.data)) {
+                    CUSTOM_API = extend(true, CUSTOM_API, res.data || []);
+                }
             });
     };
 }

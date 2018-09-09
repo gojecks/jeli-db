@@ -7,15 +7,16 @@
  * @param {*} URL
  * @param {*} postData 
  * @param {*} tbl 
+ * requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean, METHOD:STRING, data:ANY}
  */
 DBEvent.prototype.api = function(URL, postData, tbl) {
     var _options = $queryDB.buildOptions(this.name, tbl, URL),
         $defer = new $p();
-    if (postData) {
+    if (postData || ($isObject(URL) && URL.data)) {
         if (_options.type && $isEqual(_options.type.toLowerCase(), 'get')) {
-            _options.data.query = postData;
+            _options.data.query = postData || URL.data;
         } else {
-            _options.data.postData = postData;
+            _options.data.postData = postData || URL.data;
         }
     }
 
