@@ -15,7 +15,6 @@ DBEvent.prototype.transaction = function(table, mode) {
     var defer = new $p();
     if (table) {
         var tableData = null,
-            $self = this,
             err = [],
             isMultipleTable = false,
             tableJoinMapping = {};

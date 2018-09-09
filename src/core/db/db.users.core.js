@@ -18,7 +18,7 @@ DBEvent.prototype._users = function() {
                 //Put the Data
                 postData = { data: { insert: [_newInfo] } };
             //use the db API Method
-            db.api('crusr', postData, _secure)
+            db.api('/user/create', postData, _secure)
                 .then(function(res) {
                     //Put the new user
                     var ret = dbSuccessPromiseObject('createUser', "User Created successfully");
@@ -62,11 +62,12 @@ DBEvent.prototype._users = function() {
      * @param {*} uInfo 
      */
     function removeUser(uInfo) {
+        console.log(uInfo);
         if ($isObject(uInfo)) {
             var ref = {};
             ref[uInfo._ref] = true;
 
-            db.api('usr_del', { data: { delete: ref } })
+            db.api('/user/delete', { data: { delete: ref } })
                 .then(function(res) {
                     $promise.resolve(dbSuccessPromiseObject('removeUser', "User removed successfully"));
                 }, function() {
@@ -85,7 +86,7 @@ DBEvent.prototype._users = function() {
     function updateUser(userData) {
         if (userData) {
             //post our request to server
-            db.api('upusr', { data: { update: [userData] } })
+            db.api('/user/update', { data: { update: [userData] } })
                 .then(function(res) {
                     res.state = "updateUser";
                     res.result.message = "User Updated successfully";
@@ -104,7 +105,7 @@ DBEvent.prototype._users = function() {
      * @param {*} queryData 
      */
     function isExists(queryData) {
-        db.api('usr_exists', queryData)
+        db.api('/user/exists', queryData)
             .then(function(res) {
                 $promise.resolve(res.result);
             }, $defer.reject);
@@ -121,7 +122,7 @@ DBEvent.prototype._users = function() {
     function getUsers(queryData) {
         var postData = { param: queryData, limit: "JDB_SINGLE" };
         //post our request to server
-        db.api('authusr', postData)
+        db.api('/user/authorize', postData)
             .then(function(res) {
                 var ret = dbSuccessPromiseObject('authorize', "");
                 ret.result.getUserInfo = function() {
@@ -154,7 +155,7 @@ DBEvent.prototype._users = function() {
      * @param {*} postData 
      */
     function removeUserAuthority(postData) {
-        return db.api('rmdbauth', postData);
+        return db.api('/database/users/remove', postData);
     }
 
     /**
@@ -162,11 +163,11 @@ DBEvent.prototype._users = function() {
      * @param {*} postData 
      */
     function addUserAuthority(postData) {
-        return db.api('adbauth', postData)
+        return db.api('/database/users/add', postData)
     }
 
     function validatePasswd(postData) {
-        return db.api('vldpaswd', postData);
+        return db.api('/user/validate/password', postData);
     }
 
     return ({

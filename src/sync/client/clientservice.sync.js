@@ -34,7 +34,7 @@ function clientService(appName) {
      * @param {*} query 
      */
     this.getByRef = function(tbl, query) {
-        var _options = syncHelper.setRequestData(appName, 'query', true, tbl);
+        var _options = syncHelper.setRequestData(appName, '/query', true, tbl);
         _options.data.query = { type: "_ref", limit: "JDB_SINGLE", param: query };
 
         return requestFromDB(_options, tbl);
@@ -46,7 +46,7 @@ function clientService(appName) {
      * @param {*} query 
      */
     this.getAll = function(tbl, query) {
-        var _options = syncHelper.setRequestData(appName, 'query', true, tbl);
+        var _options = syncHelper.setRequestData(appName, '/query', true, tbl);
         _options.data.query = { type: "_data", limit: "JDB_MAX", param: query };
 
         return requestFromDB(_options, tbl);
@@ -58,7 +58,7 @@ function clientService(appName) {
      * @param {*} query 
      */
     this.getOne = function(tbl, query) {
-        var _options = syncHelper.setRequestData(appName, 'query', true, tbl);
+        var _options = syncHelper.setRequestData(appName, '/query', true, tbl);
         _options.data.query = { type: "_data", limit: "JDB_SINGLE", param: query };
 
         return requestFromDB(_options, tbl);
@@ -99,7 +99,7 @@ function ProcessRequest(_options, resolvedTable, appName) {
  * @param {*} data 
  */
 clientService.prototype.put = function(tbl, data) {
-    var _options = syncHelper.setRequestData(this.appName, 'push', false, tbl);
+    var _options = syncHelper.setRequestData(this.appName, '/state/push', false, tbl);
     _options.data.postData = data;
     _options.data.action = 'update';
     return ProcessRequest(_options, tbl, this.appName);
@@ -111,7 +111,7 @@ clientService.prototype.put = function(tbl, data) {
  * @param {*} data 
  */
 clientService.prototype.delete = function(tbl, data) {
-    var _options = syncHelper.setRequestData(this.appName, 'delete', true, tbl);
+    var _options = syncHelper.setRequestData(this.appName, '/state/push', true, tbl);
     _options.data.query = data;
     return ProcessRequest(_options);
 };
@@ -140,7 +140,7 @@ clientService.prototype.delete = function(tbl, data) {
  * @param {*} query 
  */
 clientService.prototype.query = function(query) {
-    var _options = syncHelper.setRequestData(this.appName, 'query', false);
+    var _options = syncHelper.setRequestData(this.appName, '/query', false);
     _options.data.query = query;
 
     return ProcessRequest(_options);
@@ -152,7 +152,7 @@ clientService.prototype.query = function(query) {
  * @param {*} tbl 
  */
 clientService.prototype.getNumRows = function(query, tbl) {
-    var _options = syncHelper.setRequestData(this.appName, 'gnr', true, tbl);
+    var _options = syncHelper.setRequestData(this.appName, '/num/rows', true, tbl);
     _options.data.query = { type: "_data", param: query, return_type: "num_rows" };
 
     return ProcessRequest(_options);
@@ -163,7 +163,7 @@ clientService.prototype.getNumRows = function(query, tbl) {
  * @param {*} data 
  */
 clientService.prototype.reAuthorize = function(data) {
-    var _options = syncHelper.setRequestData(this.appName, 'reauth', false, null);
+    var _options = syncHelper.setRequestData(this.appName, '/user/reauthorize', false, null);
     _options.data.postData = data;
     return ProcessRequest(_options);
 };

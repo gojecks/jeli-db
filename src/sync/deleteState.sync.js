@@ -109,13 +109,13 @@
            */
 
           function mainProcess() {
-              var api = 'remtbl',
+              var api = '/drop/table',
                   data = deleteRecords.table,
                   message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server',
                   _task = "table";
               //check if database was remove from client
               if (deleteRecords.database[appName]) {
-                  api = 'remdb';
+                  api = '/drop/database';
                   data = deleteRecords.database;
                   message = "Droping " + appName + " Application from the server";
                   _task = "database";
@@ -135,7 +135,7 @@
 
 
               function processRenamedTables() {
-                  return request("rentbl", 'renamed', deleteRecords.rename)
+                  return request("/rename/table", 'renamed', deleteRecords.rename)
                       .then(function(res) {
                           cleanUp('rename', res);
                       });

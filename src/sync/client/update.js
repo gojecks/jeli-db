@@ -20,7 +20,7 @@ function jDBStartUpdate(type, dbName, tbl, $hash) {
      * @param {*} syncId 
      */
     function generatePayload(_payload, syncId) {
-        var _reqOptions = $queryDB.buildOptions(dbName, null, "poll");
+        var _reqOptions = $queryDB.buildOptions(dbName, null, "/recent/updates");
         _reqOptions.data.ref = type;
         _reqOptions.data.type = _def,
             _queryPayload = {};

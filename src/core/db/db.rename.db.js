@@ -12,7 +12,7 @@ DBEvent.prototype.rename = function(newName) {
         $queryDB.renameDataBase(this.name, newName, function() {
             var newResource = $queryDB.$getActiveDB(dbName).$get('resourceManager').getResource();
             if (newResource && newResource.lastSyncedDate) {
-                _self.api('POST', 'rendb', { name: newName })
+                _self.api('/rename/database', { name: newName })
                     .then(defer.resolve, defer.reject);
             } else {
                 defer.resolve(dbSuccessPromiseObject('rename', "Database renamed successfully"));

@@ -38,7 +38,7 @@ function syncHelperPublicApi() {
         },
         getApplicationApiKey: function(appName) {
             var _appProcess = this.getProcess(appName),
-                options = self.setRequestData(appName, 'apikey', true);
+                options = self.setRequestData(appName, '/apikey', true);
             options.data.key = "api_key";
             self.setMessage('Retrieving API key....', _appProcess.getSet('networkResolver'));
             return $queryDB.$http(options).then(function(res) {
@@ -124,12 +124,12 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
     //ignore post data
     if (!ignore) {
         switch (state.toLowerCase()) {
-            case ('push'):
-            case ('sync'):
+            case ('/state/push'):
+            case ('/state/sync'):
                 options.data.postData = $queryDB.$getTable(appName, tbl);
                 options.data.action = "overwrite";
                 break;
-            case ('resput'):
+            case ('/database/resource'):
                 var resource = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
                 if (!resource.lastSyncedDate) {
                     resource.lastSyncedDate = +new Date;
@@ -179,7 +179,7 @@ syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
  * @param {*} requiredData 
  */
 syncHelperPublicApi.prototype.getSchema = function(appName, requiredTable) {
-    var _options = this.setRequestData(appName, 'schema', false, requiredTable || []),
+    var _options = this.setRequestData(appName, '/schema', false, requiredTable || []),
         $defer = new $p();
 
     $queryDB.$http(_options)
@@ -199,7 +199,7 @@ syncHelperPublicApi.prototype.getSchema = function(appName, requiredTable) {
  * @param {*} appName 
  */
 syncHelperPublicApi.prototype.pullResource = function(appName) {
-    return $queryDB.$http(this.setRequestData(appName, 'resget', true));
+    return $queryDB.$http(this.setRequestData(appName, '/resource', true));
 };
 
 
@@ -263,7 +263,7 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
  */
 syncHelperPublicApi.prototype.pullTable = function(appName, tbl) {
     this.setMessage('---Retrieving ' + tbl + ' schema---', this.process.getProcess(appName).getSet('networkResolver'));
-    return $queryDB.$http(this.setRequestData(appName, 'pull', false, tbl));
+    return $queryDB.$http(this.setRequestData(appName, '/pull', false, tbl));
 };
 
 //@Function Name Pull

@@ -13,12 +13,11 @@ jEliDB.plugins.jQl('api', {
 
 function apiPluginFn(query, handler) {
     return function(db) {
-        var state = query[1],
-            postData = maskedEval(query[2]),
+        var postData = maskedEval(query[2]),
             table = query[3] || '';
 
 
-        db[query[0]](type, state, postData, table)
+        db[query[0]](query[1], postData, table)
             .then(function(res) {
                 handler.onSuccess.apply(handler.onSuccess, [res]);
             }, function(err) {

@@ -48,7 +48,6 @@ function openedDBResolvers() {
 
         return this;
     };
-
     /**
      * 
      * @param {*} name 
@@ -62,8 +61,17 @@ function openedDBResolvers() {
  * 
  * @param {*} name 
  */
-openedDBResolvers.$hasOwnPropery = function(name) {
+openedDBResolvers.prototype.$hasOwnPropery = function(name) {
     return this.networkResolver.hasOwnProperty(name);
+};
+
+openedDBResolvers.prototype.trigger = function(fn) {
+    var self = this;
+    setTimeout(function() {
+        fn.call(self);
+    }, 1);
+
+    return this;
 };
 
 

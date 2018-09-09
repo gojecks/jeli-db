@@ -1,6 +1,9 @@
-var customPlugins = new watchBinding(); //used to hold customPlugins
+/**
+ * 
+ * @param {*} name 
+ * @param {*} version 
+ */
 function jEliDB(name, version) {
-
     var defer = new $p(),
         dbEvent = {},
         version = parseInt(version || "1"),
@@ -9,7 +12,10 @@ function jEliDB(name, version) {
             isClientMode: false,
             isLoginRequired: false
         };
-    //set the Database name
+    /**
+     * 
+     * @param {*} config 
+     */
     function open(config) {
         var promise = new DBPromise(defer),
             config = extend({}, _defaultConfig, config),
@@ -37,7 +43,10 @@ function jEliDB(name, version) {
                         .$get('resolvers')
                         .register(config)
                         .register('inProduction', inProduction)
-                        .register('requestMapping', new RequestMapping(inProduction))
+                        .register('requestMapping', new RequestMapping(inProduction, name))
+                        .trigger(function() {
+                            this.getResolvers('requestMapping').resolveCustomApis();
+                        })
                         /**
                          * initialize the deleteManager
                          * check if DB exists in the delete storage
@@ -269,6 +278,7 @@ function jEliDB(name, version) {
 }
 
 //prototype for jEli Plugin
+var customPlugins = new watchBinding(); //used to hold customPlugins
 jEliDB.plugins = Object.create({
     jQl: function(name, plugin) {
         if (name && $isObject(plugin) && !customPlugins.hasProp(name)) {

@@ -132,7 +132,7 @@
               function allowPushState(data) {
                   //api : /sync/state
                   //sync state can only be done by Authorized Application
-                  var state = ((!data) ? 'sync' : 'push');
+                  var state = ((!data) ? '/state/sync' : '/state/push');
                   syncHelper.push(appName, currentProcessTbl, data, state)
                       .then(function(pushResponse) {
                           var okay = pushResponse.data.ok;

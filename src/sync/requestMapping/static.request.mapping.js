@@ -1,145 +1,372 @@
 /**
  * LIBRARY REQUEST MAPPING
- * CLIENT AND ADMIN 
  */
 
-var ADMIN_REQUEST_MAPPING = {
-    remdb: {
-        path: "/drop/database",
-        authType: 'bearer',
-        method: "DELETE"
+var JDB_REQUEST_API = [{
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/database/rights"
     },
-    remtbl: {
-        path: "/drop/table",
-        authType: 'bearer',
-        method: "DELETE"
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 2,
+        METHOD: "GET",
+        URL: "/load"
     },
-    rentbl: {
-        path: "/rename/table",
-        authType: 'bearer',
-        method: "POST"
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/apikey"
     },
-    sync: {
-        path: "/sync/state",
-        authType: 'bearer',
-        method: "PUT"
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/file/content"
     },
-    resput: {
-        path: "/resource",
-        authType: 'basic',
-        method: "PUT"
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/file/attachment"
     },
-    pull: {
-        path: "/pull",
-        authType: 'bearer',
-        method: "GET"
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/session"
     },
-    repdb: {
-        path: '/replicate/db',
-        authType: 'bearer',
-        method: "PUT"
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 2,
+        METHOD: "GET",
+        URL: "/num/rows"
     },
-    rendb: {
-        path: '/rename/database',
-        authType: 'bearer',
-        method: "POST"
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 2,
+        METHOD: "GET",
+        URL: "/user/exists"
     },
-    rmdbauth: {
-        path: "/database/users/rights/remove",
-        authType: 'bearer',
-        method: "DELETE"
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/directory/listing"
     },
-    adbauth: {
-        path: "/database/users/rights/add",
-        authType: 'bearer',
-        method: "PUT"
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/pull"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/logs"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 2,
+        METHOD: "GET",
+        URL: "/schema"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/application/info"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/application/environment/variables"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/query"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 2,
+        METHOD: "GET",
+        URL: "/resource"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "GET",
+        URL: "/recent/updates"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/otp/regenerate"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/otp/create"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/otp/validate"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/session"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/reset/code/resend"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/reset/code/validate"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/reset/password"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/logout"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/user/validate/password"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/user/authorize"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "POST",
+        URL: "/user/reauthorize"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/rename/database"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/rename/table"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/export/database"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/send/email"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/create/file"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        URL: "/create/directory"
+    },
+    {
+        URL: '/create/api',
+        AUTH_TYPE: 1,
+        METHOD: "POST",
+        PROTECT_API: true,
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/database/replicate"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/database/users/add"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/database/resource"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/file/content"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/file/attachment"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/session"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/user/update"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 0,
+        METHOD: "PUT",
+        URL: "/user/create"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/state/push"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/state/sync"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/update"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/unpublish"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/environment/variables",
+        ref: "app_env_put"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/set/security_nonce"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/set/access_token"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/authority/add"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/authority/remove"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "PUT",
+        URL: "/application/publish"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/session"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/file"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/user/database/remove"
+    },
+    {
+        PROTECT_API: false,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/user/remove"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/folder"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/drop/database"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/drop/table"
+    },
+    {
+        PROTECT_API: true,
+        AUTH_TYPE: 1,
+        METHOD: "DELETE",
+        URL: "/log"
     }
-};
-
-var CLIENT_REQUEST_MAPPING = {
-    schema: {
-        path: "/schema",
-        authType: 'basic',
-        method: "GET"
-    },
-    resget: {
-        path: "/resource",
-        authType: 'basic',
-        method: "GET"
-    },
-    push: {
-        path: "/push/state",
-        authType: 'bearer',
-        method: "PUT"
-    },
-    poll: {
-        path: "/recent/updates",
-        authType: 'bearer',
-        method: "GET"
-    },
-    query: {
-        path: "/query",
-        authType: 'bearer',
-        method: "GET"
-    },
-    'delete': {
-        path: "/delete",
-        authType: 'bearer',
-        method: "DELETE"
-    },
-    gnr: {
-        path: "/get/num/rows",
-        authType: 'basic',
-        method: "GET"
-    },
-    reauth: {
-        path: "/user/reauthorize",
-        authType: 'basic',
-        method: "POST"
-    },
-    crusr: {
-        path: '/user/create',
-        authType: 'basic',
-        method: "PUT"
-    },
-    upusr: {
-        path: "/user/update",
-        authType: 'bearer',
-        method: "PUT"
-    },
-    authusr: {
-        path: "/user/authorize",
-        authType: 'basic',
-        method: "POST"
-    },
-    vldpaswd: {
-        path: "/user/validate/password",
-        authType: 'basic',
-        method: "POST"
-    },
-    usr_exists: {
-        path: "/user/exists",
-        authType: 'basic',
-        method: "POST"
-    },
-    usr_del: {
-        path: "/user/delete",
-        authType: "bearer",
-        method: "DELETE"
-    },
-    reset_passwd: {
-        path: "/reset/password",
-        authType: "basic",
-        method: "POST"
-    },
-    resend_validation_code: {
-        path: "/resend/validation/code",
-        authType: "basic",
-        method: "POST"
-    },
-    reset_passwd_validate: {
-        path: "/reset/passwd/validate",
-        authType: "basic",
-        method: "POST"
-    }
-};
+];

@@ -23,27 +23,27 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
 
     requestState = this.getNetworkResolver('requestMapping', dbName).get(requestState);
     if (requestState) {
-        var state = requestState.path;
+        options.url += requestState.URL;
         //state needs to be split for accuracy
-        if ($inArray("/", state)) {
-            state = state.split("/");
-            //remove the first slash
-            state.shift();
-            state = camelCase.call(state.join('-'));
-        }
+        // if ($inArray("/", state)) {
+        //     state = state.split("/");
+        //     //remove the first slash
+        //     state.shift();
+        //     state = camelCase.call(state.join('-'));
+        // }
 
         if ($isArray(tbl)) {
             tbl = JSON.stringify(tbl);
         }
 
         //initialize our network interceptor
-        (this.getNetworkResolver('interceptor', dbName) || function() {})(options, requestState.authType);
+        (this.getNetworkResolver('interceptor', dbName) || function() {})(options, requestState);
 
         options.data._o = base64.encode(window.location.origin);
         options.data._p = window.location.pathname;
         options.data._h = window.location.host;
-        options.data._r = base64.encode(dbName + ':' + state + ':' + (tbl || '') + ':' + +new Date + ':' + this.getNonce(dbName));
-        options.type = requestState.method;
+        options.data._r = base64.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + this.getNonce(dbName));
+        options.type = requestState.METHOD;
 
         //options.getRequestHeader
         options.getResponseHeader = function(fn) {

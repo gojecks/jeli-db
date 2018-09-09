@@ -13,7 +13,7 @@ DBEvent.prototype.replicate = function(definition) {
         definition.name = this.name + "_copy";
     }
 
-    this.api('PUT', 'repdb', definition)
+    this.api('/database/replicate', definition)
         .then(function(res) {
             $defer.resolve(dbSuccessPromiseObject('replicate', "Application successfully replicated"))
         }, $defer.reject);

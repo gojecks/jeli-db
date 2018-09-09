@@ -1,10 +1,8 @@
-/*
-
-	indexedDB Support 
-	For jEliDB
-
-*/
-
+/**
+ * 
+ * @param {*} CB 
+ * @param {*} _dbName 
+ */
 function indexedDBStorage(CB, _dbName) {
 
     var publicApis = {},
@@ -14,7 +12,11 @@ function indexedDBStorage(CB, _dbName) {
         _db,
         _dataHolder = {};
 
-    // open the DB
+    /**
+     * 
+     * @param {*} version 
+     * @param {*} onUpgradeneeded 
+     */
     function createDB(version, onUpgradeneeded) {
         // set the reference to our latest version
         _version = version || _version;

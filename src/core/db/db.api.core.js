@@ -4,16 +4,15 @@
 
 /**
  * 
- * @param {*} type 
- * @param {*} state 
+ * @param {*} URL
  * @param {*} postData 
  * @param {*} tbl 
  */
-DBEvent.prototype.api = function(state, postData, tbl) {
-    var _options = $queryDB.buildOptions(this.name, tbl, state),
+DBEvent.prototype.api = function(URL, postData, tbl) {
+    var _options = $queryDB.buildOptions(this.name, tbl, URL),
         $defer = new $p();
     if (postData) {
-        if ($isEqual(_options.type.toLowerCase(), 'get')) {
+        if (_options.type && $isEqual(_options.type.toLowerCase(), 'get')) {
             _options.data.query = postData;
         } else {
             _options.data.postData = postData;
@@ -24,7 +23,7 @@ DBEvent.prototype.api = function(state, postData, tbl) {
         .then(function(res) {
             var ret = dbSuccessPromiseObject('api', "");
             ret.result = res.data;
-            ret.__api__ = state;
+            ret.__api__ = URL;
             $defer.resolve(ret);
         }, function(err) {
             $defer.reject((err.data || { message: "There was an error please try again later" }));
