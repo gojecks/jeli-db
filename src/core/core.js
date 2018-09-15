@@ -1,7 +1,15 @@
 /**
- * 
+ * @method jEliDB
  * @param {*} name 
  * @param {*} version 
+ * 
+ * This is the core Method that create the database instance
+ * private methods includes
+ * requiresLogin()
+ * isClientMode()
+ * open() : promise
+ * 
+ * @return instance
  */
 function jEliDB(name, version) {
     var defer = new $p(),
@@ -26,27 +34,34 @@ function jEliDB(name, version) {
             //set the current active DB
             $queryDB.$setActiveDB(name)
                 // set the storage type
-                .setStorage(config, function() {
-                    //set isOpened flag to true
-                    //so that debug is not posible when in production
+                .setStorage(name, config, function() {
+                    /**
+                     * set isOpened flag to true
+                     * so that debugging is not posible when in production
+                     **/
+                    _activeDBApi = $queryDB.$getActiveDB(name);
                     if ($queryDB.isOpen(name)) {
                         if (!config.isLoginRequired) {
                             errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
                         }
+                        // increment our instance
+                        // usefull when closing DB
+                        _activeDBApi.$incrementInstance();
+                    } else if (!_activeDBApi.$get('instance')) {
+                        //set production flag
+                        //register our configuration
+                        _activeDBApi
+                            .$set('instance', 1)
+                            .$get('resolvers')
+                            .register(config)
+                            .register('inProduction', inProduction)
+                            .register('requestMapping', new RequestMapping(inProduction, name))
+                            .trigger(function() {
+                                this.getResolvers('requestMapping').resolveCustomApis();
+                            });
                     }
 
-
-                    //set production flag
-                    //register our configuration
-                    _activeDBApi = $queryDB.$getActiveDB(name);
-                    var isDeletedDB = _activeDBApi
-                        .$get('resolvers')
-                        .register(config)
-                        .register('inProduction', inProduction)
-                        .register('requestMapping', new RequestMapping(inProduction, name))
-                        .trigger(function() {
-                            this.getResolvers('requestMapping').resolveCustomApis();
-                        })
+                    var isDeletedDB = _activeDBApi.$get('resolvers')
                         /**
                          * initialize the deleteManager
                          * check if DB exists in the delete storage
@@ -55,13 +70,19 @@ function jEliDB(name, version) {
                         .deleteManager(name)
                         .init()
                         .isDeletedDataBase();
-
+                    /**
+                     * Database is deleted
+                     * initializeDeleteMode
+                     */
                     if (isDeletedDB) {
                         initializeDeleteMode();
                         return promise;
                     }
 
-                    //This is useful when client trys to login in user before loading the DB
+                    /**
+                     * This is useful when client trys to login in user before loading the DB
+                     * 
+                     * */
                     if (config.isLoginRequired) {
                         startLoginMode();
                         return promise;
@@ -72,7 +93,6 @@ function jEliDB(name, version) {
                     } else {
                         startDB();
                     }
-
                 });
 
             // Start DB
@@ -89,11 +109,12 @@ function jEliDB(name, version) {
                     dbEvent.type = "existMode";
 
                 } else {
-                    //Create a new DB Event 
-                    //DB will be updated with data
-                    //Only if onUpgrade Function is initilaized
-
-                    //set upgrade mode
+                    /**
+                     * Create a new DB Event 
+                     * DB will be updated with data
+                     * Only if onUpgrade Function is initilaized
+                     * set upgrade mode
+                     **/
                     dbEvent.type = "upgradeMode";
                     $queryDB.$set(name, { tables: {}, 'version': version });
                     // DB is already created but versioning is different
@@ -116,6 +137,11 @@ function jEliDB(name, version) {
                 defer.resolve(dbEvent);
             }
 
+            /**
+             * @method initializeDBSuccess
+             * This method loads Database resource and schema from storage
+             * before intializing the Database
+             */
             function initializeDBSuccess() {
                 //synchronize the server DB
                 syncHelper
@@ -131,7 +157,7 @@ function jEliDB(name, version) {
 
                         } else {
                             if (inProduction) {
-                                errorBuilder("Unable to initialize DB please contact the Web Admin");
+                                errorBuilder("Unable to initialize DB please contact the Admin");
                             }
                             //no resource found on the server
                             handleFailedSync();
@@ -151,7 +177,8 @@ function jEliDB(name, version) {
 
         //No resource found or error from server
         function handleFailedSync() {
-            _activeDBApi.$get('resourceManager').setResource(getDBSetUp(name));
+            _activeDBApi.$get('resourceManager')
+                .setResource(getDBSetUp(name));
             startDB();
         }
 
@@ -214,13 +241,17 @@ function jEliDB(name, version) {
 
                     //start the DB
                     startDB();
-                }, handleNetworkError('schema', "Unable to load schema", function() {
+                }, handleNetworkError('schema', "Unable to load schema, please try again.", function() {
                     loadSchema(_loadServerData);
                 }));
         }
 
 
-        //LoginModeInitializer
+        /**
+         * @method startLoginMode
+         * During this phase limited method are availabe to the Database instance
+         * methods: _users(), close(), api()
+         */
         function startLoginMode() {
             dbEvent.result = new DBEvent(name, version, ["_users", "name", "version", "close", "api"]);
             //set Login Mode
@@ -231,9 +262,9 @@ function jEliDB(name, version) {
 
         //set upgradeneed to the promise Fn
         promise.onUpgrade = function(fn) {
-            /***
-                set the promise callback for upgradeneeded
-            ***/
+            /**
+             * set the promise callback for upgradeneeded
+             **/
             promise.then(function() {
                 if ($isFunction(fn) && $isEqual(dbEvent.type, 'upgradeMode')) {
                     if (dbEvent) {
@@ -250,7 +281,9 @@ function jEliDB(name, version) {
     }
 
 
-    //Don't call this function except you re in procution
+    /**
+     * Don't call this function except you re in procution
+     **/
     function isClient() {
         //set inproduction to true
         _defaultConfig.isClientMode = true;
