@@ -36,7 +36,7 @@
       function mergeTbl(serverData, tbl) {
           //the local DB with SERVER DB
           $queryDB
-              .$mergeTable(serverData, tbl)
+              .$mergeTable(appName, serverData, tbl)
               .then(function(suc) {
                   $queryDB.$taskPerformer.updateDB(appName, tbl, null, +new Date);
                   setMessage(suc.message);

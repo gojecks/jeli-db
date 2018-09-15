@@ -43,6 +43,15 @@ function DBEvent(name, version, required) {
         }
     }
 
+    /**
+     * 
+     * @param {*} flag 
+     */
+    this.close = function(flag) {
+        //drop the DB if allowed
+        $queryDB.closeDB(name, flag);
+    };
+
     if (required && $isArray(required)) {
         var ret = {},
             self = this;

@@ -5,7 +5,8 @@
  * @param {*} data 
  */
 _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
-    var $promise = new $p();
+    var $promise = new $p(),
+        self = this;
     if (db && tbl && data) {
         var tbl = this.$getTable(db, tbl),
             types = ["insert", "delete", "update"],
@@ -40,7 +41,7 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
             types.forEach(function(name) {
                 if (data[name] && data[name].length) {
                     _task[name](data[name]);
-                    $queryDB.storageEventHandler.broadcast(eventNamingIndex(db, name), [tbl.TBL_NAME, data[name]]);
+                    self.storageEventHandler.broadcast(eventNamingIndex(db, name), [tbl.TBL_NAME, data[name]]);
                 }
             });
 

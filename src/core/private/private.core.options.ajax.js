@@ -8,9 +8,10 @@
 _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     var options = {},
         cToken = $cookie('X-CSRF-TOKEN'),
-        base64 = new Base64Fn();
+        base64 = new Base64Fn(),
+        networkResolver = this.$getActiveDB(dbName).$get('resolvers').networkResolver;
     options.__appName__ = dbName;
-    options.url = this.getNetworkResolver('serviceHost', dbName);
+    options.url = networkResolver.serviceHost;
     options.data = {};
     options.dataType = "json";
     options.contentType = "application/json";
@@ -23,7 +24,7 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     }
 
     if (!$isObject(requestState)) {
-        requestState = this.getNetworkResolver('requestMapping', dbName).get(requestState);
+        requestState = networkResolver.requestMapping.get(requestState);
     }
 
     if (requestState) {
@@ -34,12 +35,12 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
         }
 
         //initialize our network interceptor
-        (this.getNetworkResolver('interceptor', dbName) || function() {})(options, requestState);
+        (networkResolver.interceptor || function() {})(options, requestState);
 
         options.data._o = base64.encode(window.location.origin);
         options.data._p = window.location.pathname;
         options.data._h = window.location.host;
-        options.data._r = base64.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + this.getNonce(dbName));
+        options.data._r = base64.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce);
         options.type = requestState.METHOD;
 
         //options.getRequestHeader
@@ -52,7 +53,8 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     } else {
         options.isErrorState = true;
     }
-
+    // remove networkResolver instance
+    networkResolver = null;
     return options;
 };
 

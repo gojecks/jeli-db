@@ -1,4 +1,8 @@
-/** Create DBEVENT Prototype **/
+/**
+ * 
+ * @param {*} name 
+ * @param {*} columns 
+ */
 DBEvent.prototype.createTbl = function(name, columns) {
     var defer = new $p(),
         result = { state: "create" };

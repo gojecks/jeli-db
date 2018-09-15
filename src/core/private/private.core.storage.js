@@ -3,17 +3,18 @@
  * @param {*} config 
  * @param {*} callback 
  */
-_privateApi.prototype.setStorage = function(config, callback) {
-    if (this.openedDB.$get(this.$activeDB).$hasOwnProperty('_storage_')) {
+_privateApi.prototype.setStorage = function(dbName, config, callback) {
+    if (this.openedDB.$get(dbName).$hasOwnProperty('_storage_')) {
         callback();
         return;
     }
 
-    var _storage = config.storage || 'localStorage';
+    var _storage = config.storage || 'localStorage',
+        _activeDBInstance = this.$getActiveDB(dbName);
     // check for storage type
     switch (_storage.toLowerCase()) {
         case ('indexeddb'):
-            this.$getActiveDB().$new('_storage_', new indexedDBStorage(callback, this.$activeDB));
+            _activeDBInstance.$new('_storage_', new indexedDBStorage(callback, dbName));
             break;
         case ('sqlite'):
         case ('sqlitecipher'):
@@ -23,12 +24,12 @@ _privateApi.prototype.setStorage = function(config, callback) {
             }
 
             var sqliteConfig = {
-                name: this.$activeDB,
+                name: dbName,
                 location: config.location || 'default',
                 key: config.key || GUID()
             };
 
-            this.$getActiveDB().$new('_storage_', new sqliteStorage(_storage, sqliteConfig, callback).mockLocalStorage());
+            _activeDBInstance.$new('_storage_', new sqliteStorage(_storage, sqliteConfig, callback).mockLocalStorage());
             break;
         case ('localstorage'):
         case ('sessionstorage'):
@@ -38,13 +39,13 @@ _privateApi.prototype.setStorage = function(config, callback) {
              * custom storage
              */
             if (window[_storage] && $isFunction(window[_storage])) {
-                this.$getActiveDB().$new('_storage_', new window[_storage](sqliteConfig, callback));
+                _activeDBInstance.$new('_storage_', new window[_storage](sqliteConfig, callback));
                 return;
             }
 
             //setStorage
             //default storage to localStorage
-            this.$getActiveDB().$new('_storage_', new jDBStorage(_storage, this.$activeDB));
+            _activeDBInstance.$new('_storage_', new jDBStorage(_storage, dbName));
             callback();
             break;
     }

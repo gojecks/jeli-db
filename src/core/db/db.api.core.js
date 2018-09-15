@@ -7,7 +7,13 @@
  * @param {*} URL
  * @param {*} postData 
  * @param {*} tbl 
- * requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean, METHOD:STRING, data:ANY}
+ * requestState can either be a STRING or OBJECT 
+ * { 
+ *   URL:STRING,
+ *   tbl:String,
+ *   AUTH_TYPE:Boolean,
+ *   METHOD:STRING, data:ANY
+ * }
  */
 DBEvent.prototype.api = function(URL, postData, tbl) {
     var _options = $queryDB.buildOptions(this.name, tbl, URL),

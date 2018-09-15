@@ -78,8 +78,9 @@ function _privateApi() {
      * @param {*} tableName 
      */
     this.$getTable = function(dbName, tableName) {
-        if (this.$get(dbName, 'tables').hasOwnProperty(tableName)) {
-            return this.$get(dbName, 'tables')[tableName];
+        var _tbl = this.$get(dbName, 'tables');
+        if (_tbl.hasOwnProperty(tableName)) {
+            return _tbl[tableName];
         }
         return false;
     };
@@ -139,7 +140,8 @@ function _privateApi() {
 
     //_privateApi initializer
     defineProperty(this.stack, "push", function() {
-        fireEvent.apply(null, arguments); // assign/raise your event
+        // assign/raise your event
+        fireEvent.apply(null, arguments);
         return 0;
     });
 }
@@ -170,8 +172,8 @@ _privateApi.prototype.$newTable = function(db, tbl, tableDefinition) {
  * @param {*} tbl 
  * @param {*} data 
  */
-_privateApi.prototype.$updateTableData = function(tbl, data) {
-    var tblRecord = this.$getTable(this.$activeDB, tbl);
+_privateApi.prototype.$updateTableData = function(db, tbl, data) {
+    var tblRecord = this.$getTable(db, tbl);
     if (tblRecord) {
         tblRecord.data.push.apply(tblRecord.data, data);
     }
@@ -185,10 +187,11 @@ _privateApi.prototype.$updateTableData = function(tbl, data) {
  * @param {*} newName 
  */
 _privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
-    var oldInstance = this.$getActiveDB(oldName);
+    var oldInstance = this.$getActiveDB(oldName),
+        self = this;
     oldInstance.$get('_storage_').rename(oldName, newName, function() {
         cb();
-        $queryDB.closeDB(oldName, true);
+        self.closeDB(oldName, true);
     });
 };
 
@@ -206,20 +209,24 @@ _privateApi.prototype.getTableCheckSum = function(db, tbl) {
  * @param {*} name 
  */
 _privateApi.prototype.isOpen = function(name) {
-    var _openedDB = this.openedDB.$get(name);
+    var _openedDB = this.openedDB.$get(name),
+        self = this;
     if (_openedDB.$get('open')) {
         return true
     }
 
     if (_openedDB.$hasOwnProperty('closed')) {
-        _openedDB.$destroy('closed');
+        _openedDB
+            .$set('open', true)
+            .$incrementInstance()
+            .$destroy('closed');
         return;
     }
 
     _openedDB
         .$set('open', true)
         .$set('$tableExist', function(table) {
-            return $queryDB.$get(name, 'tables').hasOwnProperty(table);
+            return self.$get(name, 'tables').hasOwnProperty(table);
         })
         .$set('dataTypes', new DataTypeHandler())
         .$new('resolvers', new openedDBResolvers())
@@ -236,9 +243,9 @@ _privateApi.prototype.isOpen = function(name) {
  * @param {*} removeFromStorage 
  */
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
-    var openedDb = this.openedDB
-        .$get(name);
-    if (openedDb) {
+    var openedDb = this.openedDB.$get(name);
+    openedDb.$decrementInstance();
+    if (openedDb && openedDb.$get('instance') < 1) {
         openedDb
             .$set('open', false)
             .$set('closed', true);
@@ -259,8 +266,8 @@ _privateApi.prototype.closeDB = function(name, removeFromStorage) {
  * 
  * @param {*} req 
  */
-_privateApi.prototype.$getActiveDB = function(req) {
-    return this.openedDB.$get(req || this.$activeDB);
+_privateApi.prototype.$getActiveDB = function(requestDB) {
+    return this.openedDB.$get(requestDB || this.$activeDB);
 };
 
 /**
@@ -268,20 +275,9 @@ _privateApi.prototype.$getActiveDB = function(req) {
  * @param {*} name 
  * @param {*} db 
  */
-_privateApi.prototype.getNetworkResolver = function(name, db) {
-    return this.$getActiveDB(db).$get('resolvers').getResolvers(name) || '';
+_privateApi.prototype.getNetworkResolver = function(prop, db) {
+    return this.$getActiveDB(db).$get('resolvers').getResolvers(prop) || '';
 };
-
-/**
- * 
- * @param {*} name 
- */
-_privateApi.prototype.getNonce = function(name) {
-    //set new update
-    var nonce = this.getNetworkResolver('nonce', name);
-    return nonce;
-};
-
 // create a new privateApi Instance
 var $queryDB = new _privateApi(),
     $provider = $provider || null;

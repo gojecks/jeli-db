@@ -62,12 +62,11 @@ DBEvent.prototype._users = function() {
      * @param {*} uInfo 
      */
     function removeUser(uInfo) {
-        console.log(uInfo);
         if ($isObject(uInfo)) {
             var ref = {};
             ref[uInfo._ref] = true;
 
-            db.api('/user/delete', { data: { delete: ref } })
+            db.api('/user/remove', { data: { delete: ref } })
                 .then(function(res) {
                     $promise.resolve(dbSuccessPromiseObject('removeUser', "User removed successfully"));
                 }, function() {

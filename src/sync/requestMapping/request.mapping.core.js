@@ -2,7 +2,8 @@
  * Request Mapping
  */
 function RequestMapping(disableAdminApi, appName) {
-    var CUSTOM_API = [];
+    var CUSTOM_API = [],
+        isResolvedCustom = false;
     /**
      * 
      * @param {*} stateName 
@@ -54,15 +55,18 @@ function RequestMapping(disableAdminApi, appName) {
      * loaded APIS is only for dev purpose
      */
     this.resolveCustomApis = function() {
-        if (disableAdminApi) {
-            return;
+        if (disableAdminApi || isResolvedCustom) {
+            return this;
         }
 
+        isResolvedCustom = true;
         $queryDB.$http($queryDB.buildOptions(appName, '', '/load'))
             .then(function(res) {
                 if ($isArray(res.data)) {
                     CUSTOM_API = extend(true, CUSTOM_API, res.data || []);
                 }
             });
+
+        return this;
     };
 }
