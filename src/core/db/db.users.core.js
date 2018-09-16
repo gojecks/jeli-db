@@ -154,7 +154,7 @@ DBEvent.prototype._users = function() {
      * @param {*} postData 
      */
     function removeUserAuthority(postData) {
-        return db.api('/database/users/remove', postData);
+        return db.api('/user/database/remove', postData);
     }
 
     /**

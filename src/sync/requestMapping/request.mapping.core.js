@@ -21,7 +21,7 @@ function RequestMapping(disableAdminApi, appName) {
      * @param {*} stateName 
      */
     this.get = function(stateName) {
-        $api = getPublicApi(stateName);
+        var $api = getPublicApi(stateName);
         if ($api && disableAdminApi && $api.PROTECTED_API) {
             return null;
         }

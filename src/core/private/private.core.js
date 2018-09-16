@@ -79,7 +79,7 @@ function _privateApi() {
      */
     this.$getTable = function(dbName, tableName) {
         var _tbl = this.$get(dbName, 'tables');
-        if (_tbl.hasOwnProperty(tableName)) {
+        if (_tbl && _tbl.hasOwnProperty(tableName)) {
             return _tbl[tableName];
         }
         return false;
@@ -244,8 +244,12 @@ _privateApi.prototype.isOpen = function(name) {
  */
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
     var openedDb = this.openedDB.$get(name);
+    if (!openedDb) {
+        return;
+    }
+
     openedDb.$decrementInstance();
-    if (openedDb && openedDb.$get('instance') < 1) {
+    if (openedDb.$get('instance') < 1) {
         openedDb
             .$set('open', false)
             .$set('closed', true);
