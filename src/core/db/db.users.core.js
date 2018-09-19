@@ -107,7 +107,7 @@ DBEvent.prototype._users = function() {
         db.api('/user/exists', queryData)
             .then(function(res) {
                 $promise.resolve(res.result);
-            }, $defer.reject);
+            }, $promise.reject);
 
         return $defer;
     }

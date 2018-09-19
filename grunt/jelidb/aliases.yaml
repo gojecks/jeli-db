@@ -1,0 +1,9 @@
+test:
+  - 'karma'
+default:
+  #clear and generate common libraries
+  - 'clean:jDist'
+  - 'concat:jDBOnly'
+  - 'uglify:jDBOnly'
+  - 'clean:jAfterBuild'
+  - 'watch'
