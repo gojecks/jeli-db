@@ -10,8 +10,8 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
         cToken = $cookie('X-CSRF-TOKEN'),
         base64 = new Base64Fn(),
         networkResolver = this.$getActiveDB(dbName).$get('resolvers').networkResolver;
+    options.url = networkResolver.serviceHost || "";
     options.__appName__ = dbName;
-    options.url = networkResolver.serviceHost;
     options.data = {};
     options.dataType = "json";
     options.contentType = "application/json";
@@ -19,6 +19,10 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
         Authorization: "Bearer *"
     };
 
+    /**
+     * set X-CSRF-TOKEN
+     * only when defined
+     */
     if (cToken) {
         options.headers['X-CSRF-TOKEN'] = cToken;
     }

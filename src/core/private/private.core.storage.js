@@ -9,7 +9,11 @@ _privateApi.prototype.setStorage = function(dbName, config, callback) {
         return;
     }
 
-    var _storage = config.storage || 'localStorage',
+    /**
+     * default storage to memory
+     * when invalid storage property
+     */
+    var _storage = config.storage || 'memory',
         _activeDBInstance = this.$getActiveDB(dbName);
     // check for storage type
     switch (_storage.toLowerCase()) {
