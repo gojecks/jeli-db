@@ -1,9 +1,12 @@
 /**
- * 
+ * core removeDB
  * @param {*} db 
  * @param {*} forceDelete 
  */
 _privateApi.prototype.removeDB = function(db, forceDelete) {
+    /**
+     * check if database exists before proceeding
+     */
     if (this.openedDB.$hasOwnProperty(db)) {
         var _dbApi = this.$getActiveDB(db),
             _resource = _dbApi.$get('resourceManager'),
@@ -26,8 +29,8 @@ _privateApi.prototype.removeDB = function(db, forceDelete) {
 
         _dbApi = _resource = null;
 
-        return dbSuccessPromiseObject('drop', 'Database(' + db + ') have been dropped');
+        return dbSuccessPromiseObject('drop', 'Database(' + db + ') have been dropped.');
     }
 
-    return dbErrorPromiseObject('Unable to drop Database(' + db + ')');
+    return dbErrorPromiseObject('Unable to drop Database(' + db + ') or it does not exists.');
 };

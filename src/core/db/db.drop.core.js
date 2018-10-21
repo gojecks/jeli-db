@@ -1,14 +1,15 @@
-//Drop Db
-DBEvent.prototype.drop = function(flag)
-{
-  var defer = new $p();
-    if(flag)
-    {
-      defer.resolve($queryDB.removeDB(this.name));
-    }else
-    {
-      defer.reject({message:"Unable to drop DB, either invalid flag or no priviledge granted!!",errorCode:401});
+/**
+ * Drop Database
+ * @param {*} flag 
+ */
+DBEvent.prototype.drop = function(flag) {
+    var defer = new $p();
+    if (flag) {
+        var dbResponse = $queryDB.removeDB(this.name);
+        defer[$isEqual(dbResponse.code, 'error') ? 'reject' : 'resolve'](dbResponse);
+    } else {
+        defer.reject({ message: "Unable to drop DB, either invalid flag or no priviledge granted!!", errorCode: 401 });
     }
 
-    return new DBPromise( defer );
+    return new DBPromise(defer);
 };

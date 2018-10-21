@@ -5,8 +5,9 @@
  */
 DBEvent.prototype.createTbl = function(name, columns) {
     var defer = new $p(),
-        result = { state: "create" };
-    if (name && !$queryDB.$getActiveDB(this.name).$get('$tableExist')(name)) {
+        result = { state: "create" },
+        _opendedDBInstance = $queryDB.$getActiveDB(this.name);
+    if (name && _opendedDBInstance && !_opendedDBInstance.$get('$tableExist')(name)) {
         //pardon wrong columns format
         if ($isObject(columns)) {
             var nColumn = [];
@@ -35,8 +36,8 @@ DBEvent.prototype.createTbl = function(name, columns) {
         }));
 
         /**
-          broadcast event
-        **/
+         * broadcast event
+         */
         $queryDB.storageEventHandler.broadcast(eventNamingIndex(DB_NAME, 'onCreateTable'), [name, columns]);
 
         //set the result

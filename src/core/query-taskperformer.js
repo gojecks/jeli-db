@@ -1,3 +1,5 @@
+"use strict";
+
 function $query(data) {
     this.sortBy = function() {
         var sortArguments = arguments;
@@ -123,7 +125,8 @@ function externalQuery(logic, replacer) {
  */
 function _parseCondition(condition, replacer) {
     var ret = {},
-        len = condition.length;
+        len = condition.length,
+        cCheck;
     while (len--) {
         if (condition[len]) {
             cCheck = condition[len].split(/:(?:like):/gi);

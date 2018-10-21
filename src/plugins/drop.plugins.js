@@ -4,7 +4,11 @@ jEliDB.plugins.jQl('drop', {
     fn: dropPluginFn
 });
 
-//create -tablename -columns
+/**
+ * core drop plugins
+ * @param {*} query 
+ * @param {*} handler 
+ */
 function dropPluginFn(query, handler) {
 
     return function(db) {

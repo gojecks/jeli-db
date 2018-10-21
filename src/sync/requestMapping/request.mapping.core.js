@@ -35,8 +35,12 @@ function RequestMapping(disableAdminApi, appName) {
      * @param {*} config 
      */
     this.set = function(config) {
-        if (config || !CUSTOM_API.some(function(api) { return api.URL == config.URL; })) {
-            CUSTOM_API.push(config)
+        if (config) {
+            if ($isArray(config)) {
+                CUSTOM_API = CUSTOM_API.concat(config);
+            } else if (!CUSTOM_API.some(function(api) { return api.URL == config.URL; })) {
+                CUSTOM_API.push(config);
+            }
         }
 
         return this;
