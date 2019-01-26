@@ -35,6 +35,14 @@ _privateApi.prototype.setStorage = function(dbName, config, callback) {
 
             _activeDBInstance.$new('_storage_', new sqliteStorage(_storage, sqliteConfig, callback).mockLocalStorage());
             break;
+        case ('file'):
+        case ('flat-file'):
+            _activeDBInstance.$new('_storage_', FlatFileSupport({
+                folderPath: config.folderPath || '/tmp/',
+                name: dbName,
+                key: config.key || GUID()
+            }, callback));
+            break;
         case ('localstorage'):
         case ('sessionstorage'):
         case ('memory'):

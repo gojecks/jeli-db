@@ -154,7 +154,7 @@ var JDB_REQUEST_API = [{
     },
     {
         PROTECTED_API: false,
-        AUTH_TYPE: 0,
+        AUTH_TYPE: 1,
         METHOD: "POST",
         URL: "/user/validate/password"
     },
@@ -312,7 +312,7 @@ var JDB_REQUEST_API = [{
     {
         PROTECTED_API: true,
         AUTH_TYPE: 1,
-        METHOD: "PUT",
+        METHOD: "DELETE",
         URL: "/application/authority/remove"
     },
     {

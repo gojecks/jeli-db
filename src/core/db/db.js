@@ -20,7 +20,10 @@ function DBEvent(name, version, required) {
             return $queryDB.$getActiveDB(name).$get('resolvers').getResolvers('logger');
         },
         dataTypes: $queryDB.$getActiveDB(name).$get('dataTypes'),
-        requestMapping: $queryDB.getNetworkResolver('requestMapping', name)
+        requestMapping: $queryDB.getNetworkResolver('requestMapping', name),
+        resource: function() {
+            return $queryDB.$getActiveDB(name).$get('resourceManager').getResource();
+        }
     };
 
     if ($queryDB.getNetworkResolver('serviceHost', name)) {
