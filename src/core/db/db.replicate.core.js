@@ -7,7 +7,7 @@
  *  - type
  */
 DBEvent.prototype.replicate = function(definition) {
-    var $defer = new $p();
+    var $defer = new _Promise();
     definition.current = this.name;
     if (!definition.name) {
         definition.name = this.name + "_copy";

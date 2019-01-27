@@ -3,7 +3,7 @@
  * @param {*} newName 
  */
 DBEvent.prototype.rename = function(newName) {
-    var defer = new $p();
+    var defer = new _Promise();
     if ($isEqual(this.name, newName)) {
         defer.reject(dbErrorPromiseObject('new name cannot be same as old'));
     } else {

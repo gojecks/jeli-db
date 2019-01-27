@@ -66,11 +66,14 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
  * 
  * @param {*} options 
  */
-_privateApi.prototype.$http = function(options) {
-    var $ajax = this.getNetworkResolver('$ajax', options.__appName__) || ajax;
-    if (!$isFunction($ajax)) {
-        errorBuilder('Unable to make HTTP request');
-    }
+_privateApi.prototype.$http = (function() {
+    var ajax = AjaxSetup();
+    return function(options) {
+        var $ajax = this.getNetworkResolver('$ajax', options.__appName__) || ajax;
+        if (!$isFunction($ajax)) {
+            errorBuilder('Unable to make HTTP request');
+        }
 
-    return $ajax(options);
-};
+        return $ajax(options);
+    }
+})();

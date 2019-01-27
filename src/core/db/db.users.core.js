@@ -4,9 +4,9 @@
  */
 DBEvent.prototype._users = function() {
     var _secure = '',
-        $promise = new $p(),
+        _Promiseromise = new _Promise(),
         db = this,
-        $defer = new DBPromise($promise);
+        $defer = new DBPromise(_Promiseromise);
 
     /**
      * 
@@ -44,12 +44,12 @@ DBEvent.prototype._users = function() {
                     };
 
                     if (res.result.ok) {
-                        $promise.resolve(ret);
+                        _Promiseromise.resolve(ret);
                     } else {
-                        $promise.reject(dbErrorPromiseObject('Failed to register User'));
+                        _Promiseromise.reject(dbErrorPromiseObject('Failed to register User'));
                     }
                 }, function() {
-                    $promise.reject(dbErrorPromiseObject('Failed to register User'));
+                    _Promiseromise.reject(dbErrorPromiseObject('Failed to register User'));
                 });
 
         }
@@ -68,9 +68,9 @@ DBEvent.prototype._users = function() {
 
             db.api('/user/remove', { data: { delete: ref } })
                 .then(function(res) {
-                    $promise.resolve(dbSuccessPromiseObject('removeUser', "User removed successfully"));
+                    _Promiseromise.resolve(dbSuccessPromiseObject('removeUser', "User removed successfully"));
                 }, function() {
-                    $promise.reject(dbErrorPromiseObject('Failed to remove User'))
+                    _Promiseromise.reject(dbErrorPromiseObject('Failed to remove User'))
                 });
         }
 
@@ -89,9 +89,9 @@ DBEvent.prototype._users = function() {
                 .then(function(res) {
                     res.state = "updateUser";
                     res.result.message = "User Updated successfully";
-                    $promise.resolve(res);
+                    _Promiseromise.resolve(res);
                 }, function() {
-                    $promise.reject(dbErrorPromiseObject('Failed to update User, please try again later'))
+                    _Promiseromise.reject(dbErrorPromiseObject('Failed to update User, please try again later'))
                 });
         }
 
@@ -106,8 +106,8 @@ DBEvent.prototype._users = function() {
     function isExists(queryData) {
         db.api('/user/exists', queryData)
             .then(function(res) {
-                $promise.resolve(res.result);
-            }, $promise.reject);
+                _Promiseromise.resolve(res.result);
+            }, _Promiseromise.reject);
 
         return $defer;
     }
@@ -137,13 +137,13 @@ DBEvent.prototype._users = function() {
                 };
                 //resolve the promise
                 if (!res.result.hasOwnProperty('access_info')) {
-                    $promise.reject(dbErrorPromiseObject('Unable to log user in'))
+                    _Promiseromise.reject(dbErrorPromiseObject('Unable to log user in'))
                 } else {
-                    $promise.resolve(ret);
+                    _Promiseromise.resolve(ret);
                 }
 
             }, function(err) {
-                $promise.reject(dbErrorPromiseObject(err.message));
+                _Promiseromise.reject(dbErrorPromiseObject(err.message));
             });
 
         return $defer;

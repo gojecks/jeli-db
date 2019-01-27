@@ -5,7 +5,7 @@
  * @param {*} tbl 
  */
 _privateApi.prototype.$mergeTable = function(dbName, records, tbl) {
-    var $promise = new $p();
+    var _Promiseromise = new _Promise();
     if ($isObject(records) && tbl) {
         var $dDB = this.$get(dbName);
         if ($dDB && $dDB.tables[tbl]) {
@@ -15,14 +15,14 @@ _privateApi.prototype.$mergeTable = function(dbName, records, tbl) {
             }
 
             this.$newTable(dbName, tbl, records);
-            $promise.resolve({ status: 'success', message: 'Table(' + tbl + ') updated successfully', code: 200 });
+            _Promiseromise.resolve({ status: 'success', message: 'Table(' + tbl + ') updated successfully', code: 200 });
         } else {
-            $promise.reject({ status: 'error', message: 'Unable to merge Table(' + tbl + ')', code: 403 });
+            _Promiseromise.reject({ status: 'error', message: 'Unable to merge Table(' + tbl + ')', code: 403 });
         }
     } else {
         //undefined Table and Records
-        $promise.reject({ status: 'error', message: 'Undefined Records and Table', code: 404 });
+        _Promiseromise.reject({ status: 'error', message: 'Undefined Records and Table', code: 404 });
     }
 
-    return $promise;
+    return _Promiseromise;
 };

@@ -5,18 +5,19 @@
  */
 
 DBEvent.prototype.info = function() {
-    var tableSet = {},
+    var tableSet = [],
         tables = $queryDB.$get(this.name, 'tables');
     if (tables) {
         findInList.call(tables, function(tblName, tbl) {
-            tableSet[tblName] = copy({
+            tableSet.push(copy({
+                name: tblName,
                 records: (tbl.data || []).length || tbl._records,
                 columns: tbl.columns,
                 primaryKey: tbl.primaryKey,
                 foreignKey: tbl.foreignKey,
                 allowedMode: 'readwrite',
                 lastModified: tbl.lastModified
-            }, true);
+            }, true));
         });
     }
 

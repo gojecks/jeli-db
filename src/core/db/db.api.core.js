@@ -17,7 +17,7 @@
  */
 DBEvent.prototype.api = function(URL, postData, tbl) {
     var _options = $queryDB.buildOptions(this.name, tbl, URL),
-        $defer = new $p();
+        $defer = new _Promise();
     if (postData || ($isObject(URL) && URL.data)) {
         if (_options.type && $isEqual(_options.type.toLowerCase(), 'get')) {
             _options.data.query = postData || URL.data;

@@ -5,7 +5,7 @@
  * @param {*} data 
  */
 _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
-    var $promise = new $p(),
+    var _Promiseromise = new _Promise(),
         self = this;
     if (db && tbl && data) {
         var tbl = this.$getTable(db, tbl),
@@ -45,11 +45,11 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
                 }
             });
 
-            $promise.resolve(copy(_ret, true));
+            _Promiseromise.resolve(copy(_ret, true));
         }
     } else {
-        $promise.reject();
+        _Promiseromise.reject();
     }
 
-    return $promise;
+    return _Promiseromise;
 };

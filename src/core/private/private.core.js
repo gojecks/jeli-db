@@ -284,4 +284,4 @@ _privateApi.prototype.getNetworkResolver = function(prop, db) {
 };
 // create a new privateApi Instance
 var $queryDB = new _privateApi(),
-    $provider = $provider || null;
+    _Promiserovider = _Promiserovider || null;

@@ -3,7 +3,7 @@
  * @param {*} flag 
  */
 DBEvent.prototype.drop = function(flag) {
-    var defer = new $p();
+    var defer = new _Promise();
     if (flag) {
         var dbResponse = $queryDB.removeDB(this.name);
         defer[$isEqual(dbResponse.code, 'error') ? 'reject' : 'resolve'](dbResponse);

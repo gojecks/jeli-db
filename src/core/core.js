@@ -12,7 +12,7 @@
  * @return instance
  */
 function jEliDB(name, version) {
-    var defer = new $p(),
+    var defer = new _Promise(),
         dbEvent = {},
         version = parseInt(version || "1"),
         _onUpgrade = function() {},
@@ -349,3 +349,5 @@ jEliDB.plugins = Object.create({
         }
     }
 });
+
+window.jdb = jEliDB;

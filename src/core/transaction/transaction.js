@@ -115,7 +115,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
 
 jTblQuery.prototype.execute = function(disableOfflineCache) {
     if (this.executeState.length) {
-        var defer = new $p(),
+        var defer = new _Promise(),
             error = !1,
             $self = this,
             executeLen = this.executeState.length;

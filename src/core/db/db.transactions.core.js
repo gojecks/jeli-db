@@ -12,7 +12,7 @@ DBEvent.prototype.transaction = function(table, mode) {
     }
 
     // create a new defer state
-    var defer = new $p();
+    var defer = new _Promise();
     if (table) {
         var tableData = null,
             err = [],

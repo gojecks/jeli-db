@@ -4,7 +4,7 @@
  * @param {*} columns 
  */
 DBEvent.prototype.createTbl = function(name, columns) {
-    var defer = new $p(),
+    var defer = new _Promise(),
         result = { state: "create" },
         _opendedDBInstance = $queryDB.$getActiveDB(this.name);
     if (name && _opendedDBInstance && !_opendedDBInstance.$get('$tableExist')(name)) {
