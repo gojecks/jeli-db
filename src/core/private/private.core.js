@@ -201,7 +201,11 @@ _privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
  * @param {*} tbl 
  */
 _privateApi.prototype.getTableCheckSum = function(db, tbl) {
-    return this.$getTable(db, tbl).$hash;
+    var table = this.$getTable(db, tbl);
+    return ({
+        current: table.$hash,
+        previous: table.$previousHash
+    });
 };
 
 /**
@@ -283,5 +287,4 @@ _privateApi.prototype.getNetworkResolver = function(prop, db) {
     return this.$getActiveDB(db).$get('resolvers').getResolvers(prop) || '';
 };
 // create a new privateApi Instance
-var $queryDB = new _privateApi(),
-    _Promiserovider = _Promiserovider || null;
+var privateApi = new _privateApi();

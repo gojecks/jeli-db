@@ -13,7 +13,7 @@
  */
 function jEliDB(name, version) {
     var defer = new _Promise(),
-        dbEvent = {},
+        applicationInstance = {},
         version = parseInt(version || "1"),
         _onUpgrade = function() {},
         _defaultConfig = {
@@ -32,15 +32,15 @@ function jEliDB(name, version) {
 
         if (name) {
             //set the current active DB
-            $queryDB.$setActiveDB(name)
+            privateApi.$setActiveDB(name)
                 // set the storage type
                 .setStorage(name, config, function() {
                     /**
                      * set isOpened flag to true
                      * so that debugging is not posible when in production
                      **/
-                    _activeDBApi = $queryDB.$getActiveDB(name);
-                    if ($queryDB.isOpen(name)) {
+                    _activeDBApi = privateApi.$getActiveDB(name);
+                    if (privateApi.isOpen(name)) {
                         if (!config.isLoginRequired) {
                             errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
                         }
@@ -88,7 +88,7 @@ function jEliDB(name, version) {
                         return promise;
                     }
 
-                    if (!$queryDB.$taskPerformer.initializeDB(name) && config.serviceHost) {
+                    if (!privateApi.$taskPerformer.initializeDB(name) && config.serviceHost) {
                         initializeDBSuccess();
                     } else {
                         startDB();
@@ -97,16 +97,16 @@ function jEliDB(name, version) {
 
             // Start DB
             function startDB() {
-                dbEvent.result = new DBEvent(name, version);
-                var dbChecker = $queryDB.$get(name) || false,
+                applicationInstance.result = new ApplicationInstance(name, version);
+                var dbChecker = privateApi.$get(name) || false,
                     isSameVersion = $isEqual(dbChecker.version, version);
 
                 if (dbChecker && isSameVersion) {
-                    dbEvent.message = name + " DB already exists with version no:(" + dbChecker.version;
-                    dbEvent.message += "), having " + Object.keys(dbChecker.tables).length + " tables";
+                    applicationInstance.message = name + " DB already exists with version no:(" + dbChecker.version;
+                    applicationInstance.message += "), having " + Object.keys(dbChecker.tables).length + " tables";
 
                     //set exists mode
-                    dbEvent.type = "existMode";
+                    applicationInstance.type = "existMode";
 
                 } else {
                     /**
@@ -115,16 +115,16 @@ function jEliDB(name, version) {
                      * Only if onUpgrade Function is initilaized
                      * set upgrade mode
                      **/
-                    dbEvent.type = "upgradeMode";
-                    $queryDB.$set(name, { tables: {}, 'version': version });
+                    applicationInstance.type = "upgradeMode";
+                    privateApi.$set(name, { tables: {}, 'version': version });
                     // DB is already created but versioning is different
                     if (dbChecker && !isSameVersion) {
                         //set Message
-                        dbEvent.message = name + " DB was successfully upgraded!!";
-                        $queryDB[name].version = version;
+                        applicationInstance.message = name + " DB was successfully upgraded!!";
+                        privateApi[name].version = version;
                     } else {
                         //set Message
-                        dbEvent.message = name + " DB was successfully created!!";
+                        applicationInstance.message = name + " DB was successfully created!!";
                     }
 
                     // Object Store in Db
@@ -134,7 +134,7 @@ function jEliDB(name, version) {
                     _onUpgrade();
                 }
                 //resolve the request
-                defer.resolve(dbEvent);
+                defer.resolve(applicationInstance);
             }
 
             /**
@@ -147,9 +147,9 @@ function jEliDB(name, version) {
                 syncHelper
                     .pullResource(name)
                     .then(function(syncResponse) {
-                        if (syncResponse.data.resource) {
+                        if (syncResponse.resource) {
                             var tableNames = _activeDBApi.$get('resourceManager')
-                                .setResource(syncResponse.data.resource)
+                                .setResource(syncResponse.resource)
                                 .getTableNames();
                             //Get the DB schema 
                             //for each Table
@@ -166,13 +166,13 @@ function jEliDB(name, version) {
             }
 
         } else {
-            dbEvent.message = "There was an error creating your DB,";
-            dbEvent.message += " either DB name or version number is missing";
-            dbEvent.mode = "errorMode";
-            dbEvent.errorCode = 101;
+            applicationInstance.message = "There was an error creating your DB,";
+            applicationInstance.message += " either DB name or version number is missing";
+            applicationInstance.mode = "errorMode";
+            applicationInstance.errorCode = 101;
 
             //reject the request
-            defer.reject(dbEvent);
+            defer.reject(applicationInstance);
         }
 
         //No resource found or error from server
@@ -186,10 +186,10 @@ function jEliDB(name, version) {
          * Function to handle deleted Database
          */
         function initializeDeleteMode() {
-            dbEvent.message = name + " database is deleted and pending sync, to re-initialize this Database please clean-up storage.";
-            dbEvent.mode = "deleteMode";
-            dbEvent.result = new DBEvent(name, version, ["name", "version", "jQl", "synchronize", "info", "close"]);
-            defer.reject(dbEvent);
+            applicationInstance.message = name + " database is deleted and pending sync, to re-initialize this Database please clean-up storage.";
+            applicationInstance.mode = "deleteMode";
+            applicationInstance.result = new ApplicationInstance(name, version, ["name", "version", "jQl", "synchronize", "info", "close"]);
+            defer.reject(ApplicationInstance);
         }
 
         /**
@@ -198,23 +198,23 @@ function jEliDB(name, version) {
          * @param {*} retryFN 
          */
         function handleNetworkError(state, msg, retryFN) {
-            dbEvent.mode = "AJAXErrorMode";
-            dbEvent.message = "[AJAXErrorMode]: " + msg;
-            dbEvent.result = new DBEvent(name, version, ["name", "version", "jQl", "close"]);
+            applicationInstance.mode = "AJAXErrorMode";
+            applicationInstance.message = "[AJAXErrorMode]: " + msg;
+            applicationInstance.result = new ApplicationInstance(name, version, ["name", "version", "jQl", "close"]);
 
             return function(res) {
-                if (res.data && res.data.message) {
-                    dbEvent.message = dbEvent.message + ", " + res.data.message
+                if (res && res.message) {
+                    applicationInstance.message = applicationInstance.message + ", " + res.message
                 }
 
-                dbEvent.netData = ({
+                applicationInstance.netData = ({
                     status: res.status,
                     state: state,
                     $retry: retryFN
                 });
 
-                defer.reject(dbEvent);
-                dbEvent = {};
+                defer.reject(applicationInstance);
+                applicationInstance = {};
             };
         }
 
@@ -235,8 +235,8 @@ function jEliDB(name, version) {
                         }
                     }
                     //register DB to QueryDB
-                    $queryDB.$set(name, dbTables);
-                    $queryDB.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [Object.keys(dbTables.tables)]);
+                    privateApi.$set(name, dbTables);
+                    privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [Object.keys(dbTables.tables)]);
                     setStorageItem(name, dbTables);
 
                     //start the DB
@@ -253,11 +253,11 @@ function jEliDB(name, version) {
          * methods: _users(), close(), api()
          */
         function startLoginMode() {
-            dbEvent.result = new DBEvent(name, version, ["_users", "name", "version", "close", "api"]);
+            applicationInstance.result = new ApplicationInstance(name, version, ["_users", "name", "version", "close", "api"]);
             //set Login Mode
-            dbEvent.type = "loginMode";
-            dbEvent.message = "DB Authentication Mode!!";
-            defer.resolve(dbEvent);
+            applicationInstance.type = "loginMode";
+            applicationInstance.message = "DB Authentication Mode!!";
+            defer.resolve(applicationInstance);
         }
 
         //set upgradeneed to the promise Fn
@@ -266,10 +266,10 @@ function jEliDB(name, version) {
              * set the promise callback for upgradeneeded
              **/
             promise.then(function() {
-                if ($isFunction(fn) && $isEqual(dbEvent.type, 'upgradeMode')) {
-                    if (dbEvent) {
+                if ($isFunction(fn) && $isEqual(applicationInstance.type, 'upgradeMode')) {
+                    if (applicationInstance) {
                         //initialize the upgraded FN
-                        fn.call(fn, dbEvent);
+                        fn.call(fn, applicationInstance);
                     }
                 }
             });

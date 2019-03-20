@@ -90,6 +90,8 @@ function transactionInsert() {
         });
 
     }
+
+
     if (!$isEqual(this.processState, "insert")) {
         this.executeState.push(["insert", function(disableOfflineCache) {
             //errorLog Must be empty
@@ -107,7 +109,7 @@ function transactionInsert() {
             /**
                 broadcast event
             **/
-            $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
 
             //push records to our resolver
 
@@ -122,7 +124,7 @@ function transactionInsert() {
         //Process the Data
         var columns = tableInfo.columns[0],
             passed = 1,
-            _typeValidator = $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('dataTypes');
+            _typeValidator = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('dataTypes');
         if (cData) {
             expect(cData).each(function(val, idx) {
                 //check if column is in table

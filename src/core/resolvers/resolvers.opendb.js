@@ -83,7 +83,7 @@ openedDBResolvers.prototype.deleteManager = function(dbName) {
     var _self = this;
     return {
         init: function() {
-            var $delRecords = getStorageItem($queryDB.$delRecordName);
+            var $delRecords = getStorageItem(privateApi.$delRecordName);
             if ($delRecords && $delRecords.hasOwnProperty(dbName)) {
                 //update deleted records
                 _self
@@ -108,7 +108,7 @@ openedDBResolvers.prototype.deleteManager = function(dbName) {
             return this;
         },
         isExists: function() {
-            var $delRecords = getStorageItem($queryDB.$delRecordName);
+            var $delRecords = getStorageItem(privateApi.$delRecordName);
             return $delRecords && $delRecords.hasOwnProperty(dbName);
         },
         getRecords: function() {

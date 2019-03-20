@@ -3,10 +3,10 @@
  * @param {*} name 
  * @param {*} columns 
  */
-DBEvent.prototype.createTbl = function(name, columns) {
+ApplicationInstance.prototype.createTbl = function(name, columns) {
     var defer = new _Promise(),
         result = { state: "create" },
-        _opendedDBInstance = $queryDB.$getActiveDB(this.name);
+        _opendedDBInstance = privateApi.$getActiveDB(this.name);
     if (name && _opendedDBInstance && !_opendedDBInstance.$get('$tableExist')(name)) {
         //pardon wrong columns format
         if ($isObject(columns)) {
@@ -20,7 +20,7 @@ DBEvent.prototype.createTbl = function(name, columns) {
 
         var DB_NAME = this.name,
             curTime = +new Date;
-        $queryDB.$newTable(this.name, name, ({
+        privateApi.$newTable(this.name, name, ({
             columns: columns || [{}],
             data: [],
             DB_NAME: DB_NAME,
@@ -38,10 +38,10 @@ DBEvent.prototype.createTbl = function(name, columns) {
         /**
          * broadcast event
          */
-        $queryDB.storageEventHandler.broadcast(eventNamingIndex(DB_NAME, 'onCreateTable'), [name, columns]);
+        privateApi.storageEventHandler.broadcast(eventNamingIndex(DB_NAME, 'onCreateTable'), [name, columns]);
 
         //set the result
-        result.result = new jEliDBTBL($queryDB.$getTable(DB_NAME, name));
+        result.result = new jEliDBTBL(privateApi.$getTable(DB_NAME, name));
         result.result.message = 'Table(' + name + ') created successfully';
 
         defer.resolve(result);

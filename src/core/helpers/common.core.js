@@ -17,14 +17,14 @@
   //@return OBJECT
   function getStorageItem(item, db) {
       //return FN
-      return $queryDB.$getActiveDB(db).$get('_storage_').getItem(item);
+      return privateApi.$getActiveDB(db).$get('_storage_').getItem(item);
   }
 
   //Function to Store storage data
   //@return JSON String
   function setStorageItem(key, value, db) {
       if (key && value && $isObject(value)) {
-          $queryDB.$getActiveDB(db)
+          privateApi.$getActiveDB(db)
               .$get('_storage_')
               .setItem(key, value);
       }
@@ -33,7 +33,7 @@
   //@Function Delete Storage Item
   function delStorageItem(name) {
       if (getStorageItem(name)) {
-          $queryDB.$getActiveDB().$get('_storage_').removeItem(name);
+          privateApi.$getActiveDB().$get('_storage_').removeItem(name);
       }
 
       return true;
@@ -50,8 +50,8 @@
    */
 
   function updateDeletedRecord(ref, obj) {
-      var checker = getStorageItem($queryDB.$delRecordName),
-          _resolvers = $queryDB.$getActiveDB(obj.db).$get('resolvers');
+      var checker = getStorageItem(privateApi.$delRecordName),
+          _resolvers = privateApi.$getActiveDB(obj.db).$get('resolvers');
       if (checker && checker[obj.db]) {
           _resolvers.register('deletedRecords', checker[obj.db]);
       } else {
@@ -87,7 +87,7 @@
       //extend the delete Object
       //with the current deleteResolver
       checker[obj.db] = _delRecords;
-      setStorageItem($queryDB.$delRecordName, checker);
+      setStorageItem(privateApi.$delRecordName, checker);
   }
 
   //Property Watch
@@ -203,7 +203,7 @@
   //@Function Name jEliUpdateStorage
   //Updates the required Database
   function jEliUpdateStorage(dbName, tblName) {
-      $queryDB.$taskPerformer.updateDB.apply($queryDB.$taskPerformer, arguments);
+      privateApi.$taskPerformer.updateDB.apply(privateApi.$taskPerformer, arguments);
   }
 
   /**

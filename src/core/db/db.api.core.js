@@ -15,8 +15,8 @@
  *   METHOD:STRING, data:ANY
  * }
  */
-DBEvent.prototype.api = function(URL, postData, tbl) {
-    var _options = $queryDB.buildOptions(this.name, tbl, URL),
+ApplicationInstance.prototype.api = function(URL, postData, tbl) {
+    var _options = privateApi.buildOptions(this.name, tbl, URL),
         $defer = new _Promise();
     if (postData || ($isObject(URL) && URL.data)) {
         if (_options.type && $isEqual(_options.type.toLowerCase(), 'get')) {
@@ -26,10 +26,10 @@ DBEvent.prototype.api = function(URL, postData, tbl) {
         }
     }
 
-    $queryDB.$http(_options)
+    privateApi.$http(_options)
         .then(function(res) {
             var ret = dbSuccessPromiseObject('api', "");
-            ret.result = res.data;
+            ret.result = res;
             ret.__api__ = URL;
             $defer.resolve(ret);
         }, function(err) {

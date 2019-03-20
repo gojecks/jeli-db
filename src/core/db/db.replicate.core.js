@@ -6,7 +6,7 @@
  *  - create
  *  - type
  */
-DBEvent.prototype.replicate = function(definition) {
+ApplicationInstance.prototype.replicate = function(definition) {
     var $defer = new _Promise();
     definition.current = this.name;
     if (!definition.name) {
@@ -16,7 +16,9 @@ DBEvent.prototype.replicate = function(definition) {
     this.api('/database/replicate', definition)
         .then(function(res) {
             $defer.resolve(dbSuccessPromiseObject('replicate', "Application successfully replicated"))
-        }, $defer.reject);
+        }, function() {
+            $defer.reject.apply($defer, arguments);
+        });
 
     return $defer;
 };

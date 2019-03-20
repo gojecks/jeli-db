@@ -12,8 +12,8 @@
        * @param {*} res 
        */
       function cleanUp(task, res) {
-          var _delRecordManager = getStorageItem($queryDB.$delRecordName, appName),
-              _resData = res.data.renamed || res.data.removed,
+          var _delRecordManager = getStorageItem(privateApi.$delRecordName, appName),
+              _resData = res.renamed || res.removed,
               _totalTask = Object.keys(deleteRecords[task]),
               _inc = 0,
               _isDataBaseTask = $isEqual('database', task) && _resData[appName];
@@ -39,15 +39,15 @@
           }
 
           //update the storage
-          setStorageItem($queryDB.$delRecordName, _delRecordManager, appName);
+          setStorageItem(privateApi.$delRecordName, _delRecordManager, appName);
           /**
            * reset deletedRecords
            */
           if ($isEqual(_inc, _totalTask.length)) {
               if (_isDataBaseTask) {
-                  $queryDB.closeDB(appName, true);
+                  privateApi.closeDB(appName, true);
               } else {
-                  $queryDB
+                  privateApi
                       .$getActiveDB(appName)
                       .$get('resolvers')
                       .deleteManager()
@@ -144,7 +144,7 @@
               function request(_api, ref, data) {
                   var _options = syncHelper.setRequestData(appName, _api, true, null);
                   _options.data[ref] = data;
-                  return $queryDB.$http(_options);
+                  return privateApi.$http(_options);
               }
 
               function mainRequest() {

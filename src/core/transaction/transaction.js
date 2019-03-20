@@ -6,18 +6,16 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
 
     var select = "",
         tblMode = mode || 'read',
-        _recordResolvers = $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('recordResolvers');
+        _recordResolvers = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('recordResolvers');
 
     this.executeState = [];
     this.tableInfo = tableInfo;
     this.tables = tables;
     this.errLog = [];
     this.isMultipleTable = isMultipleTable;
-
     this.getError = function() {
         return this.errLog;
     };
-
     this.setDBError = function(msg) {
         if (!expect(this.errLog).contains(msg)) {
             this.errLog.push(msg);
@@ -40,9 +38,10 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
     }
 
     //Check the required Mode
-    if (expect(tblMode).contains('write') && !this.isMultipleTable) {
+    if ($inArray('write', tblMode) && !this.isMultipleTable) {
         this.insert = transactionInsert;
         this.update = transactionUpdate;
+        this._autoSync = liveProcessor(tableInfo.TBL_NAME, tableInfo.DB_NAME);
 
         //@Function lastInsertId
         //@parameter null
@@ -55,7 +54,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
         this['delete'] = transactionDelete;
     }
 
-    if (expect(tblMode).contains('read')) {
+    if ($inArray('read', tblMode)) {
         if (isMultipleTable) {
             //Query Logic Object
             //Where and SortBy Logics
@@ -77,7 +76,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
       update offline cache
     **/
     this.updateOfflineCache = function(type, data) {
-        if (!$inArray(tableInfo.TBL_NAME, $queryDB.getNetworkResolver('ignoreSync', tableInfo.DB_NAME)) && data.length) {
+        if (!$inArray(tableInfo.TBL_NAME, privateApi.getNetworkResolver('ignoreSync', tableInfo.DB_NAME)) && data.length) {
             _recordResolvers
                 .$set(tableInfo.TBL_NAME)
                 .data(type, data);
@@ -140,14 +139,13 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                          * @param {DB_NAME}
                          * @return {FUNCTION}
                          */
-                        liveProcessor($self.tableInfo.TBL_NAME, $self.tableInfo.DB_NAME)(ex[0], function(res) {
+                        $self._autoSync(ex[0], function(res) {
                             ret.$ajax = extend(true, (res || {}.data));
                             defer['resolve'](ret);
                         }, function() {
                             defer['reject'](ret);
                         });
 
-                        jEliUpdateStorage($self.tableInfo.DB_NAME, $self.tableInfo.TBL_NAME);
                     } else {
                         defer[!error ? 'resolve' : 'reject'](ret);
                     }

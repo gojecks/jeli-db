@@ -11,7 +11,7 @@ jEliDB.plugins.jQl('import', {
 function jImportPluginFn(query, handler) {
     var result = { state: query[0], result: { message: null } };
     return function(db) {
-        var logService = $queryDB.getNetworkResolver('logService', db.name);
+        var logService = privateApi.getNetworkResolver('logService', db.name);
         db.import(query[1], extend({
             logService: logService,
             onselect: function(fileName, file) {

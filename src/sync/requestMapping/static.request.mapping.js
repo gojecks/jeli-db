@@ -3,370 +3,387 @@
  */
 
 var JDB_REQUEST_API = [{
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/database/rights"
+        "METHOD": "GET",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/database/rights"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 2,
-        METHOD: "GET",
-        URL: "/load"
+        "METHOD": "GET",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 2,
+        "URL": "/load"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/apikey"
+        "METHOD": "GET",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/service/configuration"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/cms/content/file"
+        "METHOD": "GET",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/apikey"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/file/attachment"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/file/attachment"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/session"
+        "METHOD": "GET",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/logs"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 2,
-        METHOD: "GET",
-        URL: "/num/rows"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/session"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 2,
-        METHOD: "GET",
-        URL: "/user/exists"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 2,
+        "URL": "/num/rows"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/directory/listing"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 2,
+        "URL": "/user/exists"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/pull"
+        "METHOD": "GET",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/directory/listing"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/logs"
+        "METHOD": "GET",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/cms/content/file"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 2,
-        METHOD: "GET",
-        URL: "/schema"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/pull"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/application/info"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 2,
+        "URL": "/schema"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/application/environment/variables"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/application/info"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/query"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/application/environment/variables"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 2,
-        METHOD: "GET",
-        URL: "/resource"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/query"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "GET",
-        URL: "/recent/updates"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 2,
+        "URL": "/resource"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/otp/regenerate"
+        "METHOD": "GET",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/currency/exchange"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/otp/create"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/recent/updates"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/otp/validate"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/otp/regenerate"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/session"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/otp/create"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/reset/code/resend"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/otp/validate"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/reset/code/validate"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/session"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/reset/password"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/reset/code/resend"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/logout"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/reset/code/validate"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/user/validate/password"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/reset/password"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/user/authorize"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/logout"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "POST",
-        URL: "/user/reauthorize"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/user/validate/password"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/rename/database"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/user/authorize"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/rename/table"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/user/reauthorize"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/export/database"
+        "METHOD": "POST",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/cms/create/file"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/send/email"
+        "METHOD": "POST",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/cms/create/directory"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/cms/create/file"
+        "METHOD": "POST",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/rename/database"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        URL: "/cms/create/directory"
+        "METHOD": "POST",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/rename/table"
     },
     {
-        URL: '/create/api',
-        AUTH_TYPE: 1,
-        METHOD: "POST",
-        PROTECTED_API: true,
+        "METHOD": "POST",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/export/database"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/database/replicate"
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/send/email"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/database/users/add"
+        "METHOD": "POST",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/create/api"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/database/resource"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/database/replicate"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/cms/update/file"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/database/users/add"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/file/attachment"
+        "METHOD": "PUT",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/database/resource"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/session"
+        "METHOD": "PUT",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/file/attachment"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/user/update"
+        "METHOD": "PUT",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/session"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 0,
-        METHOD: "PUT",
-        URL: "/user/create"
+        "METHOD": "PUT",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/user/update"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/state/push"
+        "METHOD": "PUT",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 0,
+        "URL": "/user/create"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/state/sync"
+        "METHOD": "PUT",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/state/push"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/application/update"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/state/sync"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/application/unpublish"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/cms/update/file"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/application/environment/variables",
-        ref: "app_env_put"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/application/update"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/application/set/security_nonce"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/application/unpublish"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/application/set/access_token"
+        "METHOD": "PUT",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/application/environment/variables"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/application/authority/add"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/application/set/security_nonce"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/application/authority/remove"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/application/set/access_token"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "PUT",
-        URL: "/application/publish"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/application/authority/add"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/session"
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/application/authority/remove"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/cms/remove/file"
+        "METHOD": "PUT",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/application/publish"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/user/database/remove"
+        "METHOD": "DELETE",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/session"
     },
     {
-        PROTECTED_API: false,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/user/remove"
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/user/database/remove"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/cms/remove/directory"
+        "METHOD": "DELETE",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/user/remove"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/drop/database"
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/drop/database"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/drop/table"
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/drop/table"
     },
     {
-        PROTECTED_API: true,
-        AUTH_TYPE: 1,
-        METHOD: "DELETE",
-        URL: "/log"
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/cms/remove/file"
+    },
+    {
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/cms/remove/directory"
+    },
+    {
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
+        "URL": "/log"
+    },
+    {
+        "METHOD": "POST",
+        "PROTECTED_API": false,
+        "AUTH_TYPE": 1,
+        "URL": "/omise/payment"
     }
 ];

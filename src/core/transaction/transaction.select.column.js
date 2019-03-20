@@ -153,7 +153,7 @@ function transactionSelectColumn(data, definition) {
             return maskedEval(field.replace(new RegExp("when", "gi"), "").replace(new RegExp("then", "gi"), "?").replace(new RegExp("else", "gi"), ":"), cdata);
         },
         GET: function(cdata, field) {
-            return $modelSetterGetter(field, cdata);
+            return ModelSetterGetter(field, cdata);
         }
     };
 

@@ -64,10 +64,10 @@ function RequestMapping(disableAdminApi, appName) {
         }
 
         isResolvedCustom = true;
-        $queryDB.$http($queryDB.buildOptions(appName, '', '/load'))
+        privateApi.$http(privateApi.buildOptions(appName, '', '/load'))
             .then(function(res) {
-                if ($isArray(res.data)) {
-                    CUSTOM_API = extend(true, CUSTOM_API, res.data || []);
+                if ($isArray(res)) {
+                    CUSTOM_API = extend(true, CUSTOM_API, res);
                 }
             });
 

@@ -5,24 +5,23 @@
  * @param {*} data 
  */
 _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
-    var _Promiseromise = new _Promise(),
+    var _promise = new _Promise(),
         self = this;
     if (db && tbl && data) {
         var tbl = this.$getTable(db, tbl),
+            exisitingRefs = tbl.data.map(function(item) { return item._ref; }),
             types = ["insert", "delete", "update"],
             _task = {},
             _ret = { update: [], "delete": [], insert: [] };
 
         _task.update = function(cdata) {
-            expect(tbl.data).each(function(item, idx) {
-                expect(cdata).each(function(obj) {
-                    if (item._ref === obj._ref) {
-                        tbl.data[idx] = obj;
-                    }
-                });
+            cdata.forEach(function(item) {
+                var idx = exisitingRefs.indexOf(item._ref);
+                if (0 > idx) {
+                    tbl.data[idx].data = item.data;
+                    _ret.update.push(item._data);
+                }
             });
-
-            _ret.update.push.apply(_ret.update, cdata.map(function(_item_) { return _item_._data; }));
         };
 
         _task['delete'] = function(cdata) {
@@ -33,8 +32,12 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
         };
 
         _task.insert = function(cdata) {
-            tbl.data.push.apply(tbl.data, cdata);
-            _ret.insert.push.apply(_ret.insert, cdata.map(function(_item_) { return _item_._data; }));
+            cdata.forEach(function(item) {
+                if (exisitingRefs.indexOf(item._ref) < 0) {
+                    tbl.data.push(item);
+                    _ret.insert.push(item._data);
+                }
+            })
         };
 
         if (tbl) {
@@ -45,11 +48,11 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
                 }
             });
 
-            _Promiseromise.resolve(copy(_ret, true));
+            _promise.resolve(copy(_ret, true));
         }
     } else {
-        _Promiseromise.reject();
+        _promise.reject();
     }
 
-    return _Promiseromise;
+    return _promise;
 };

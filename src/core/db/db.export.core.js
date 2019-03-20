@@ -2,10 +2,10 @@
  * @param {*} table
  * @param {*} type
  */
-DBEvent.prototype['export'] = function(type, table) {
+ApplicationInstance.prototype['export'] = function(type, table) {
     var type = type || 'csv',
         exp = new jExport(type),
-        _table = $queryDB.$getTable(this.name, table);
+        _table = privateApi.$getTable(this.name, table);
 
     //getValue
     function getValueInArray(cdata) {

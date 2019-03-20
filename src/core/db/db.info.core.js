@@ -4,9 +4,9 @@
  * generate a new table Object containing the information of each tables
  */
 
-DBEvent.prototype.info = function() {
+ApplicationInstance.prototype.info = function() {
     var tableSet = [],
-        tables = $queryDB.$get(this.name, 'tables');
+        tables = privateApi.$get(this.name, 'tables');
     if (tables) {
         findInList.call(tables, function(tblName, tbl) {
             tableSet.push(copy({

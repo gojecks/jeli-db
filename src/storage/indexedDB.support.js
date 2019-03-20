@@ -50,7 +50,7 @@ function indexedDBStorage(CB, _dbName) {
     function getAllStoreData() {
         var store = getObjectStore(_storeName, "readwrite"),
             req = store.openCursor(),
-            $defer = new $p();
+            $defer = new _Promise();
 
         req.onsuccess = function(evt) {
             var cursor = evt.target.result;
@@ -127,7 +127,7 @@ function indexedDBStorage(CB, _dbName) {
         /**
          * subscribe to storage event
          */
-        $queryDB.storageEventHandler
+        privateApi.storageEventHandler
             .subscribe(eventNamingIndex(_dbName, 'onRenameTable'), function(oldTableName, newTableName) {})
     }
 
@@ -191,8 +191,8 @@ function indexedDBStorage(CB, _dbName) {
             tbl.lastModified = +new Date
         });
         this.setItem(newName, oldData);
-        this.setItem($queryDB.getResourceName(newName), this.getItem($queryDB.getResourceName(oldName)));
-        $queryDB.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
+        this.setItem(privateApi.getResourceName(newName), this.getItem(privateApi.getResourceName(oldName)));
+        privateApi.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
         this.removeItem(oldName);
         (cb || noop)();
     };

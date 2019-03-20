@@ -11,7 +11,7 @@
           value = JSON.stringify(value);
           var filesizeCheck = Math.floor((((value.length) * 2) / 1024).toFixed(2));
           if (filesizeCheck >= (1024 * 5)) {
-              $queryDB.getNetworkResolver('logService')("_STORAGE_ERROR:File-Size is too large :" + (filesizeCheck / 1024) + " MB");
+              privateApi.getNetworkResolver('logService')("_STORAGE_ERROR:File-Size is too large :" + (filesizeCheck / 1024) + " MB");
               return;
           }
 
@@ -41,8 +41,8 @@
               tbl.lastModified = +new Date
           });
           this.setItem(newName, oldData);
-          this.setItem($queryDB.getResourceName(newName), this.getItem($queryDB.getResourceName(oldName)));
-          $queryDB.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
+          this.setItem(privateApi.getResourceName(newName), this.getItem(privateApi.getResourceName(oldName)));
+          privateApi.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
           this.removeItem(oldName);
           (cb || noop)();
       };

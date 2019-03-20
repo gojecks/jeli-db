@@ -1,8 +1,8 @@
 /**
- * Sync DBEVENT METHOD
+ * Sync ApplicationInstance METHOD
  */
-DBEvent.prototype.synchronize = function() {
-    if ($queryDB.openedDB.$hasOwnProperty(this.name)) {
+ApplicationInstance.prototype.synchronize = function() {
+    if (privateApi.openedDB.$hasOwnProperty(this.name)) {
         return new jEliDBSynchronization(this.name);
     }
 

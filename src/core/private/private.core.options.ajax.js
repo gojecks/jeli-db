@@ -16,7 +16,9 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
     options.dataType = "json";
     options.contentType = "application/json";
     options.headers = {
-        Authorization: "Bearer *"
+        Authorization: "Bearer *",
+        'X-APP-ORGANISATION': networkResolver.organisation || '',
+        'X-APP-NAME': dbName
     };
 
     /**
@@ -67,7 +69,7 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
  * @param {*} options 
  */
 _privateApi.prototype.$http = (function() {
-    var ajax = AjaxSetup();
+    var ajax = $http || AjaxSetup();
     return function(options) {
         var $ajax = this.getNetworkResolver('$ajax', options.__appName__) || ajax;
         if (!$isFunction($ajax)) {

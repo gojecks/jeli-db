@@ -1,5 +1,7 @@
-/*** Table Code **/
-
+/**
+ * 
+ * @param {*} tableInfo 
+ */
 function jEliDBTBL(tableInfo) {
     var info = {
         _DBNAME_: tableInfo.DB_NAME,
@@ -23,7 +25,7 @@ function jEliDBTBL(tableInfo) {
         /**
             broadcast event
         **/
-        $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME, tableInfo.data]);
+        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME, tableInfo.data]);
         //update the DB
         jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
     };
@@ -43,14 +45,14 @@ function jEliDBTBL(tableInfo) {
     this.Alter.rename = function(newTableName) {
         if (newTableName && !$isEqual(newTableName, tableInfo.TBL_NAME)) {
             // rename the tableInfo
-            if ($queryDB.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(newTableName)) {
+            if (privateApi.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(newTableName)) {
                 return "Table already exists";
             }
 
             //update the deletedRecords
-            var $resource = $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
+            var $resource = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
             if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
-                $queryDB.$taskPerformer.updateDeletedRecord('rename', {
+                privateApi.$taskPerformer.updateDeletedRecord('rename', {
                     oldName: tableInfo.TBL_NAME,
                     newName: newTableName,
                     $hash: tableInfo.$hash,
@@ -59,11 +61,11 @@ function jEliDBTBL(tableInfo) {
             }
 
             $resource.renameTableResource(tableInfo.TBL_NAME, newTableName);
-            $queryDB.replicateTable(tableInfo.DB_NAME, tableInfo.TBL_NAME, newTableName, true);
+            privateApi.replicateTable(tableInfo.DB_NAME, tableInfo.TBL_NAME, newTableName, true);
             /**
              * broadcastEvent
              */
-            $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onRenameTable'), [tableInfo.TBL_NAME, newTableName]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onRenameTable'), [tableInfo.TBL_NAME, newTableName]);
             info.tableName = tableInfo.TBL_NAME = newTableName;
             /**
              * updated storage
@@ -95,7 +97,7 @@ function jEliDBTBL(tableInfo) {
             /**
                 broadcast event
             **/
-            $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onTruncateTable'), [tableInfo.TBL_NAME]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onTruncateTable'), [tableInfo.TBL_NAME]);
         });
 
         return dbSuccessPromiseObject("truncate", tableInfo.TBL_NAME + " was truncated");
@@ -111,9 +113,9 @@ function jEliDBTBL(tableInfo) {
         }
 
         //update the deletedRecords
-        var $resource = $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
+        var $resource = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
         if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
-            $queryDB.$taskPerformer.updateDeletedRecord('table', {
+            privateApi.$taskPerformer.updateDeletedRecord('table', {
                 name: tableInfo.TBL_NAME,
                 $hash: tableInfo.$hash,
                 db: tableInfo.DB_NAME
@@ -124,16 +126,16 @@ function jEliDBTBL(tableInfo) {
         /**
           broadcast event
         **/
-        $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onDropTable'), [tableInfo.TBL_NAME]);
+        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onDropTable'), [tableInfo.TBL_NAME]);
 
         //delete the table from DB
-        $queryDB.removeTable(tableInfo.TBL_NAME, tableInfo.DB_NAME, true);
+        privateApi.removeTable(tableInfo.TBL_NAME, tableInfo.DB_NAME, true);
 
         return dbSuccessPromiseObject("drop", "Table (" + tableInfo.TBL_NAME + ") was dropped successfully");
     };
 
 
-    this.onUpdate = jDBStartUpdate('table', tableInfo.DB_NAME, tableInfo.TBL_NAME, tableInfo.$hash);
+    this.onUpdate = new ApplicationRealtime('table', tableInfo.DB_NAME, tableInfo.TBL_NAME, tableInfo.$hash);
 
     //Table constructor
     function constructTable(cFn) {
@@ -169,7 +171,7 @@ function jEliDBTBL(tableInfo) {
      */
     function foreignAction(key, tableName) {
         if (key && tableName && tableInfo.columns[0][key]) {
-            if (!tableInfo.foreignKey && $queryDB.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(tableName)) {
+            if (!tableInfo.foreignKey && privateApi.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(tableName)) {
                 tableInfo.foreignKey = {
                     key: key,
                     table: tableName
@@ -202,7 +204,7 @@ function jEliDBTBL(tableInfo) {
             /**
                  broadcast event
              **/
-            $queryDB.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME, tableInfo.data]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME, tableInfo.data]);
             //update the DB
             jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
         }

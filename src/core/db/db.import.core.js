@@ -3,7 +3,7 @@
  * @param {*} handler
  */
 
-DBEvent.prototype.import = function(table, handler) {
+ApplicationInstance.prototype.import = function(table, handler) {
     var createTable = false,
         db = this,
         _def = ({
@@ -18,7 +18,7 @@ DBEvent.prototype.import = function(table, handler) {
     //check if handler
     handler = extend(true, _def, handler || {});
     if (table && $isString(table)) {
-        if (!$queryDB.$getActiveDB(this.name).$get('$tableExist')(table)) {
+        if (!privateApi.$getActiveDB(this.name).$get('$tableExist')(table)) {
             createTable = true;
             handler.logService('Table(' + table + ') was not found!!');
         }

@@ -87,7 +87,7 @@ function transactionUpdate(updateData, query) {
         /**
             broadcast event
         **/
-        $queryDB.storageEventHandler.broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'update'), [$self.tableInfo.TBL_NAME, rowsToUpdate]);
+        privateApi.storageEventHandler.broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'update'), [$self.tableInfo.TBL_NAME, rowsToUpdate]);
 
         //empty the rows 
         rowsToUpdate = [];

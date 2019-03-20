@@ -8,8 +8,8 @@
 
 function syncConflictChecker(appName, resourceChecker, tbl) {
     var serverTbl = [],
-        clientTbl = $queryDB.$getTable(appName, tbl),
-        $promise = new $p(),
+        clientTbl = privateApi.$getTable(appName, tbl),
+        $promise = new _Promise(),
         $process = syncHelper.process.getProcess(appName),
         networkResolver = $process.getSet('networkResolver');
 
@@ -21,7 +21,7 @@ function syncConflictChecker(appName, resourceChecker, tbl) {
     //client table was found
     syncHelper.pullTable(appName, tbl)
         .then(function(tblResult) {
-            serverTbl = (tblResult.data || {})._data;
+            serverTbl = (tblResult || {})._data;
             if (serverTbl) {
                 var $diff = syncDataComparism(serverTbl, clientTbl, resourceChecker, networkResolver);
                 if ($diff.hashChanged) {

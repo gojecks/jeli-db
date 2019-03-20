@@ -44,7 +44,7 @@ function DBRecordResolvers(name) {
                 if ($isEqual(cType, "delete")) {
                     _newSyncData.data[cType][ref] = true;
                 } else {
-                    var data = $queryDB.$getDataByRef($queryDB.$getTableOptions(name, tbl, 'data') || [], ref);
+                    var data = privateApi.$getDataByRef(privateApi.$getTableOptions(name, tbl, 'data') || [], ref);
                     if (data) {
                         _newSyncData.data[cType].push(data);
                     }
@@ -58,7 +58,7 @@ function DBRecordResolvers(name) {
     }
 
     var _records = {},
-        _lRecordName = $queryDB.getDataResolverName(name);
+        _lRecordName = privateApi.getDataResolverName(name);
 
     var _fn = ({
         $set: function(tbl) {
@@ -125,10 +125,13 @@ function DBRecordResolvers(name) {
 
             //Update Hash
             function updateTableHash($hash) {
-                $queryDB.$taskPerformer
-                    .updateDB(name, tbl, function(table) {
-                        table.$hash = $hash;
-                    });
+                if ($hash) {
+                    privateApi.$taskPerformer
+                        .updateDB(name, tbl, function(table) {
+                            table.$previousHash = table.$hash;
+                            table.$hash = $hash;
+                        });
+                }
             }
         },
         $destroy: function() {
@@ -138,7 +141,7 @@ function DBRecordResolvers(name) {
             }
         },
         rename: function(newName) {
-            setStorageItem($queryDB.getDataResolverName(newName), _records, name);
+            setStorageItem(privateApi.getDataResolverName(newName), _records, name);
             delStorageItem(_lRecordName);
         }
     });

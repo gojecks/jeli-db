@@ -11,7 +11,7 @@
           failedState = [],
           queue = 0,
           pullRecordList = {},
-          $defer = new $p();
+          $defer = new _Promise();
 
       //processQueue()
       function processQueue(inc, state) {
@@ -35,10 +35,10 @@
        */
       function mergeTbl(serverData, tbl) {
           //the local DB with SERVER DB
-          $queryDB
+          privateApi
               .$mergeTable(appName, serverData, tbl)
               .then(function(suc) {
-                  $queryDB.$taskPerformer.updateDB(appName, tbl, null, +new Date);
+                  privateApi.$taskPerformer.updateDB(appName, tbl, null, +new Date);
                   setMessage(suc.message);
                   nextQueue({ state: 'Success' }, 'push');
               }, function(fai) {
@@ -56,7 +56,7 @@
        */
       function updateHash(tableToUpdate, hash) {
           if ($isString(tableToUpdate)) {
-              tableToUpdate = $queryDB.$getTable(appName, tableToUpdate);
+              tableToUpdate = privateApi.$getTable(appName, tableToUpdate);
           }
 
           //Update Hash
@@ -65,7 +65,7 @@
       }
 
       function isDeletedTable(serverResource, tbl) {
-          var localResource = $queryDB.$getActiveDB(appName).$get('resourceManager').getResource();
+          var localResource = privateApi.$getActiveDB(appName).$get('resourceManager').getResource();
           return (localResource.resourceManager[tbl] && (serverResource && !serverResource[tbl]) &&
               localResource.resourceManager[tbl].lastSyncedDate);
       }
@@ -76,7 +76,7 @@
        * @param {*} tbl 
        */
       function processLocalUpdate(tbl) {
-          var _recordResolvers = $queryDB.$getActiveDB(appName).$get('recordResolvers');
+          var _recordResolvers = privateApi.$getActiveDB(appName).$get('recordResolvers');
           if (tbl) {
               //get the current recordResolver state
               var resolvedData = $process.getSet('syncLog')[tbl],
@@ -93,10 +93,10 @@
                   }
 
                   //update the local tables
-                  $queryDB.$updateTableData(tbl, toResolve);
+                  privateApi.$updateTableData(tbl, toResolve);
               }
 
-              $queryDB.$taskPerformer.updateDB(appName, tbl, null, +new Date);
+              privateApi.$taskPerformer.updateDB(appName, tbl, null, +new Date);
               //empty our local recordResolver
               _recordResolvers.$isResolved(tbl);
           }
@@ -135,10 +135,10 @@
                   var state = ((!data) ? '/state/sync' : '/state/push');
                   syncHelper.push(appName, currentProcessTbl, data, state)
                       .then(function(pushResponse) {
-                          var okay = pushResponse.data.ok;
+                          var okay = pushResponse.ok;
 
                           if (okay) {
-                              pushSuccessState(pushResponse.data.$hash);
+                              pushSuccessState(pushResponse.$hash);
                           } else {
                               pushErrorState();
                           }
@@ -158,8 +158,8 @@
                   if (isDeletedTable(resource.resourceManager, currentProcessTbl)) {
                       setMessage(currentProcessTbl + ' doesn\'t exist on the server');
                       if (networkResolver.resolveDeletedTable(currentProcessTbl)) {
-                          $queryDB.removeTable(currentProcessTbl, appName, true);
-                          $queryDB.$getActiveDB(appName).$get('resourceManager').removeTableFromResource(currentProcessTbl);
+                          privateApi.removeTable(currentProcessTbl, appName, true);
+                          privateApi.$getActiveDB(appName).$get('resourceManager').removeTableFromResource(currentProcessTbl);
                           setMessage(currentProcessTbl + ' removed from local DB');
                       }
 
@@ -208,7 +208,7 @@
               syncHelper.pullTable(appName, currentProcessTbl)
                   .then(function(tblResult) {
                       //update the recordList
-                      pullRecordList[currentProcessTbl] = tblResult.data._data || syncHelper.createFakeTable();
+                      pullRecordList[currentProcessTbl] = tblResult._data || syncHelper.createFakeTable();
 
                       //goto next queue
                       nextQueue({ state: 'Success' }, 'pull');
@@ -244,7 +244,7 @@
                           syncHelper[state](appName);
                       }
                       //remove deleteRecords
-                      $queryDB.$taskPerformer.del($queryDB.$delRecordName);
+                      privateApi.$taskPerformer.del(privateApi.$delRecordName);
                   }
               },
               pull: function(response) {

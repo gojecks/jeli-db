@@ -10,11 +10,11 @@ function clientService(appName) {
      * @param {*} tbl 
      */
     function requestFromDB(options, tbl) {
-        var $defer = new $p();
-        $queryDB.$http(options)
+        var $defer = new _Promise();
+        privateApi.$http(options)
             .then(function(res) {
-                $queryDB
-                    .$resolveUpdate(appName, tbl, { insert: res.data._rec })
+                privateApi
+                    .$resolveUpdate(appName, tbl, { insert: res._rec })
                     .then(function(_ret) {
                         jEliUpdateStorage(appName, tbl);
                         //resolve promise
@@ -66,43 +66,15 @@ function clientService(appName) {
 
 }
 
-/**
- * ProcessRequest()
- * @param {*} _options 
- * @param {*} resolvedTable 
- * @param {*} appName 
- */
-function ProcessRequest(_options, resolvedTable, appName) {
-    var $defer = new $p();
-    //perform JSON Task
-    $queryDB.$http(_options)
-        .then(function(res) {
-            $defer.resolve(res.data);
-            if (resolvedTable) {
-                //empty our local recordResolver
-                $queryDB
-                    .$getActiveDB(appName)
-                    .$get('recordResolvers')
-                    .$isResolved(resolvedTable)
-                    .updateTableHash(res.data.$hash);
-            }
-        }, function(res) {
-            $defer.reject(res);
-        });
 
-    return $defer;
-}
 
 /**
  * 
  * @param {*} tbl 
  * @param {*} data 
  */
-clientService.prototype.put = function(tbl, data) {
-    var _options = syncHelper.setRequestData(this.appName, '/state/push', false, tbl);
-    _options.data.postData = data;
-    _options.data.action = 'update';
-    return ProcessRequest(_options, tbl, this.appName);
+clientService.prototype.push = function(tbl, data) {
+    return syncHelper.autoSync(this.appName, tbl, data);
 };
 
 /**
@@ -113,7 +85,7 @@ clientService.prototype.put = function(tbl, data) {
 clientService.prototype.delete = function(tbl, data) {
     var _options = syncHelper.setRequestData(this.appName, '/state/push', true, tbl);
     _options.data.query = data;
-    return ProcessRequest(_options);
+    return syncHelper.processRequest(_options);
 };
 
 /**
@@ -143,7 +115,7 @@ clientService.prototype.query = function(query) {
     var _options = syncHelper.setRequestData(this.appName, '/query', false);
     _options.data.query = query;
 
-    return ProcessRequest(_options);
+    return syncHelper.processRequest(_options);
 };
 
 /**
@@ -155,7 +127,7 @@ clientService.prototype.getNumRows = function(query, tbl) {
     var _options = syncHelper.setRequestData(this.appName, '/num/rows', true, tbl);
     _options.data.query = { type: "_data", param: query, return_type: "num_rows" };
 
-    return ProcessRequest(_options);
+    return syncHelper.processRequest(_options);
 };
 
 /**
@@ -165,5 +137,5 @@ clientService.prototype.getNumRows = function(query, tbl) {
 clientService.prototype.reAuthorize = function(data) {
     var _options = syncHelper.setRequestData(this.appName, '/user/reauthorize', false, null);
     _options.data.postData = data;
-    return ProcessRequest(_options);
+    return syncHelper.processRequest(_options);
 };

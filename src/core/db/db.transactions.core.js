@@ -1,14 +1,20 @@
 //Query DB
-DBEvent.prototype.transaction = function(table, mode) {
+ApplicationInstance.prototype.transaction = function(table, mode) {
     var dbName = this.name;
     //getRequired Table Fn
     function getRequiredTable(cTable) {
-        if (!$queryDB.$getActiveDB(dbName).$get('$tableExist')(cTable)) {
+        if (!privateApi.$getActiveDB(dbName).$get('$tableExist')(cTable)) {
             err.push("There was an error, Table (" + table + ") was not found on this DB (" + dbName + ")");
             return;
         }
 
-        return $queryDB.$getTable(dbName, cTable);
+        return privateApi.$getTable(dbName, cTable);
+    }
+
+    function validateTableSchema(tableData, table) {
+        if (!tableData.hasOwnProperty('columns') || !$isEqual(tableData.DB_NAME, dbName) || !$isEqual(tableData.TBL_NAME, table)) {
+            err.push("Table (" + table + ") is not well configured, if you re the owner please delete the table and create again");
+        }
     }
 
     // create a new defer state
@@ -26,7 +32,7 @@ DBEvent.prototype.transaction = function(table, mode) {
             while (c--) {
                 var tbl = table[c],
                     saveName = tbl;
-                if (expect(tbl).contains(' as ')) {
+                if ($inArray(' as ', tbl)) {
                     var spltTbl = tbl.split(' as ');
                     spltTbl.forEach(function(item, idx) {
                         spltTbl[idx] = $removeWhiteSpace(item);
@@ -39,6 +45,7 @@ DBEvent.prototype.transaction = function(table, mode) {
                 }
 
                 tableData[saveName] = getRequiredTable(tbl);
+                validateTableSchema(tableData[saveName], tbl);
             }
 
             //change mode to read
@@ -46,8 +53,11 @@ DBEvent.prototype.transaction = function(table, mode) {
             isMultipleTable = true;
         } else {
             tableData = getRequiredTable(table);
+            validateTableSchema(tableData, table);
             tableJoinMapping[table] = null;
         }
+
+        // validate tableSchema
 
 
         if (err.length) {

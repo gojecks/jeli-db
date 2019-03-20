@@ -5,7 +5,7 @@
    * @param {*} handler 
    * @param {*} parser 
    */
-  DBEvent.prototype.jQl = function(query, handler, parser) {
+  ApplicationInstance.prototype.jQl = function(query, handler, parser) {
       var taskType = $remArrayWhiteSpace(this.jQl.parser(query, parser || {}).split(/\s+(?:-)/gi), $remLastWhiteSpace),
           taskPerformerObj = customPlugins.$getAll(),
           task = taskType[0].toLowerCase();
@@ -35,7 +35,7 @@
 
 
 
-  DBEvent.prototype.jQl.parser = function(query, replacer) {
+  ApplicationInstance.prototype.jQl.parser = function(query, replacer) {
       function stringfy(val) {
           return typeof val === "object" ? JSON.stringify(val) : val;
       }

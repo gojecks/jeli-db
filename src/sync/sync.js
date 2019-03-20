@@ -3,7 +3,8 @@
  * @param {*} appName 
  */
 function jEliDBSynchronization(appName) {
-    var networkResolver = $queryDB.$getActiveDB(appName).$get('resolvers').networkResolver,
+    var resolver = privateApi.$getActiveDB(appName).$get('resolvers'),
+        networkResolver = resolver.networkResolver,
         $process = syncHelper.process.startSyncProcess(appName);
 
     function setMessage(msg) {
@@ -15,7 +16,7 @@ function jEliDBSynchronization(appName) {
 
     function syncResourceToServer() {
         setMessage('Resource synchronization started');
-        return $queryDB.$http(syncHelper.setRequestData(appName, '/database/resource', '', ''));
+        return privateApi.$http(syncHelper.setRequestData(appName, '/database/resource', '', ''));
     }
 
     function printLog() {
@@ -36,17 +37,17 @@ function jEliDBSynchronization(appName) {
             if (networkResolver.dirtyCheker) {
                 syncHelper.pullResource(appName)
                     .then(function(response) {
-                        var resourceChecker = response.data,
-                            $deleteManager = $queryDB.$getActiveDB(appName).$get('resolvers').deleteManager(appName);
+                        var resourceChecker = response,
+                            $deleteManager = resolver.deleteManager(appName);
                         if (resourceChecker && !resourceChecker.resource && !$deleteManager.isDeletedDataBase()) {
                             /**
                              * Database synced but removed by some other users
                              * killState and return false
                              */
-                            if ($queryDB.$getActiveDB(appName).$get('resourceManager').getDataBaseLastSyncDate()) {
+                            if (privateApi.$getActiveDB(appName).$get('resourceManager').getDataBaseLastSyncDate()) {
                                 setMessage("Database doesn't exists on the server");
                                 syncHelper.killState(appName);
-                                return $queryDB.removeDB(appName, true);
+                                return privateApi.removeDB(appName, true);
                             }
 
                             //first time using jEliDB
@@ -54,7 +55,7 @@ function jEliDBSynchronization(appName) {
                             setMessage('Creating new resource on the server');
                             syncResourceToServer()
                                 .then(function(resourceResponse) {
-                                    var resState = resourceResponse.data.state;
+                                    var resState = resourceResponse.state;
                                     if (resState) {
                                         //start sync state
                                         setMessage('Resource synchronized successfully');
@@ -124,5 +125,4 @@ function jEliDBSynchronization(appName) {
             configSync: configSync
         });
     };
-
 }

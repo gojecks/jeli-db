@@ -102,7 +102,7 @@ function externalQuery(logic, replacer) {
         //match found item
         var matcher = item._data || item;
         expect(logic).each(function(_res1, op) {
-            if (queryMatcher(_res1, $modelSetterGetter(op, matcher), matcher)) {
+            if (queryMatcher(_res1, ModelSetterGetter(op, matcher), matcher)) {
                 found++;
             }
         });
@@ -150,7 +150,7 @@ function queryMatcher($query, $val, item) {
     var _fnd = false;
     if ($isObject($query)) {
         var q = Object.keys($query)[0],
-            _val = $modelSetterGetter($query[q], item) || $query[q];
+            _val = ModelSetterGetter($query[q], item) || $query[q];
 
 
         switch (q) {
@@ -220,7 +220,7 @@ function convertExpressionStringToObject(expression, replacer) {
      * parse end value before writing
      */
     if (end) {
-        var _end = $modelSetterGetter(end, replacer || {}) || jSonParser(end);
+        var _end = ModelSetterGetter(end, replacer || {}) || jSonParser(end);
     }
 
     switch (operand) {

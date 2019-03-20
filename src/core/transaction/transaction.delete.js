@@ -28,9 +28,7 @@ function transactionDelete(query) {
     }
 
     this.executeState.push(["delete", function(disableOfflineCache) {
-        if (!delItem.length) {
-            throw Error(["No record(s) to remove"]);
-        } else {
+        if (delItem.length) {
             //push records to our resolver
             if (!disableOfflineCache) {
                 $self.updateOfflineCache('delete', delItem);
@@ -39,13 +37,13 @@ function transactionDelete(query) {
             /**
                 broadcast event
             **/
-            $queryDB.storageEventHandler.broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'delete'), [$self.tableInfo.TBL_NAME, delItem]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'delete'), [$self.tableInfo.TBL_NAME, delItem]);
 
-            //return success Message
-            return ({
-                message: delItem.length + " record(s) removed"
-            });
         }
+        //return success Message
+        return ({
+            message: delItem.length + " record(s) removed"
+        });
     }]);
 
     return this;

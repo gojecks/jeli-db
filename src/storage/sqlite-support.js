@@ -130,7 +130,7 @@ function sqliteStorage(type, config, CB) {
         }
 
         _pub.createTable = function(tableName, columns) {
-            var $promise = new $p();
+            var $promise = new _Promise();
             sqlInstance.transaction(function(transaction) {
                 transaction.executeSql('CREATE TABLE IF NOT EXISTS ' + tableName + ' (' + columns.join(',') + ')', [], $promise.resolve, $promise.reject);
             });
@@ -142,7 +142,7 @@ function sqliteStorage(type, config, CB) {
             if (!table || !$isArray(data)) {
                 errorBuilder('ERROR[SQL] : Table and data is required');
             }
-            var $promise = new $p(),
+            var $promise = new _Promise(),
                 qPromise = new promiseHandler($promise);
 
             function run(item, tx) {
@@ -169,7 +169,7 @@ function sqliteStorage(type, config, CB) {
                 errorBuilder('ERROR[SQL] : Table is required');
             }
 
-            var $promise = new $p();
+            var $promise = new _Promise();
             sqlInstance.transaction(function(transaction) {
                 transaction.executeSql(executeQuery, data || [], $promise.resolve, $promise.reject);
             });
@@ -182,7 +182,7 @@ function sqliteStorage(type, config, CB) {
                 errorBuilder('ERROR[SQL] : Table and data is required');
             }
 
-            var $promise = new $p(),
+            var $promise = new _Promise(),
                 qPromise = new promiseHandler($promise);
 
             function run(item, tx) {
@@ -215,7 +215,7 @@ function sqliteStorage(type, config, CB) {
                 errorBuilder('ERROR[SQL] : Table and data is required');
             }
 
-            var $promise = new $p(),
+            var $promise = new _Promise(),
                 qPromise = new promiseHandler($promise);
 
             function run(item, tx) {
@@ -242,7 +242,7 @@ function sqliteStorage(type, config, CB) {
                 errorBuilder('ERROR[SQL] : Table is required');
             }
 
-            var $promise = new $p(),
+            var $promise = new _Promise(),
                 executeQuery = "DROP TABLE  IF EXISTS " + table;
 
             sqlInstance.transaction(function(transaction) {
@@ -253,7 +253,7 @@ function sqliteStorage(type, config, CB) {
         };
 
         _pub.alterTable = function(tbl, columnName, type) {
-            var $promise = new $p(),
+            var $promise = new _Promise(),
                 executeQuery = "ALTER TABLE " + tbl + " ADD " + columnName + " " + type;
 
             sqlInstance.transaction(function(transaction) {
@@ -268,7 +268,7 @@ function sqliteStorage(type, config, CB) {
                 errorBuilder('ERROR[SQL] : expected ArrayList<tbl>');
             }
 
-            var $promise = new $p(),
+            var $promise = new _Promise(),
                 qPromise = new promiseHandler($promise);
 
             function run(tbl, tx) {
@@ -286,7 +286,7 @@ function sqliteStorage(type, config, CB) {
         };
 
         _pub.query = function(query, data) {
-            var $promise = new $p();
+            var $promise = new _Promise();
             sqlInstance.transaction(function(tx) {
                 tx.executeSql(query, data, $promise.resolve, $promise.reject);
             });
@@ -321,7 +321,7 @@ function sqliteStorage(type, config, CB) {
         register to storage events
     **/
 
-    $queryDB.storageEventHandler
+    privateApi.storageEventHandler
         .subscribe(eventNamingIndex(dbName, 'insert'), function(tbl, data) {
             _dbApi.insert(tbl, data);
         })
@@ -431,7 +431,7 @@ function sqliteStorage(type, config, CB) {
             tbls.push(tblName);
         });
         var bkInstance = useDB(createDB(newName, extend(config, { name: newName })));
-        $queryDB.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
+        privateApi.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
         _dbApi.dropTables(tbls);
         /**
          * create our store
@@ -445,11 +445,11 @@ function sqliteStorage(type, config, CB) {
                         _rev: newName,
                         _data: newData
                     }, {
-                        _rev: $queryDB.getResourceName(newName),
-                        _data: _self.getItem($queryDB.getResourceName(oldName))
+                        _rev: privateApi.getResourceName(newName),
+                        _data: _self.getItem(privateApi.getResourceName(oldName))
                     }, {
-                        _rev: $queryDB.getDataResolverName(newName),
-                        _data: _self.getItem($queryDB.getDataResolverName(newName))
+                        _rev: privateApi.getDataResolverName(newName),
+                        _data: _self.getItem(privateApi.getDataResolverName(newName))
                     }])
                     .then(function() {
                         expect(newData.tables).each(createAndInsert);
