@@ -39,7 +39,7 @@
                     if (tblName && table) {
                         if (!dbRef.resourceManager[tblName]) {
                             dbRef.resourceManager[tblName] = {
-                                $hash: table.$hash,
+                                _hash: table._hash,
                                 lastModified: +new Date,
                                 created: table.created || +new Date
                             };

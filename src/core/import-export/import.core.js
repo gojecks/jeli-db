@@ -44,18 +44,25 @@ function jFileReader() {
             handler = extend(handler, handlers);
         }
 
-        var input = element("<input type='file'/>");
-        input
-            .bind('change', function(e) {
-                handler.onselect(this.files[0].name, this.files);
-                handler.selectedFile = this.files[0];
-                handleSelectedFile();
-                input.remove();
-            })
-            .css({ top: "-10000px", position: "absolute" })
-            .appendTo('body');
+        function eventBinder(e) {
+            handler.onselect(this.files[0].name, this.files);
+            handler.selectedFile = this.files[0];
+            handleSelectedFile();
+            input.remove();
+        }
 
-        input[0].click();
+        var input = document.createElement("input");
+        input.type = "file";
+        input.addEventListener('change', eventBinder, false);
+        // add styling
+        input.style.top = "-10000px";
+        input.style.position = "absolute";
+        document.body.appendChild(input);
+        // attach event to document for focus
+        window.onfocus = function() {
+            input.removeEventListener('change', eventBinder);
+        };
+        input.click();
 
         return ({
             getFile: function() {

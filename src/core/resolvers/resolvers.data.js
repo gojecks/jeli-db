@@ -124,12 +124,12 @@ function DBRecordResolvers(name) {
             });
 
             //Update Hash
-            function updateTableHash($hash) {
-                if ($hash) {
+            function updateTableHash(checksum) {
+                if (checksum) {
                     privateApi.$taskPerformer
                         .updateDB(name, tbl, function(table) {
-                            table.$previousHash = table.$hash;
-                            table.$hash = $hash;
+                            table._previousHash = table._hash;
+                            table._hash = checksum;
                         });
                 }
             }

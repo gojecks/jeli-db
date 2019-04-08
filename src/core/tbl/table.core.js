@@ -55,7 +55,7 @@ function jEliDBTBL(tableInfo) {
                 privateApi.$taskPerformer.updateDeletedRecord('rename', {
                     oldName: tableInfo.TBL_NAME,
                     newName: newTableName,
-                    $hash: tableInfo.$hash,
+                    _hash: tableInfo._hash,
                     db: tableInfo.DB_NAME
                 });
             }
@@ -92,7 +92,7 @@ function jEliDBTBL(tableInfo) {
         //update the DB
         jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
             table.data = [];
-            table.$hash = "";
+            table._hash = "";
             table._records = table.lastInsertId = 0;
             /**
                 broadcast event
@@ -108,7 +108,7 @@ function jEliDBTBL(tableInfo) {
             return dbErrorPromiseObject("Table (" + tableInfo.TBL_NAME + ") Was not found in " + tableInfo.DB_NAME + " DataBase or invalid flag passed");
         }
 
-        if (!tableInfo.TBL_NAME && !tableInfo.$hash) {
+        if (!tableInfo.TBL_NAME && !tableInfo._hash) {
             return dbErrorPromiseObject("Invalid Table record passed, please try again.");
         }
 
@@ -117,7 +117,7 @@ function jEliDBTBL(tableInfo) {
         if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
             privateApi.$taskPerformer.updateDeletedRecord('table', {
                 name: tableInfo.TBL_NAME,
-                $hash: tableInfo.$hash,
+                _hash: tableInfo._hash,
                 db: tableInfo.DB_NAME
             });
         }
@@ -135,7 +135,7 @@ function jEliDBTBL(tableInfo) {
     };
 
 
-    this.onUpdate = new ApplicationRealtime('table', tableInfo.DB_NAME, tableInfo.TBL_NAME, tableInfo.$hash);
+    this.onUpdate = new ApplicationRealtime('table', tableInfo.DB_NAME, tableInfo.TBL_NAME, tableInfo._hash);
 
     //Table constructor
     function constructTable(cFn) {

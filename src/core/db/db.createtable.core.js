@@ -32,7 +32,8 @@ ApplicationInstance.prototype.createTbl = function(name, columns) {
             index: {},
             created: curTime,
             lastModified: curTime,
-            $hash: GUID(),
+            _hash: GUID(),
+            _previousHash: ""
         }));
 
         /**

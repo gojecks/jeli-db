@@ -203,8 +203,8 @@ _privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
 _privateApi.prototype.getTableCheckSum = function(db, tbl) {
     var table = this.$getTable(db, tbl);
     return ({
-        current: table.$hash,
-        previous: table.$previousHash
+        current: table._hash,
+        previous: table._previousHash
     });
 };
 

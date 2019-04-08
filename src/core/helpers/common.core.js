@@ -66,7 +66,7 @@
       var _delRecords = _resolvers.getResolvers('deletedRecords');
       switch (ref) {
           case ('table'):
-              _delRecords[ref][obj.name] = obj.$hash || GUID();
+              _delRecords[ref][obj.name] = obj._hash || GUID();
               /**
                * check if table was renamed earlier
                * remove it from th list
@@ -79,7 +79,7 @@
               _delRecords[ref][obj.oldName] = obj.newName;
               break;
           case ('database'):
-              _delRecords[ref][obj.db] = obj.$hash || GUID();
+              _delRecords[ref][obj.db] = obj._hash || GUID();
               break;
       }
 

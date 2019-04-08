@@ -18,11 +18,21 @@
 ApplicationInstance.prototype.api = function(URL, postData, tbl) {
     var _options = privateApi.buildOptions(this.name, tbl, URL),
         $defer = new _Promise();
-    if (postData || ($isObject(URL) && URL.data)) {
+    // set the postData
+    postData = postData || URL.data;
+    if (postData) {
         if (_options.type && $isEqual(_options.type.toLowerCase(), 'get')) {
-            _options.data.query = postData || URL.data;
+            _options.data.query = postData;
+        } else if (postData instanceof FormData) {
+            // append all data into formData
+            Object.keys(_options.data).forEach(function(prop) {
+                postData.append(prop, _options.data[prop]);
+            });
+            _options.data = postData;
+            _options.contentType = false;
+            _options.processData = false;
         } else {
-            _options.data.postData = postData || URL.data;
+            _options.data.postData = postData;
         }
     }
 
