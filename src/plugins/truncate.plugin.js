@@ -1,7 +1,7 @@
  //update -table -records
  //Clause -where -columns -like:expression
 
- jEliDB.plugins.jQl('truncate', {
+ jplugins.jQl('truncate', {
      help: ['-truncate -[tbl_name] -flag[[yes] : [no]]'],
      requiresParam: true,
      fn: truncatePluginFn

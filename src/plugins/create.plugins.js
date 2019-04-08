@@ -1,4 +1,4 @@
-jEliDB.plugins.jQl('create', {
+jplugins.jQl('create', {
     help: ['-create -[tbl_name] [columns]'],
     requiresParam: true,
     fn: createPluginFn

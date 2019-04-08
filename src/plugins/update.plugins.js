@@ -1,7 +1,7 @@
  //update -table -records
  //Clause -where -columns -like:expression
 
- jEliDB.plugins.jQl('update', {
+ jplugins.jQl('update', {
      help: ['-update -[tbl_name] -[data] -expression[ [where] [like]] -pushToServer[yes|no]'],
      requiresParam: true,
      fn: updatePluginFn

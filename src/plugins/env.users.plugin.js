@@ -1,5 +1,5 @@
 //juser environment Plugin
-jEliDB.plugins.jQl('_users', {
+jplugins.jQl('_users', {
     help: '_users -[add|remove|authorize|update|isExists] -param {JSON_OBJECT}',
     requiresParam: true,
     fn: jUsersPluginFn

@@ -1,4 +1,4 @@
-jEliDB.plugins.jQl('delete', {
+jplugins.jQl('delete', {
     help: ['-delete -[tbl_name] -[[condition] [like:]] -pushToServer[yes|no]'],
     requiresParam: true,
     fn: deletePluginFn

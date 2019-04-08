@@ -1,4 +1,4 @@
-jEliDB.plugins.jQl('insert', {
+jplugins.jQl('insert', {
     help: ['-insert -[data] -[tbl_name]'],
     requiresParam: true,
     fn: insertPluginFn
