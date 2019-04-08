@@ -31,7 +31,7 @@
           //ignore deleted tables
           var checkDeletedTables = networkResolver.deletedRecords.table[server.TBL_NAME];
           if (checkDeletedTables) {
-              if (!$isEqual(checkDeletedTables, server.$hash)) {
+              if (!$isEqual(checkDeletedTables, server._hash)) {
                   syncHelper.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server', networkResolver);
                   changes.hashChanged++;
               }

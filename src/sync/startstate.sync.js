@@ -60,7 +60,7 @@
           }
 
           //Update Hash
-          tableToUpdate.$hash = hash;
+          tableToUpdate._hash = hash;
           tableToUpdate.lastModified = +new Date;
       }
 
@@ -115,10 +115,10 @@
                   nextQueue({ state: 'Error', failedTables: failedState }, 'push');
               }
 
-              function pushSuccessState($hash) {
+              function pushSuccessState(checksum) {
                   setMessage('Push completed for table(' + currentProcessTbl + ')');
-                  if ($hash) {
-                      updateHash(currentProcessTbl, $hash);
+                  if (checksum) {
+                      updateHash(currentProcessTbl, checksum);
                   }
                   processLocalUpdate(currentProcessTbl);
                   nextQueue({ state: 'Success' }, 'push');
@@ -138,7 +138,7 @@
                           var okay = pushResponse.ok;
 
                           if (okay) {
-                              pushSuccessState(pushResponse.$hash);
+                              pushSuccessState(pushResponse._hash);
                           } else {
                               pushErrorState();
                           }

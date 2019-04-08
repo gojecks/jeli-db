@@ -94,7 +94,7 @@ syncHelperPublicApi.prototype.setMessage = function(log, networkResolver) {
  */
 syncHelperPublicApi.prototype.createFakeTable = function(appName, tbl) {
     return ({
-        $hash: null,
+        _hash: null,
         data: [],
         columns: [{}],
         DB_NAME: appName,
@@ -244,7 +244,7 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
     //update the table and not overwrite
     if (data) {
         if (!data.columns.diff) {
-            data.$hash = _options.data.postData.$hash; //update the postData hash before posting
+            data._hash = _options.data.postData._hash; //update the postData hash before posting
             _options.data.postData = _activeDB.$get('recordResolvers').$get(tbl);
             _options.data.action = "update";
         }
@@ -321,7 +321,7 @@ syncHelperPublicApi.prototype.processRequest = function(_options, resolvedTable,
                     .$getActiveDB(appName)
                     .$get('recordResolvers')
                     .$isResolved(resolvedTable)
-                    .updateTableHash(res.$hash);
+                    .updateTableHash(res._hash);
             }
         }, function(res) {
             $defer.reject(res);

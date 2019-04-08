@@ -8,9 +8,9 @@ function RequestMapping(disableAdminApi, appName) {
      * 
      * @param {*} stateName 
      */
-    function getPublicApi(stateName) {
+    function getPublicApi(url) {
         var proc = function(api) {
-            return $isEqual(api.URL, stateName) || $isEqual(api.ref && api.ref, stateName);
+            return $isEqual(api.URL, url) || $isEqual(api.ref && api.ref, url);
         };
 
         return (JDB_REQUEST_API.filter(proc)[0] || CUSTOM_API.filter(proc)[0]);
@@ -20,8 +20,8 @@ function RequestMapping(disableAdminApi, appName) {
      * 
      * @param {*} stateName 
      */
-    this.get = function(stateName) {
-        var $api = getPublicApi(stateName);
+    this.get = function(url) {
+        var $api = getPublicApi(url);
         if ($api && disableAdminApi && $api.PROTECTED_API) {
             return null;
         }

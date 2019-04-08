@@ -82,13 +82,13 @@ var JDB_REQUEST_API = [{
     },
     {
         "METHOD": "GET",
-        "PROTECTED_API": false,
+        "PROTECTED_API": true,
         "AUTH_TYPE": 1,
         "URL": "/application/info"
     },
     {
         "METHOD": "GET",
-        "PROTECTED_API": false,
+        "PROTECTED_API": true,
         "AUTH_TYPE": 1,
         "URL": "/application/environment/variables"
     },
@@ -103,12 +103,6 @@ var JDB_REQUEST_API = [{
         "PROTECTED_API": false,
         "AUTH_TYPE": 2,
         "URL": "/resource"
-    },
-    {
-        "METHOD": "GET",
-        "PROTECTED_API": false,
-        "AUTH_TYPE": 1,
-        "URL": "/currency/exchange"
     },
     {
         "METHOD": "POST",
@@ -167,7 +161,7 @@ var JDB_REQUEST_API = [{
     {
         "METHOD": "POST",
         "PROTECTED_API": false,
-        "AUTH_TYPE": 0,
+        "AUTH_TYPE": 1,
         "URL": "/user/validate/password"
     },
     {
@@ -298,7 +292,7 @@ var JDB_REQUEST_API = [{
     },
     {
         "METHOD": "PUT",
-        "PROTECTED_API": false,
+        "PROTECTED_API": true,
         "AUTH_TYPE": 1,
         "URL": "/application/environment/variables"
     },
@@ -354,6 +348,12 @@ var JDB_REQUEST_API = [{
         "METHOD": "DELETE",
         "PROTECTED_API": true,
         "AUTH_TYPE": 1,
+        "URL": "/logs/remove"
+    },
+    {
+        "METHOD": "DELETE",
+        "PROTECTED_API": true,
+        "AUTH_TYPE": 1,
         "URL": "/drop/database"
     },
     {
@@ -382,7 +382,7 @@ var JDB_REQUEST_API = [{
     },
     {
         "METHOD": "POST",
-        "PROTECTED_API": false,
+        "PROTECTED_API": true,
         "AUTH_TYPE": 1,
         "URL": "/omise/payment"
     }

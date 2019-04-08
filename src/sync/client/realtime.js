@@ -17,8 +17,7 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
     this.types = ["insert", "update", "delete"];
     this.destroyed = false;
     this.withRef = false;
-    this.beat = 10;
-    this.trial = 0;
+    this.trial = 1;
 
     Object.defineProperties(this, {
         ref: {
@@ -48,6 +47,10 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
         }
     });
 
+    function getSleepTimer() {
+        return (_this.timer * _this.trial++);
+    }
+
     /**
      * 
      * @param {*} report 
@@ -60,13 +63,14 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
                 .then(function(res) {
                     totalRecordsToSync -= report.total_per_request;
                     updatePromiserHandler(res);
+                    _this.trial = 0;
                     if (totalRecordsToSync > 0) {
                         chunkRequest();
                     } else {
-                        polling();
+                        polling(_this.timer);
                     }
                 }, function() {
-                    setTimeout(chunkRequest, 5000);
+                    setTimeout(chunkRequest, getSleepTimer());
                 });
         }
 
@@ -87,8 +91,8 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
                         .$taskPerformer
                         .updateDB(dbName, ctbl, function(table) {
                             if (_data.checksum) {
-                                table.$previousHash = _data.previousHash;
-                                table.$hash = _data.checksum;
+                                table._previousHash = _data.previousHash;
+                                table._hash = _data.checksum;
                             }
                         });
 
@@ -102,6 +106,7 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
     }
 
     function pollUpdate() {
+        var timer = _this.timer;
         /**
          * 
          * @param {*} res 
@@ -109,6 +114,8 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
         function processResponse(res) {
             if ($isEqual(res.type, 'report')) {
                 return startChunkState(res);
+            } else if ($isEqual(res.type, 'message')) {
+                return errorPolling();
             }
 
             if (res.destroy) {
@@ -117,16 +124,26 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
             }
 
             // update promise handler
+            _this.trial = 1;
             updatePromiserHandler(res);
-            polling(_this.timer);
+            polling(timer);
+        }
+
+        /**
+         * error polling
+         */
+        function errorPolling() {
+            return polling(getSleepTimer());
         }
 
         /**
          * perform request
          */
         pollRequest(_this.generatePayload())
-            .then(processResponse, function() {
-                polling(_this.timer + (_this.beat * _this.trial++));
+            .then(processResponse, function(res) {
+                if (!$isEqual(res.statusCode, 401)) {
+                    errorPolling();
+                }
             });
     }
 
@@ -143,7 +160,7 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
      * @param {*} start 
      */
     function polling(start) {
-        if (this.destroyed) { return; }
+        if (_this.destroyed) { return; }
         timerId = setTimeout(pollUpdate, start);
     }
 
@@ -157,6 +174,12 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
         this.destroyed = true;
         clearTimeout(timerId);
     };
+
+    this.once = function() {
+        console.log("starting realtime with once initializer");
+        this.start();
+        this.destroyed = true;
+    };
 }
 
 /**
@@ -168,14 +191,8 @@ ApplicationRealtime.prototype.generatePayload = function(syncId) {
     var dbName = this.dbName;
     var _reqOptions = privateApi.buildOptions(this.dbName, null, "/recent/updates"),
         _queryPayload = {};
-    if (this.tbl) {
-        _queryPayload[this.tbl] = {
-            query: payload
-        };
-    }
-
     // update type is DB
-    if ($isEqual(this.type, 'db')) {
+    if ($isEqual(this.ref, 'db')) {
         if (!payload) {
             privateApi.getDbTablesNames(this.dbName).forEach(function(name) {
                 _queryPayload[name] = {};
@@ -183,6 +200,10 @@ ApplicationRealtime.prototype.generatePayload = function(syncId) {
         } else {
             _queryPayload = payload;
         }
+    } else {
+        _queryPayload[this.tbl] = {
+            query: payload
+        };
     }
     /**
      * 

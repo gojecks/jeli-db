@@ -3,7 +3,7 @@
   //@param server data, local data
   function snapShot(server, client) {
       var counter = 0,
-          $hashChanges = !$isEqual(server.$hash, (client.$hash || client.$previousHash));
+          $hashChanges = !$isEqual(server._hash, (client._hash || client._previousHash));
 
       function checker(diffLoop, diffAgainst, _changes, type) {
           function increaseCounter() {
