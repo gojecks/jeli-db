@@ -7,18 +7,6 @@ function jEliDBSynchronization(appName) {
         networkResolver = resolver.networkResolver,
         $process = syncHelper.process.startSyncProcess(appName);
 
-    function setMessage(msg) {
-        syncHelper.setMessage(msg, networkResolver);
-    }
-
-    //@Function Name syncResourceToServer
-    //@Objective : Update the server resource File
-
-    function syncResourceToServer() {
-        setMessage('Resource synchronization started');
-        return privateApi.$http(syncHelper.setRequestData(appName, '/database/resource', '', ''));
-    }
-
     function printLog() {
         networkResolver.logger.forEach(console.log);
     }
@@ -28,7 +16,7 @@ function jEliDBSynchronization(appName) {
      * @param {*} handler 
      */
     function processEntity(handler) {
-        setMessage('ProcessEntity State Started');
+        syncHelper.setMessage('ProcessEntity State Started');
         if (handler) {
             networkResolver.handler = handler;
         }
@@ -45,28 +33,28 @@ function jEliDBSynchronization(appName) {
                              * killState and return false
                              */
                             if (privateApi.$getActiveDB(appName).$get('resourceManager').getDataBaseLastSyncDate()) {
-                                setMessage("Database doesn't exists on the server");
+                                syncHelper.setMessage("Database doesn't exists on the server");
                                 syncHelper.killState(appName);
                                 return privateApi.removeDB(appName, true);
                             }
 
                             //first time using jEliDB
-                            setMessage('Server Resource was not found');
-                            setMessage('Creating new resource on the server');
-                            syncResourceToServer()
+                            syncHelper.setMessage('Server Resource was not found');
+                            syncHelper.setMessage('Creating new resource on the server');
+                            syncHelper.syncResourceToServer(appName)
                                 .then(function(resourceResponse) {
                                     var resState = resourceResponse.state;
                                     if (resState) {
                                         //start sync state
-                                        setMessage('Resource synchronized successfully');
+                                        syncHelper.setMessage('Resource synchronized successfully');
                                         new startSyncState(appName, false).process();
                                     } else {
                                         //failed to set resource
-                                        setMessage('Resource synchronization failed');
+                                        syncHelper.setMessage('Resource synchronization failed');
                                         syncHelper.killState(appName);
                                     }
                                 }, function() {
-                                    setMessage('Resource synchronization failed, please check your log');
+                                    syncHelper.setMessage('Resource synchronization failed, please check your log');
                                     syncHelper.killState(appName);
                                 });
 
@@ -87,15 +75,15 @@ function jEliDBSynchronization(appName) {
                         };
 
                     }, function(err) {
-                        setMessage('Pull Request has failed, please check your network');
+                        syncHelper.setMessage('Pull Request has failed, please check your network');
                         if (err.data) {
-                            setMessage(err.data.message);
+                            syncHelper.setMessage(err.data.message);
                         }
                         syncHelper.killState(appName);
                     });
             }
         } else {
-            setMessage('Error processing commit state, either serviceHost was not defined');
+            syncHelper.setMessage('Error processing commit state, either serviceHost was not defined');
             printLog();
         }
     }
@@ -105,7 +93,7 @@ function jEliDBSynchronization(appName) {
         $process.getSet('forceSync', forceSync);
         $process.getSet('networkResolver', networkResolver);
         $process.getSet('onMessage', function(msg) {
-            syncHelper.setMessage(msg, networkResolver);
+            syncHelper.setMessage(msg);
         });
 
         //check for production state

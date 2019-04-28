@@ -19,7 +19,7 @@
       //@Local Table was found     
       if (local) {
           if (comparism.$hashChanges() || comparism.$noLocalData()) {
-              syncHelper.setMessage('Table(' + tbl + ') was updated on the server', networkResolver);
+              syncHelper.setMessage('Table(' + tbl + ') was updated on the server');
               changes.hashChanged = 1;
           }
 
@@ -32,11 +32,11 @@
           var checkDeletedTables = networkResolver.deletedRecords.table[server.TBL_NAME];
           if (checkDeletedTables) {
               if (!$isEqual(checkDeletedTables, server._hash)) {
-                  syncHelper.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server', networkResolver);
+                  syncHelper.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server');
                   changes.hashChanged++;
               }
           } else {
-              syncHelper.setMessage('Synchronizing New Table(' + tbl + ') to your local DB', networkResolver);
+              syncHelper.setMessage('Synchronizing New Table(' + tbl + ') to your local DB');
               changes.hashChanged++;
           }
       }

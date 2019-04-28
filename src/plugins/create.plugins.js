@@ -1,4 +1,4 @@
-jplugins.jQl('create', {
+JDB_PLUGINS.jQl('create', {
     help: ['-create -[tbl_name] [columns]'],
     requiresParam: true,
     fn: createPluginFn
@@ -7,7 +7,7 @@ jplugins.jQl('create', {
 //create -tablename -columns
 function createPluginFn(query, handler) {
     var tblName = query[1],
-        columns = maskedEval(query[2]) || [],
+        columns = query[2] || [],
         result = false;
 
     return function(db) { //create the table

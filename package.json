@@ -1,11 +1,13 @@
 {
     "name": "jelidb",
-    "version": "1.0.1",
+    "version": "1.0.1-beta",
     "description": "Javascript Database for front-end development",
-    "main": "jdb.min.js",
+    "main": "dist/jdb.min.js",
     "files": [
-        "dist"
+        "dist",
+        "@types"
     ],
+    "types": "@types/index.d.ts",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/gojecks/jEliDB.git"
@@ -58,11 +60,14 @@
         "load-grunt-config": "0.16.0",
         "load-grunt-tasks": "3.1.0",
         "mocha": "^5.2.0",
-        "time-grunt": "1.3.0"
+        "time-grunt": "1.3.0",
+        "jeli-template-loader": "../jeli-template-loader/jeli-template-loader-0.1.0.tgz"
     },
     "scripts": {
         "testjdb": "mocha './test/**/*.spec.js'",
         "jdb": "grunt  --project=jelidb"
     },
-    "dependencies": {}
+    "dependencies": {
+        "jdb.adapters": "file:../jdb.adapter"
+    }
 }

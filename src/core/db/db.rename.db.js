@@ -12,7 +12,7 @@ ApplicationInstance.prototype.rename = function(newName) {
         privateApi.renameDataBase(this.name, newName, function() {
             var newResource = privateApi.$getActiveDB(dbName).$get('resourceManager').getResource();
             if (newResource && newResource.lastSyncedDate) {
-                _self.api('/rename/database', { name: newName })
+                _self.api('/database/rename', { name: newName })
                     .then(function(result) {
                         defer.resolve(result);
                     }, function(err) {

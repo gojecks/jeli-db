@@ -4,6 +4,7 @@
 function syncHelperPublicApi() {
     var self = this;
     this.process = {
+        currentProcess: "",
         $process: {},
         startSyncProcess: function(appName) {
             this.$process[appName] = Object.create({
@@ -27,7 +28,7 @@ function syncHelperPublicApi() {
                     this.getSet('postSyncTables', tables);
                 },
             });
-
+            this.currentProcess = appName;
             return this.$process[appName];
         },
         destroyProcess: function(appName) {
@@ -38,11 +39,11 @@ function syncHelperPublicApi() {
         },
         getApplicationApiKey: function(appName) {
             var _appProcess = this.getProcess(appName),
-                options = self.setRequestData(appName, '/apikey', true);
+                options = self.setRequestData(appName, '/application/key', true);
             options.data.key = "api_key";
-            self.setMessage('Retrieving API key....', _appProcess.getSet('networkResolver'));
+            self.setMessage('Retrieving API key....');
             return privateApi.$http(options).then(function(res) {
-                self.setMessage('Retrieved API key', _appProcess.getSet('networkResolver'));
+                self.setMessage('Retrieved API key');
                 _appProcess.getSet('applicationKey', res);
                 _appProcess = null;
             });
@@ -57,27 +58,35 @@ function syncHelperPublicApi() {
  */
 syncHelperPublicApi.prototype.printSyncLog = function(networkResolver, appName) {
     var _syncLog = this.process.getProcess(appName).getSet('syncLog'),
-        _self = this;
+        _self = this,
+        logs = [];
     for (var i in _syncLog) {
-        this.setMessage('---Log for ' + i + ' table----', networkResolver);
+        logs.push('---Log for ' + i + ' table----');
         ["data", "columns"].forEach(function(log) {
-            _self.setMessage(log.toUpperCase() + ' Changes: ' + _syncLog[i][log].changesFound, networkResolver);
+            logs.push(log.toUpperCase() + ' Changes: ' + _syncLog[i][log].changesFound);
             ["delete", "insert", "update"].map(function(list) {
-                _self.setMessage(list.toUpperCase() + " : " + _syncLog[i][log][list].length, networkResolver);
+                logs.push(list.toUpperCase() + " : " + _syncLog[i][log][list].length);
             });
         });
     }
+
+    this.setMessage(logs);
 };
 
-//Sync Error Message Logger
 /**
- * 
+ * Sync Message Logger
  * @param {*} log 
  * @param {*} networkResolver 
  */
-syncHelperPublicApi.prototype.setMessage = function(log, networkResolver) {
-    if (log) {
-        log = '[' + new Date().toLocaleString() + '] : ' + log;
+syncHelperPublicApi.prototype.setMessage = function(log) {
+    var networkResolver = this.process.getProcess(this.process.currentProcess).getSet('networkResolver');
+    if (log && networkResolver) {
+        if ($isArray(log)) {
+            log = log.map(function(item) { return '[' + new Date().toLocaleString() + '] : ' + item; }).join("\n");
+        } else {
+            log = '[' + new Date().toLocaleString() + '] : ' + log;
+        }
+
         if (networkResolver.logService) {
             networkResolver.logService(log);
         } else {
@@ -124,12 +133,12 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
     //ignore post data
     if (!ignore) {
         switch (state.toLowerCase()) {
-            case ('/state/push'):
-            case ('/state/sync'):
+            case ('/database/push'):
+            case ('/database/sync'):
                 options.data.postData = privateApi.$getTable(appName, tbl);
                 options.data.action = "overwrite";
                 break;
-            case ('/database/resource'):
+            case ('/database/resource/add'):
                 var resource = privateApi.$getActiveDB(appName).$get('resourceManager').getResource();
                 if (!resource.lastSyncedDate) {
                     resource.lastSyncedDate = +new Date;
@@ -179,7 +188,7 @@ syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
  * @param {*} requiredData 
  */
 syncHelperPublicApi.prototype.getSchema = function(appName, requiredTable) {
-    var _options = this.setRequestData(appName, '/schema', false, requiredTable || []),
+    var _options = this.setRequestData(appName, '/database/schema', false, requiredTable || []),
         $defer = new _Promise();
 
     privateApi.$http(_options)
@@ -199,7 +208,15 @@ syncHelperPublicApi.prototype.getSchema = function(appName, requiredTable) {
  * @param {*} appName 
  */
 syncHelperPublicApi.prototype.pullResource = function(appName) {
-    return privateApi.$http(this.setRequestData(appName, '/resource', true));
+    return privateApi.$http(this.setRequestData(appName, '/database/resource', true));
+};
+
+//@Function Name syncResourceToServer
+//@Objective : Update the server resource File
+
+syncHelperPublicApi.prototype.syncResourceToServer = function(appName) {
+    this.setMessage('Resource synchronization started');
+    return privateApi.$http(syncHelper.setRequestData(appName, '/database/resource/add', '', ''));
 };
 
 
@@ -237,7 +254,7 @@ syncHelperPublicApi.prototype.finalizeProcess = function(appName) {
  */
 syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
     var _activeDB = privateApi.$getActiveDB(appName);
-    this.setMessage('Initializing Push State for table(' + tbl + ')', _activeDB.$get('resolvers').networkResolver);
+    this.setMessage('Initializing Push State for table(' + tbl + ')');
     //check state
     state = state || 'push';
     var _options = this.setRequestData(appName, state, false, tbl);
@@ -262,8 +279,8 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
  * @param {*} tbl 
  */
 syncHelperPublicApi.prototype.pullTable = function(appName, tbl) {
-    this.setMessage('---Retrieving ' + tbl + ' schema---', this.process.getProcess(appName).getSet('networkResolver'));
-    return privateApi.$http(this.setRequestData(appName, '/pull', false, tbl));
+    this.setMessage('---Retrieving ' + tbl + ' schema---');
+    return privateApi.$http(this.setRequestData(appName, '/database/pull', false, tbl));
 };
 
 //@Function Name Pull
@@ -274,7 +291,7 @@ syncHelperPublicApi.prototype.pullTable = function(appName, tbl) {
  * @param {*} appName 
  */
 syncHelperPublicApi.prototype.pull = function(appName) {
-    this.setMessage('Pull  State Started', this.process.getProcess(appName).getSet('networkResolver'));
+    this.setMessage('Pull  State Started');
     return new startSyncState(appName).getDBRecords();
 };
 
@@ -331,11 +348,10 @@ syncHelperPublicApi.prototype.processRequest = function(_options, resolvedTable,
 }
 
 syncHelperPublicApi.prototype.autoSync = function(appName, tbl, data) {
-    var _options = this.setRequestData(appName, '/state/push', false, tbl);
+    var _options = this.setRequestData(appName, '/database/push', false, tbl);
     _options.data.postData = data;
-    //  _options.data.checksum = privateApi.getTableCheckSum(appName, tbl);
     _options.data.action = "update";
-    return this.processRequest(_options, tbl, this.appName);
+    return this.processRequest(_options, tbl, appName);
 }
 
 var syncHelper = new syncHelperPublicApi();

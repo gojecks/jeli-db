@@ -72,10 +72,10 @@ function jEliDBTBL(tableInfo) {
              */
             jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
 
-            return "Table renamed successfully";
+            return dbSuccessPromiseObject("rename", "Table renamed successfully");
         }
 
-        return "Invalid TABLE NAME";
+        return dbErrorPromiseObject("Invalid TABLE NAME");
     };
 
     //get All the column

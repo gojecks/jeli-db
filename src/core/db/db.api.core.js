@@ -15,36 +15,45 @@
  *   METHOD:STRING, data:ANY
  * }
  */
+var CacheMechanism = new Map();
 ApplicationInstance.prototype.api = function(URL, postData, tbl) {
-    var _options = privateApi.buildOptions(this.name, tbl, URL),
+    var options = privateApi.buildOptions(this.name, tbl, URL),
         $defer = new _Promise();
-    // set the postData
-    postData = postData || URL.data;
-    if (postData) {
-        if (_options.type && $isEqual(_options.type.toLowerCase(), 'get')) {
-            _options.data.query = postData;
-        } else if (postData instanceof FormData) {
-            // append all data into formData
-            Object.keys(_options.data).forEach(function(prop) {
-                postData.append(prop, _options.data[prop]);
-            });
-            _options.data = postData;
-            _options.contentType = false;
-            _options.processData = false;
-        } else {
-            _options.data.postData = postData;
+    if (options.cache && CacheMechanism.has(URL)) {
+        var result = CacheMechanism.get(URL);
+        $defer.resolve(result);
+    } else {
+        // set the postData
+        postData = postData;
+        if (postData) {
+            if (options.type && $isEqual(options.type.toLowerCase(), 'get')) {
+                options.data.query = postData;
+            } else if (postData instanceof FormData) {
+                // append all data into formData
+                Object.keys(options.data).forEach(function(prop) {
+                    postData.append(prop, options.data[prop]);
+                });
+                options.data = postData;
+                options.contentType = false;
+                options.processData = false;
+            } else {
+                options.data.postData = postData;
+            }
         }
-    }
 
-    privateApi.$http(_options)
-        .then(function(res) {
-            var ret = dbSuccessPromiseObject('api', "");
-            ret.result = res;
-            ret.__api__ = URL;
-            $defer.resolve(ret);
-        }, function(err) {
-            $defer.reject((err.data || { message: "There was an error please try again later" }));
-        });
+        privateApi.$http(options)
+            .then(function(res) {
+                var ret = dbSuccessPromiseObject('api', "");
+                ret.result = res;
+                ret.__api__ = URL;
+                $defer.resolve(ret);
+                if (options.cache) {
+                    CacheMechanism.set(URL, ret);
+                }
+            }, function(err) {
+                $defer.reject((err.data || { message: "There was an error please try again later" }));
+            });
+    }
 
     return $defer;
 };

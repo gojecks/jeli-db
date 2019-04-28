@@ -239,7 +239,7 @@ function transactionSelect(selectFields, definition) {
         }
         // check for INARRAY CLAUSE in query
         // @usage : INARRAY([HAYSTACK, needle])
-        queryDefinition.where.replace(/\INARRAY\(\[(.*?)\]\)/, function(key, match) {
+        queryDefinition.where.replace(/INARRAY\(\[(.*?)\]\)/, function(key, match) {
             queryDefinition.inClause.push({
                 replacer: key,
                 query: match.split(",")[0],

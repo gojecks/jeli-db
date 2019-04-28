@@ -12,13 +12,4 @@ ApplicationInstance.prototype.replicate = function(definition) {
     if (!definition.name) {
         definition.name = this.name + "_copy";
     }
-
-    this.api('/database/replicate', definition)
-        .then(function(res) {
-            $defer.resolve(dbSuccessPromiseObject('replicate', "Application successfully replicated"))
-        }, function() {
-            $defer.reject.apply($defer, arguments);
-        });
-
-    return $defer;
 };

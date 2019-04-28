@@ -3,6 +3,7 @@
  */
 function RequestMapping(disableAdminApi, appName) {
     var CUSTOM_API = [],
+        JDB_REQUEST_API = require("./api.json"),
         isResolvedCustom = false;
     /**
      * 
@@ -21,12 +22,7 @@ function RequestMapping(disableAdminApi, appName) {
      * @param {*} stateName 
      */
     this.get = function(url) {
-        var $api = getPublicApi(url);
-        if ($api && disableAdminApi && $api.PROTECTED_API) {
-            return null;
-        }
-
-        return $api;
+        return getPublicApi(url);
     };
 
     /**
@@ -64,7 +60,7 @@ function RequestMapping(disableAdminApi, appName) {
         }
 
         isResolvedCustom = true;
-        privateApi.$http(privateApi.buildOptions(appName, '', '/load'))
+        privateApi.$http(privateApi.buildOptions(appName, '', '/application/api'))
             .then(function(res) {
                 if ($isArray(res)) {
                     CUSTOM_API = extend(true, CUSTOM_API, res);

@@ -1,7 +1,7 @@
 //Help Plugin
 //Initialized in Env	
 
-jplugins.jQl('help', {
+JDB_PLUGINS.jQl('help', {
     help: '-help',
     requiresParam: false,
     fn: helperPluginFn
@@ -15,7 +15,7 @@ function helperPluginFn(query, handler) {
         if (query[1] && customPlugins._content[query[1]]) {
             helpers = [].concat(customPlugins._content[query[1]].help);
         } else {
-            helpers = db.jDBHelpers.get().concat();
+            helpers = db.helpers.get().concat();
             for (var plugin in customPlugins._content) {
                 helpers = helpers.concat(customPlugins._content[plugin].help);
             }

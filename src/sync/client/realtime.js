@@ -18,6 +18,7 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
     this.destroyed = false;
     this.withRef = false;
     this.trial = 1;
+    this.url = "/database/updates";
 
     Object.defineProperties(this, {
         ref: {
@@ -176,7 +177,6 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
     };
 
     this.once = function() {
-        console.log("starting realtime with once initializer");
         this.start();
         this.destroyed = true;
     };
@@ -189,7 +189,7 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
 ApplicationRealtime.prototype.generatePayload = function(syncId) {
     var payload = ($isFunction(this.payload) ? this.payload() : this.payload);
     var dbName = this.dbName;
-    var _reqOptions = privateApi.buildOptions(this.dbName, null, "/recent/updates"),
+    var _reqOptions = privateApi.buildOptions(this.dbName, null, this.url),
         _queryPayload = {};
     // update type is DB
     if ($isEqual(this.ref, 'db')) {

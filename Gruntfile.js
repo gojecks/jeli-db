@@ -9,6 +9,9 @@ module.exports = function(grunt) {
 
     require('load-grunt-config')(grunt, {
         jitGrunt: true,
-        configPath: path.join(process.cwd(), 'grunt/' + appName)
+        configPath: path.join(process.cwd(), 'grunt/'),
+        data: {
+            pkg: grunt.file.readJSON('package.json')
+        }
     });
 };

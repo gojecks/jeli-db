@@ -25,7 +25,7 @@ function syncConflictChecker(appName, resourceChecker, tbl) {
             if (serverTbl) {
                 var $diff = syncDataComparism(serverTbl, clientTbl, resourceChecker, networkResolver);
                 if ($diff.hashChanged) {
-                    syncHelper.setMessage('Lastest Update found on the Server', networkResolver);
+                    syncHelper.setMessage('Lastest Update found on the Server');
 
                     //reject the promise
                     $promise
@@ -42,13 +42,13 @@ function syncConflictChecker(appName, resourceChecker, tbl) {
 
             } else {
                 //data have changed after last pull
-                syncHelper.setMessage('Table schema was not found on the SERVER', networkResolver);
+                syncHelper.setMessage('Table schema was not found on the SERVER');
                 //update
                 $promise
                     .resolve({ status: "success", pushRecord: false, code: 200 });
             }
         }, function(mergeResponse) {
-            syncHelper.setMessage('unable to check for conflict, please check your internet setting', networkResolver);
+            syncHelper.setMessage('unable to check for conflict, please check your internet setting');
             syncHelper.killState(appName);
         });
 

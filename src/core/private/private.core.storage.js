@@ -13,52 +13,26 @@ _privateApi.prototype.setStorage = function(dbName, config, callback) {
      * default storage to memory
      * when invalid storage property
      */
-    var _storage = config.storage || 'memory',
+    var storageInit = customStorage.$get(config.storage || 'memory'),
         _activeDBInstance = this.$getActiveDB(dbName);
-    // check for storage type
-    switch (_storage.toLowerCase()) {
-        case ('indexeddb'):
-            _activeDBInstance.$new('_storage_', new indexedDBStorage(callback, dbName));
-            break;
-        case ('sqlite'):
-        case ('sqlitecipher'):
-        case ('websql'):
-            if ($inArray(_storage.toLowerCase(), ['sqlite', 'sqlitecipher', 'cordova.sqlite.adapter', 'sqlite.adapter']) && !window.sqlitePlugin) {
-                _storage = "websql";
-            }
 
-            var sqliteConfig = {
-                name: dbName,
-                location: config.location || 'default',
-                key: config.key || GUID()
-            };
+    if ($isFunction(storageInit)) {
+        storageInit.privateApi = Object.create({
+            getResourceName: this.getResourceName,
+            $getActiveDB: this.$getActiveDB,
+            storageEventHandler: this.storageEventHandler,
+            eventNamingIndex: eventNamingIndex,
+            getDataResolverName: this.getDataResolverName
+        });
 
-            _activeDBInstance.$new('_storage_', new sqliteStorage(_storage, sqliteConfig, callback).mockLocalStorage());
-            break;
-        case ('file'):
-        case ('flat-file'):
-            _activeDBInstance.$new('_storage_', FlatFileSupport({
-                folderPath: config.folderPath || '/tmp/',
-                name: dbName,
-                key: config.key || GUID()
-            }, callback));
-            break;
-        case ('localstorage'):
-        case ('sessionstorage'):
-        case ('memory'):
-        default:
-            /**
-             * custom storage
-             */
-            if (window[_storage] && $isFunction(window[_storage])) {
-                _activeDBInstance.$new('_storage_', new window[_storage](sqliteConfig, callback));
-                return;
-            }
-
-            //setStorage
-            //default storage to localStorage
-            _activeDBInstance.$new('_storage_', new jDBStorage(_storage, dbName));
-            callback();
-            break;
+        _activeDBInstance.$new('_storage_', new storageInit({
+            type: config.storage,
+            name: dbName,
+            location: config.location || 'default',
+            key: config.key || GUID(),
+            folderPath: config.folderPath || '/tmp/',
+        }, callback));
+    } else {
+        errorBuilder(config.storage + " doesn't exists");
     }
 };

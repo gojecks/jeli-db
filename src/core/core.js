@@ -1,19 +1,3 @@
-(function(root, factory) {
-    if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
-        define(['jdb'], function(b) {
-            return (root.jdb = factory(b));
-        });
-    } else if (typeof module === 'object' && module.exports) {
-        // Node. Does not work with strict CommonJS, but
-        // only CommonJS-like environments that support module.exports,
-        // like Node.
-        module.exports = factory(require('jdb'));
-    } else {
-        // Browser globals
-        root.jdb = factory(root.b);
-    }
-}(typeof self !== 'undefined' ? self : this, function(b) {
     /**
      * @method jEliDB
      * @param {*} name 
@@ -39,6 +23,14 @@
         /**
          * 
          * @param {*} config 
+         * {
+         *  disableApiLoading: false
+         *  isClientMode: false,
+         *  isLoginRequired: false
+         *  serviceHost: ""
+         *  live: false
+         *  
+         * }
          */
         function open(config) {
             var promise = new DBPromise(defer),
@@ -73,7 +65,9 @@
                                 .register('inProduction', inProduction)
                                 .register('requestMapping', new RequestMapping(false, name))
                                 .trigger(function() {
-                                    this.getResolvers('requestMapping').resolveCustomApis();
+                                    if (!config.disableApiLoading && config.serviceHost) {
+                                        this.getResolvers('requestMapping').resolveCustomApis();
+                                    }
                                 });
                         }
 
@@ -327,5 +321,5 @@
         });
     }
 
-    return jEliDB;
-}));
+    exports.jdb = jEliDB;
+    global.jdb = jEliDB;

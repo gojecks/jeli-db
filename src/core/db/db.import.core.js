@@ -149,5 +149,5 @@ ApplicationInstance.prototype.import = function(table, handler) {
         }
     }
 
-    return new jFileReader().start(new importHandler());
+    return new AutoSelectFile(importModules).start(new importHandler());
 };

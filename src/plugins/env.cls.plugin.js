@@ -1,6 +1,6 @@
 //@Function clearScreen
 //Clear Screen Plugin
-jplugins.jQl('cls', {
+JDB_PLUGINS.jQl('cls', {
     help: ['-cls (clearScreen)'],
     requiresParam: false,
     fn: clearScreenPluginFn

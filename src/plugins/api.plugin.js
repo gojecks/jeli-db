@@ -1,6 +1,6 @@
 //Cutom Plugins
 //Environment Plugin 
-jplugins.jQl('api', {
+JDB_PLUGINS.jQl('api', {
     help: ['api -state[STRING || OBJECT] -[optional:data] -table',
         'state: OBJECT SCHEMA : {URL:STRING, METHOD:STRING, AUTH_TYPE:INT, body:ANY}',
         'state: STRING - /api/request/path '
@@ -16,7 +16,7 @@ jplugins.jQl('api', {
 
 function apiPluginFn(query, handler) {
     return function(db) {
-        var postData = maskedEval(query[2]),
+        var postData = query[2],
             table = query[3] || '';
 
 

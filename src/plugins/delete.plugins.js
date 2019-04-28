@@ -1,4 +1,4 @@
-jplugins.jQl('delete', {
+JDB_PLUGINS.jQl('delete', {
     help: ['-delete -[tbl_name] -[[condition] [like:]] -pushToServer[yes|no]'],
     requiresParam: true,
     fn: deletePluginFn

@@ -17,8 +17,8 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
         _task.update = function(cdata) {
             cdata.forEach(function(item) {
                 var idx = exisitingRefs.indexOf(item._ref);
-                if (0 > idx) {
-                    tbl.data[idx].data = item.data;
+                if (!!~idx) {
+                    tbl.data[idx]._data = item._data;
                     _ret.update.push(item._data);
                 }
             });

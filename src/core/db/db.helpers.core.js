@@ -17,4 +17,4 @@ function jCMDHelpers() {
     };
 }
 
-ApplicationInstance.prototype.jDBHelpers = new jCMDHelpers();
+ApplicationInstance.prototype.helpers = new jCMDHelpers();

@@ -1,7 +1,7 @@
 //Synchronization Plugin
 //Task Called with Env
 
-jplugins.jQl('sync', {
+JDB_PLUGINS.jQl('sync', {
     help: ['-sync  (optional) -[tbl_name] -[force]'],
     requiresParam: false,
     fn: syncPluginFn

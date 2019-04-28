@@ -1,7 +1,7 @@
  //update -table -records
  //Clause -where -columns -like:expression
 
- jplugins.jQl('truncate', {
+ JDB_PLUGINS.jQl('truncate', {
      help: ['-truncate -[tbl_name] -flag[[yes] : [no]]'],
      requiresParam: true,
      fn: truncatePluginFn
@@ -19,7 +19,7 @@
              db
                  .table(query[1])
                  .onSuccess(function(trun) {
-                     var flag = simpleBooleanParser(query[2]),
+                     var flag = query[2],
                          state = trun.result.truncate(flag);
                      if (state.status) {
                          handler.onSuccess(state);

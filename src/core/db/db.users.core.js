@@ -151,10 +151,18 @@ ApplicationInstance.prototype._users = function() {
 
     /**
      * 
+     * @param {*} data 
+     */
+    function reAuthorize(data) {
+        return db.api('/user/reauthorize', data);;
+    };
+
+    /**
+     * 
      * @param {*} postData 
      */
     function removeUserAuthority(postData) {
-        return db.api('/user/database/remove', postData);
+        return db.api('/database/user/remove', postData);
     }
 
     /**
@@ -162,17 +170,18 @@ ApplicationInstance.prototype._users = function() {
      * @param {*} postData 
      */
     function addUserAuthority(postData) {
-        return db.api('/database/users/add', postData)
+        return db.api('/database/user/add', postData)
     }
 
     function validatePasswd(postData) {
-        return db.api('/user/validate/password', postData);
+        return db.api('/user/password/validate', postData);
     }
 
     return ({
         add: addUser,
         remove: removeUser,
         authorize: getUsers,
+        reAuthorize: reAuthorize,
         updateUser: updateUser,
         validatePassword: validatePasswd,
         isExists: isExists,

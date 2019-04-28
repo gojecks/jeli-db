@@ -7,6 +7,7 @@ function ApplicationScheduler(appName) {
     var _queue = [];
     var _scheduler = [];
     this.interval = null;
+    this.url = '/send/email';
     var _this = this;
     var _records = [];
 
@@ -101,7 +102,7 @@ ApplicationScheduler.prototype.push = function() {
     };
 
     function process() {
-        var options = privateApi.buildOptions(_this.appName, '', '/send/email');
+        var options = privateApi.buildOptions(_this.appName, '', _this.url);
         var postData = _this._queue.shift();
         options.data.postData = postData;
         privateApi.$http(options)

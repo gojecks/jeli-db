@@ -7,7 +7,6 @@
       var syncState = syncHelper.prepareSyncState(appName, resource),
           $process = syncHelper.process.getProcess(appName),
           networkResolver = $process.getSet('networkResolver'),
-          setMessage = $process.getSet('onMessage'),
           failedState = [],
           queue = 0,
           pullRecordList = {},
@@ -17,8 +16,9 @@
       function processQueue(inc, state) {
           var currentProcessTbl = syncState.tables.pop();
           //set message status
-          setMessage('Synchronization started for table(' + currentProcessTbl + ')');
-          new synchronizeTable(currentProcessTbl)[state]();
+          syncHelper.setMessage('Synchronization started for table(' + currentProcessTbl + ')');
+          var syncCore = new synchronizeTable(currentProcessTbl);
+          syncCore[state]();
           //increment queue
           queue++;
       }
@@ -39,10 +39,10 @@
               .$mergeTable(appName, serverData, tbl)
               .then(function(suc) {
                   privateApi.$taskPerformer.updateDB(appName, tbl, null, +new Date);
-                  setMessage(suc.message);
+                  syncHelper.setMessage(suc.message);
                   nextQueue({ state: 'Success' }, 'push');
               }, function(fai) {
-                  setMessage(fai.message);
+                  syncHelper.setMessage(fai.message);
                   nextQueue({ state: 'Success' }, 'push');
               });
 
@@ -116,7 +116,7 @@
               }
 
               function pushSuccessState(checksum) {
-                  setMessage('Push completed for table(' + currentProcessTbl + ')');
+                  syncHelper.setMessage('Push completed for table(' + currentProcessTbl + ')');
                   if (checksum) {
                       updateHash(currentProcessTbl, checksum);
                   }
@@ -132,7 +132,7 @@
               function allowPushState(data) {
                   //api : /sync/state
                   //sync state can only be done by Authorized Application
-                  var state = ((!data) ? '/state/sync' : '/state/push');
+                  var state = ((!data) ? '/database/sync' : '/database/push');
                   syncHelper.push(appName, currentProcessTbl, data, state)
                       .then(function(pushResponse) {
                           var okay = pushResponse.ok;
@@ -156,11 +156,11 @@
                    *    drop the table and update the resoure
                    */
                   if (isDeletedTable(resource.resourceManager, currentProcessTbl)) {
-                      setMessage(currentProcessTbl + ' doesn\'t exist on the server');
+                      syncHelper.setMessage(currentProcessTbl + ' doesn\'t exist on the server');
                       if (networkResolver.resolveDeletedTable(currentProcessTbl)) {
                           privateApi.removeTable(currentProcessTbl, appName, true);
                           privateApi.$getActiveDB(appName).$get('resourceManager').removeTableFromResource(currentProcessTbl);
-                          setMessage(currentProcessTbl + ' removed from local DB');
+                          syncHelper.setMessage(currentProcessTbl + ' removed from local DB');
                       }
 
                       nextQueue({ state: 'error' }, 'push');
@@ -169,7 +169,7 @@
                       /**
                        * synchronize Newly created Table to the server
                        */
-                      setMessage('New Table created and needs to sync with Server');
+                      syncHelper.setMessage('New Table created and needs to sync with Server');
                       allowPushState(false);
                   }
               } else {
@@ -195,11 +195,11 @@
 
           function failedConflictResolver() {
               if ($process.getSet('forceSync')) {
-                  setMessage('sync was called with -force:yes');
+                  syncHelper.setMessage('sync was called with -force:yes');
                   allowPushState(false);
                   return;
               }
-              setMessage('skipped merging process for this process');
+              syncHelper.setMessage('skipped merging process for this process');
               nextQueue({ state: 'Error' }, 'push');
           }
 
@@ -227,11 +227,11 @@
           var states = ({
               push: function(response) {
                   if (syncState.postSync.length) {
-                      setMessage('Synching down --' + JSON.stringify(syncState.postSync) + '--');
+                      syncHelper.setMessage('Synching down --' + JSON.stringify(syncState.postSync) + '--');
                       syncHelper
                           .syncDownTables(appName, syncState.postSync, resource)
                           .then(finalize, function(err) {
-                              setMessage('Error synching down, please try again later');
+                              syncHelper.setMessage('Error synching down, please try again later');
                               finalize('killState');
                           });
 
@@ -265,7 +265,7 @@
           return function(state, response) {
               syncHelper.printSyncLog(networkResolver, appName);
               if (failedState.length) {
-                  setMessage('synchronization failed for ' + JSON.stringify(failedState));
+                  syncHelper.setMessage('synchronization failed for ' + JSON.stringify(failedState));
               }
               states[state](response);
               cleanUp();
@@ -301,7 +301,7 @@
        * End process when unable to retireve API key
        */
       function endProcess() {
-          setMessage('Unable to retrieve API key');
+          syncHelper.setMessage('Unable to retrieve API key');
           syncHelper.killState(appName);
       }
 

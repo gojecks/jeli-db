@@ -29,10 +29,7 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
         options.headers['X-CSRF-TOKEN'] = cToken;
     }
 
-    if (!$isObject(requestState)) {
-        requestState = networkResolver.requestMapping.get(requestState);
-    }
-
+    requestState = networkResolver.requestMapping.get(requestState);
     if (requestState) {
         options.url += requestState.URL;
         tbl = tbl || requestState.tbl;
@@ -42,12 +39,10 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
 
         //initialize our network interceptor
         (networkResolver.interceptor || function() {})(options, requestState);
-
-        options.data._o = base64.encode(window.location.origin);
-        options.data._p = window.location.pathname;
         options.data._h = window.location.host;
         options.data._r = base64.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce);
         options.type = requestState.METHOD;
+        options.cache = requestState.CACHE || false;
 
         //options.getRequestHeader
         options.getResponseHeader = function(fn) {
@@ -68,14 +63,11 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
  * 
  * @param {*} options 
  */
-_privateApi.prototype.$http = (function() {
-    var ajax = $http || AjaxSetup();
-    return function(options) {
-        var $ajax = this.getNetworkResolver('$ajax', options.__appName__) || ajax;
-        if (!$isFunction($ajax)) {
-            errorBuilder('Unable to make HTTP request');
-        }
-
-        return $ajax(options);
+_privateApi.prototype.$http = function(options) {
+    var $ajax = this.getNetworkResolver('$ajax', options.__appName__);
+    if (!$isFunction($ajax)) {
+        errorBuilder('Unable to make HTTP request');
     }
-})();
+
+    return $ajax(options);
+};

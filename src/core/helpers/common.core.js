@@ -32,10 +32,7 @@
 
   //@Function Delete Storage Item
   function delStorageItem(name) {
-      if (getStorageItem(name)) {
-          privateApi.$getActiveDB().$get('_storage_').removeItem(name);
-      }
-
+      privateApi.$getActiveDB().$get('_storage_').removeItem(name);
       return true;
   }
 
@@ -149,9 +146,7 @@
   function buildSelectQuery(query, entryPoint) {
       var definition = {};
       if (query.length > entryPoint) {
-          if ($isJsonString(query[entryPoint])) {
-              definition = jSonParser(query[entryPoint]);
-          } else {
+          if ($isString(query[entryPoint])) {
               // splice our query
               // set definition
               [].concat.call(query).splice(entryPoint).map(function(qKey) {
@@ -166,6 +161,8 @@
 
                   }
               });
+          } else {
+              return query[entryPoint];
           }
       }
 

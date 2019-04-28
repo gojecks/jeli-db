@@ -1,4 +1,4 @@
-jplugins.jQl('drop', {
+JDB_PLUGINS.jQl('drop', {
     help: ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ]'],
     requiresParam: true,
     fn: dropPluginFn
@@ -17,7 +17,7 @@ function dropPluginFn(query, handler) {
             errMsg = { state: "drop", message: query[1] + " command was not found, please type help for JDB command" };
 
         if (query.length > 2) {
-            var flag = simpleBooleanParser(query[3]) || false;
+            var flag = query[3] || false;
             switch (query[1].toLowerCase()) {
                 case ("table"):
                 case ('tbl'):

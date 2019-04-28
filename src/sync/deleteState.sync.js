@@ -5,7 +5,6 @@
    * @param {*} serverResource 
    */
   function deleteSyncState(appName, deleteRecords, serverResource) {
-      var setMessage = syncHelper.process.getProcess(appName).getSet('onMessage');
       /**
        * 
        * @param {*} task 
@@ -24,10 +23,10 @@
                       delete _delRecordManager[appName][task][_name];
                       _inc++;
                   } else {
-                      setMessage(_resData[_name].message);
+                      syncHelper.setMessage(_resData[_name].message);
                   }
               } else {
-                  setMessage('Unable to remove ' + task + "(" + _name + ') from the server');
+                  syncHelper.setMessage('Unable to remove ' + task + "(" + _name + ') from the server');
               }
           });
 
@@ -83,10 +82,10 @@
       this.fail = function(res) {
           if (res.data && res.data.removed) {
               expect(res.data.removed).each(function(obj) {
-                  setMessage(obj.message || "Unable to perform requested action.");
+                  syncHelper.setMessage(obj.message || "Unable to perform requested action.");
               });
           }
-          setMessage('Failed to synchronize, please try again');
+          syncHelper.setMessage('Failed to synchronize, please try again');
           syncHelper.killState(appName);
       };
 
@@ -100,7 +99,7 @@
               .process
               .getApplicationApiKey(appName)
               .then(mainProcess, function() {
-                  setMessage('Failed to retrieve Application Key');
+                  syncHelper.setMessage('Failed to retrieve Application Key');
                   self.fail();
               });
 
@@ -109,13 +108,13 @@
            */
 
           function mainProcess() {
-              var api = '/drop/table',
+              var api = '/database/table/drop',
                   data = deleteRecords.table,
                   message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server',
                   _task = "table";
               //check if database was remove from client
               if (deleteRecords.database[appName]) {
-                  api = '/drop/database';
+                  api = '/database/drop';
                   data = deleteRecords.database;
                   message = "Droping " + appName + " Application from the server";
                   _task = "database";
@@ -127,7 +126,7 @@
                */
               var _renamedTables = Object.keys(deleteRecords.rename);
               if ($isEqual(_task, 'table') && _renamedTables.length) {
-                  setMessage('Renaming Tables(' + JSON.stringify(_renamedTables) + ') on the server');
+                  syncHelper.setMessage('Renaming Tables(' + JSON.stringify(_renamedTables) + ') on the server');
                   processRenamedTables()
                       .then(mainRequest, self.fail);
                   return;
@@ -135,7 +134,7 @@
 
 
               function processRenamedTables() {
-                  return request("/rename/table", 'renamed', deleteRecords.rename)
+                  return request("/database/table/rename", 'renamed', deleteRecords.rename)
                       .then(function(res) {
                           cleanUp('rename', res);
                       });
@@ -153,7 +152,7 @@
                       return;
                   }
                   //set message to our console
-                  setMessage(message);
+                  syncHelper.setMessage(message);
                   request(api, 'remove', data)
                       .then(self.done(_task), self.fail);
               }

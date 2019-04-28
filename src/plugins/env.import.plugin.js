@@ -2,7 +2,7 @@
 //Called in env
 //-env -import -tableName
 
-jplugins.jQl('import', {
+JDB_PLUGINS.jQl('import', {
     help: ['import -[table name] -[fileType]'],
     requiresParam: true,
     fn: jImportPluginFn

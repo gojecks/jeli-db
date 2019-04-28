@@ -1,4 +1,4 @@
-jplugins.jQl('insert', {
+JDB_PLUGINS.jQl('insert', {
     help: ['-insert -[data] -[tbl_name]'],
     requiresParam: true,
     fn: insertPluginFn
@@ -7,7 +7,7 @@ jplugins.jQl('insert', {
 //insert -table name -data
 function insertPluginFn(query, handler) {
     var tblName = query[2],
-        data = maskedEval(query[1]) || [],
+        data = query[1] || [],
         result = false;
 
     return function(db) {

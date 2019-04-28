@@ -40,7 +40,7 @@ function ApplicationInstance(name, version, required) {
             _options.data.key = key;
             logService('Retrieving Api Key and Secret..');
             //perform ajax call
-            return ProcessRequest(_options);
+            return ProcessRequest(_options, null, name);
         };
         // application scheduler
         this.scheduler = new ApplicationScheduler(name);
