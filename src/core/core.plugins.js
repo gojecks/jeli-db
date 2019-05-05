@@ -3,7 +3,7 @@ var customPlugins = new watchBinding(); //used to hold customPlugins
 /**
  * core custom pluginFn
  */
-var plugins = Object.create({
+jEliDB.JDB_PLUGINS = Object.create({
     jQl: function(name, plugin) {
         if (name && $isObject(plugin) && !customPlugins.hasProp(name)) {
             customPlugins.$new(name, plugin);
@@ -39,5 +39,3 @@ var plugins = Object.create({
         }
     }
 });
-
-global.JDB_PLUGINS = plugins;

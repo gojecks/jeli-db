@@ -11,5 +11,4 @@ function Storage(name, Service) {
     }
 }
 
-global.JDB_STORAGE_SYSTEM = Storage;
-exports.JDB_STORAGE_SYSTEM = Storage;
+jEliDB.JDB_STORAGE_SYSTEM = Storage;

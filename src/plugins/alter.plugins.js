@@ -1,4 +1,4 @@
-JDB_PLUGINS.jQl('alter', {
+jEliDB.JDB_PLUGINS.jQl('alter', {
     help: [
         'Alter -[tbl_name] -a -c -columnName [config]',
         'Alter -[tbl_name] -a -p -columnName',

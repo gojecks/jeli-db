@@ -40,8 +40,9 @@ importModules.prototype.json = function(content) {
 };
 
 importModules.prototype.html = function(content) {
-    var div = element('<div />').html(content),
-        tr = div[0].querySelectorAll('tr'),
+    var div = document.createElement('div');
+    div.innerHTML = content;
+    var tr = div.querySelectorAll('tr'),
         lines = [];
 
     //Function to remove td 

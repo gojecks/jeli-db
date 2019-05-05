@@ -1,4 +1,4 @@
-JDB_PLUGINS.jQl('insert', {
+jEliDB.JDB_PLUGINS.jQl('insert', {
     help: ['-insert -[data] -[tbl_name]'],
     requiresParam: true,
     fn: insertPluginFn

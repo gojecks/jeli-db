@@ -1,7 +1,7 @@
 //Help Plugin
 //Initialized in Env	
 
-JDB_PLUGINS.jQl('help', {
+jEliDB.JDB_PLUGINS.jQl('help', {
     help: '-help',
     requiresParam: false,
     fn: helperPluginFn

@@ -2,7 +2,7 @@
     "name": "jelidb",
     "version": "1.0.1-beta",
     "description": "Javascript Database for front-end development",
-    "main": "dist/jdb.min.js",
+    "main": "dist/jdb.js",
     "files": [
         "dist",
         "@types"
@@ -65,9 +65,7 @@
     },
     "scripts": {
         "testjdb": "mocha './test/**/*.spec.js'",
-        "jdb": "grunt  --project=jelidb"
-    },
-    "dependencies": {
-        "jdb.adapters": "file:../jdb.adapter"
+        "jdb": "grunt  --project=jelidb",
+        "build:pack": "grunt build-pack && npm pack"
     }
 }

@@ -1,4 +1,4 @@
-JDB_PLUGINS.jQl('drop', {
+jEliDB.JDB_PLUGINS.jQl('drop', {
     help: ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ]'],
     requiresParam: true,
     fn: dropPluginFn

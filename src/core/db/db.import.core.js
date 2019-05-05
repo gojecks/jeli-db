@@ -32,13 +32,14 @@ ApplicationInstance.prototype.import = function(table, handler) {
      */
     function importHandler() {
         //@Fn insertData
-        function insertData(data) {
+        function insertData(data, processData) {
             //DB Transaction
             //Write Data to TABLE
             db.transaction(table, 'writeonly')
                 .onSuccess(function(res) {
                     res
                         .result
+                        .dataProcessing(processData)
                         .insert.apply(res.result, data)
                         .execute()
                         .onSuccess(function(ins) {
@@ -123,7 +124,7 @@ ApplicationInstance.prototype.import = function(table, handler) {
                     .createTbl(table, config)
                     .onSuccess(function(res) {
                         handler.logService(res.result.message);
-                        insertData(data.data);
+                        insertData(data.data, false);
                     })
                     .onError(function(res) {
                         handler.logService(res.message)
@@ -131,7 +132,7 @@ ApplicationInstance.prototype.import = function(table, handler) {
             } else {
                 //insert the data into the data
                 checkColumns(data.columns, data.data[0]);
-                insertData(data.data);
+                insertData(data.data, true);
             }
 
             if (handler.onSuccess) {

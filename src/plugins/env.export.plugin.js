@@ -2,7 +2,7 @@
 	//Called in oarent environment
 	//env -export -type -name -download | print
 
-	JDB_PLUGINS.jQl('export', {
+	jEliDB.JDB_PLUGINS.jQl('export', {
 	    help: ['-export -[TBL_NAME] -type[(csv , html, jql or json)]  -(d or p) (optional) -[fileName] -[title]'],
 	    requiresParam: true,
 	    fn: jExportPluginFn

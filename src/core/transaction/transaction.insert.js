@@ -6,7 +6,9 @@ function transactionInsert() {
         _data = arguments,
         $self = this,
         tableInfo = $self.tableInfo,
-        columnObj = columnObjFn(tableInfo.columns[0]);
+        columns = tableInfo.columns[0],
+        columnObj = columnObjFn(columns),
+        _typeValidator = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('dataTypes');
 
     /*
         Check if the our arguments is 1
@@ -24,71 +26,70 @@ function transactionInsert() {
     }
 
     if (_data.length && columnObj && !this.hasError()) {
-        expect(_data).each(function(item, idx) {
-            var type = ($isObject(item) ? 'object' : 'array'),
-                cdata = {};
-
-            //switch type
-            switch (type) {
-                case ('object'):
+        /**
+         * check if dataProcessing is disabled
+         */
+        if (this.processData) {
+            _data.forEach(function(item, idx) {
+                var cdata = {};
+                //switch type
+                if ($isObject(item)) {
                     cdata = item;
-                    break;
-                case ('array'):
+                } else {
                     var columnKeys = Object.keys(columnObj),
                         k;
                     //loop through the 
                     for (k in columnKeys) {
-                        cdata[columnKeys[k]] = item[k] || jSonParser(item);
+                        cdata[columnKeys[k]] = item[k];
                     }
-                    break;
-            }
+                }
 
-            if (processData(cdata, idx)) {
-                var tableConfig = tableInfo.columns[0],
-                    pData = extend(true, columnObj, cdata);
-
-                // check indexing
-                var _dataExists = false,
-                    _ref = GUID(),
-                    _index;
-                for (_index in tableInfo.index) {
-                    var _currentIndexCheck = tableInfo.index[_index];
-                    if (_currentIndexCheck.indexes) {
-                        // check the the index already exists
-                        if (_currentIndexCheck.indexes[pData[_index]]) {
-                            if (_currentIndexCheck.unique) {
-                                _dataExists = true;
-                                _skipped.push(_currentIndexCheck.indexes[pData[_index]]);
+                if (processData(cdata, idx)) {
+                    var pData = extend(true, columnObj, cdata);
+                    // check indexing
+                    var _dataExists = false,
+                        _ref = GUID(),
+                        _index;
+                    for (_index in tableInfo.index) {
+                        var _currentIndexCheck = tableInfo.index[_index];
+                        if (_currentIndexCheck.indexes) {
+                            // check the the index already exists
+                            if (_currentIndexCheck.indexes[pData[_index]]) {
+                                if (_currentIndexCheck.unique) {
+                                    _dataExists = true;
+                                    _skipped.push(_currentIndexCheck.indexes[pData[_index]]);
+                                }
+                            } else {
+                                _currentIndexCheck.indexes[pData[_index]] = _ref;
                             }
                         } else {
+                            _currentIndexCheck.indexes = {};
                             _currentIndexCheck.indexes[pData[_index]] = _ref;
                         }
-                    } else {
-                        _currentIndexCheck.indexes = {};
-                        _currentIndexCheck.indexes[pData[_index]] = _ref;
+                    }
+
+                    //push data to processData array
+                    //set obj ref GUID
+                    if (!_dataExists) {
+                        tableInfo.lastInsertId++;
+                        //update the data to store
+                        findInList.call(pData, function(i, n) {
+                            //check auto_increment
+                            if ($isUndefined(n) && columns[i].hasOwnProperty('AUTO_INCREMENT')) {
+                                pData[i] = tableInfo.lastInsertId;
+                            }
+                        });
+
+                        var newSet = {}
+                        newSet['_ref'] = _ref;
+                        newSet['_data'] = pData;
+                        processedData.push(newSet);
                     }
                 }
-
-                //push data to processData array
-                //set obj ref GUID
-                if (!_dataExists) {
-                    tableInfo.lastInsertId++;
-                    //update the data to store
-                    findInList.call(pData, function(i, n) {
-                        //check auto_increment
-                        if ($isUndefined(n) && tableConfig[i].hasOwnProperty('AUTO_INCREMENT')) {
-                            pData[i] = tableInfo.lastInsertId;
-                        }
-                    });
-
-                    var newSet = {}
-                    newSet['_ref'] = _ref;
-                    newSet['_data'] = pData;
-                    processedData.push(newSet);
-                }
-            }
-        });
-
+            });
+        } else {
+            processedData = _data;
+        }
     }
 
 
@@ -112,7 +113,6 @@ function transactionInsert() {
             privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
 
             //push records to our resolver
-
             return updateTable(processedData.length);
         }]);
     }
@@ -122,9 +122,7 @@ function transactionInsert() {
 
     function processData(cData, dataRef) {
         //Process the Data
-        var columns = tableInfo.columns[0],
-            passed = 1,
-            _typeValidator = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('dataTypes');
+        var passed = 1;
         if (cData) {
             expect(cData).each(function(val, idx) {
                 //check if column is in table
@@ -132,7 +130,6 @@ function transactionInsert() {
                     //throw new error
                     $self.setDBError('column (' + idx + ') was not found on this table (' + tableInfo.TBL_NAME + '), to add a new column use the addColumn FN - ref #' + dataRef);
                     passed = !1;
-
                     return;
                 }
 
@@ -160,6 +157,7 @@ function transactionInsert() {
         processedData = [];
         _skippedTotal = _skipped.length;
         _skipped = [];
+        columns = _typeValidator = null;
         return ({
             message: totalRecords + " record(s) inserted successfully, skipped " + _skippedTotal + " existing record(s)"
         });

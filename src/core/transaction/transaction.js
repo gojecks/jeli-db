@@ -13,6 +13,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
     this.tables = tables;
     this.errLog = [];
     this.isMultipleTable = isMultipleTable;
+    this.processData = true;
     this.getError = function() {
         return this.errLog;
     };
@@ -30,6 +31,11 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
         return [].map.call(data || this.tableInfo.data, function(item) {
             return item._ref;
         });
+    };
+
+    this.dataProcessing = function(process) {
+        this.processData = process;
+        return this;
     };
 
     //Check if Table Information is available from the DB

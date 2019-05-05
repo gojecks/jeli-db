@@ -1,7 +1,7 @@
 //Synchronization Plugin
 //Task Called with Env
 
-JDB_PLUGINS.jQl('sync', {
+jEliDB.JDB_PLUGINS.jQl('sync', {
     help: ['-sync  (optional) -[tbl_name] -[force]'],
     requiresParam: false,
     fn: syncPluginFn

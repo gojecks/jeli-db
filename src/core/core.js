@@ -320,6 +320,3 @@
             requiresLogin: requiresLogin
         });
     }
-
-    exports.jdb = jEliDB;
-    global.jdb = jEliDB;
