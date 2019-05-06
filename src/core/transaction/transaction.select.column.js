@@ -31,7 +31,7 @@ function transactionSelectColumn(data, definition) {
                  * set reverse options if defined
                  * only when been used as filter options in expressions
                  */
-                if (expect(propertyName).contains(':')) {
+                if ($inArray(':', propertyName)) {
                     order = $removeWhiteSpace(propertyName.split(":")[1]);
                 }
 
@@ -41,7 +41,7 @@ function transactionSelectColumn(data, definition) {
                  * as method params
                  */
                 newList = _queryApi.sortBy.apply(_queryApi, propertyName.split(":")[0].split(","));
-                if ($isEqual(order, 'DESC')) {
+                if (order === 'DESC') {
                     newList.reverse();
                 }
                 return newList;
@@ -62,7 +62,7 @@ function transactionSelectColumn(data, definition) {
             };
         });
 
-        return copy(cdata, true);
+        return JSON.parse(JSON.stringify(cdata));
     }
 
     function limitTask(data) {
@@ -168,7 +168,7 @@ function transactionSelectColumn(data, definition) {
     //return the required column
     if (!$isEqual(definition.fields, '*') && definition.fields) {
         buildColumn();
-        expect(data).each(setColumnData);
+        data.forEach(setColumnData);
     } else {
         return performOrderLimitTask(data);
     }
@@ -188,13 +188,13 @@ function transactionSelectColumn(data, definition) {
 
 
             //if fieldName contains table name
-            if (expect(aCol).contains('.')) {
+            if ($inArray('.', aCol)) {
                 var spltCol = aCol.split(".");
                 tCol = $removeWhiteSpace(spltCol.shift());
                 // split our required column on ' as '
                 fieldName = spltCol.join('.').split(' as ');
                 //AS Clause is required 
-                if (expect(aCol).contains(' as ')) {
+                if ($inArray(' as ', aCol)) {
                     tCol = false;
                 }
             }

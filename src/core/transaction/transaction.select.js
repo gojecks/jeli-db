@@ -307,7 +307,7 @@ function transactionSelect(selectFields, definition) {
             //Table matcher
             //Matches the leftTable to RightTable
             //returns both Match and unMatched Result
-            expect(queryDefinition.join).each(function(join) {
+            queryDefinition.join.forEach(function(join) {
                 switch (join.clause.toLowerCase()) {
                     case ('outer'):
                         matchTableFn(join, 'left').recur('right');
