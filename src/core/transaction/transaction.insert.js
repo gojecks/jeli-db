@@ -88,7 +88,15 @@ function transactionInsert() {
                 }
             });
         } else {
-            processedData = _data;
+            // generate a new mapping dataset to be store
+            processedData = _data.map(function(item) {
+                return ({
+                    _ref: GUID(),
+                    _data: item
+                });
+            });
+
+            _data = null;
         }
     }
 
