@@ -40,7 +40,7 @@ ApplicationInstance.prototype.import = function(table, handler) {
                     res
                         .result
                         .dataProcessing(processData)
-                        .insert.apply(res.result, data)
+                        .insert(data)
                         .execute()
                         .onSuccess(function(ins) {
                             handler.logService(ins.result.message);
@@ -130,7 +130,7 @@ ApplicationInstance.prototype.import = function(table, handler) {
                         handler.logService(res.message)
                     })
             } else {
-                //insert the data into the data
+                //insert the data
                 checkColumns(data.columns, data.data[0]);
                 insertData(data.data, true);
             }
