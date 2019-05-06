@@ -136,7 +136,7 @@ function transactionSelect(selectFields, definition) {
                  * Algorithm : Match the lefttable before right
                  */
             case ('outer'):
-                if (expect(clause).contains('left')) {
+                if ($inArray('left', clause)) {
                     _sData[idx] = extend(true, resolver, _sData[idx] || {});
                 } else {
                     if (!isMatch) {
@@ -203,7 +203,7 @@ function transactionSelect(selectFields, definition) {
 
         //start process
         //query the leftTable Data
-        expect(leftTable).each(filterRightTable);
+        leftTable.forEach(filterRightTable);
 
 
         /**
@@ -326,7 +326,8 @@ function transactionSelect(selectFields, definition) {
         }
 
         //return the processed Data
-        return $self.getColumn(new $query(removeJeliDataStructure($self.tableInfo.data.slice()))._(queryDefinition.where), queryDefinition);
+        var data = removeJeliDataStructure($self.tableInfo.data.slice());
+        return $self.getColumn(new $query(data)._(queryDefinition.where), queryDefinition);
     }]);
 
     /*
@@ -381,6 +382,7 @@ function transactionSelect(selectFields, definition) {
         where: whereClause,
         groupBy: groupBy,
         orderBy: orderBy,
+        groupByStrict: groupByStrict,
         execute: execute
     });
 
