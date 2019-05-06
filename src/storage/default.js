@@ -9,8 +9,8 @@ function DefaultStorage(config, callback) {
     _publicApi_.setItem = function(name, value) {
         value = JSON.stringify(value);
         var filesizeCheck = Math.floor((((value.length) * 2) / 1024).toFixed(2));
-        if (filesizeCheck >= (1024 * 5)) {
-            DefaultStorage.privateApi.getNetworkResolver('logService')("_STORAGE_ERROR:File-Size is too large :" + (filesizeCheck / 1024) + " MB");
+        if (filesizeCheck >= (1024 * 10)) {
+            privateApi.getNetworkResolver('logService')("_STORAGE_ERROR:File-Size is too large :" + (filesizeCheck / 1024) + " MB");
             return;
         }
 
@@ -40,8 +40,8 @@ function DefaultStorage(config, callback) {
             oldData.tables[tbl].lastModified = +new Date
         });
         this.setItem(newName, oldData);
-        this.setItem(DefaultStorage.privateApi.getResourceName(newName), this.getItem(DefaultStorage.privateApi.getResourceName(oldName)));
-        DefaultStorage.privateApi.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
+        this.setItem(privateApi.getResourceName(newName), this.getItem(privateApi.getResourceName(oldName)));
+        privateApi.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
         this.removeItem(oldName);
         (cb || noop)();
     };
