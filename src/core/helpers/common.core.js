@@ -199,7 +199,7 @@
 
   //@Function Name jEliUpdateStorage
   //Updates the required Database
-  function jEliUpdateStorage(dbName, tblName) {
+  function jEliUpdateStorage() {
       privateApi.$taskPerformer.updateDB.apply(privateApi.$taskPerformer, arguments);
   }
 
