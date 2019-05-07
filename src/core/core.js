@@ -15,7 +15,6 @@
         var defer = new _Promise(),
             jeliInstance = {},
             version = parseInt(version || "1"),
-            _onUpgrade = function() {},
             _defaultConfig = {
                 isClientMode: false,
                 isLoginRequired: false
@@ -107,41 +106,43 @@
 
                 // Start DB
                 function startDB() {
+                    /**
+                     * Create a new DB Event 
+                     * DB will be updated with data
+                     * Only if onUpgrade Function is initilaized
+                     * set upgrade mode
+                     **/
                     jeliInstance.result = new ApplicationInstance(name, version);
                     var dbChecker = privateApi.$get(name) || false,
-                        isSameVersion = $isEqual(dbChecker.version, version);
-
-                    if (dbChecker && isSameVersion) {
-                        jeliInstance.message = name + " DB already exists with version no:(" + dbChecker.version;
-                        jeliInstance.message += "), having " + Object.keys(dbChecker.tables).length + " tables";
-
-                        //set exists mode
-                        jeliInstance.type = "existMode";
-
-                    } else {
-                        /**
-                         * Create a new DB Event 
-                         * DB will be updated with data
-                         * Only if onUpgrade Function is initilaized
-                         * set upgrade mode
-                         **/
-                        jeliInstance.type = "upgradeMode";
-                        privateApi.$set(name, { tables: {}, 'version': version });
-                        // DB is already created but versioning is different
-                        if (dbChecker && !isSameVersion) {
-                            //set Message
-                            jeliInstance.message = name + " DB was successfully upgraded!!";
-                            privateApi[name].version = version;
+                        isSameVersion = dbChecker && $isEqual(dbChecker.version, version);
+                    /**
+                     * dataBase exists
+                     */
+                    if (dbChecker) {
+                        if (isSameVersion) {
+                            //set exists mode
+                            // validate versions
+                            jeliInstance.message = name + " DB already exists with version no:(" + dbChecker.version;
+                            jeliInstance.message += "), having " + Object.keys(dbChecker.tables).length + " tables";
+                            jeliInstance.type = "existMode";
                         } else {
                             //set Message
-                            jeliInstance.message = name + " DB was successfully created!!";
+                            // DB is already created but versioning is different
+                            jeliInstance.message = name + " DB was successfully upgraded to version(" + version + ")";
+                            jeliInstance.type = "upgradeMode";
+                            // update the version
+                            dbChecker.version = version;
                         }
-
+                    } else {
+                        /**
+                         * create our database instance
+                         */
+                        jeliInstance.type = "createMode";
+                        privateApi.$set(name, { tables: {}, 'version': version });
+                        //set Message
+                        jeliInstance.message = name + " DB was successfully created!!";
                         // Object Store in Db
                         jEliUpdateStorage(name);
-
-                        // trigger the onUpgrade Fn
-                        _onUpgrade();
                     }
                     //resolve the request
                     defer.resolve(jeliInstance);
@@ -278,6 +279,22 @@
                  **/
                 promise.then(function() {
                     if ($isFunction(fn) && $isEqual(jeliInstance.type, 'upgradeMode')) {
+                        if (jeliInstance) {
+                            //initialize the upgraded FN
+                            fn.call(fn, jeliInstance);
+                        }
+                    }
+                });
+
+                return this;
+            };
+
+            /**
+             * onCreate Promise
+             */
+            promise.onCreate = function(fn) {
+                promise.then(function() {
+                    if ($isFunction(fn) && $isEqual(jeliInstance.type, 'createMode')) {
                         if (jeliInstance) {
                             //initialize the upgraded FN
                             fn.call(fn, jeliInstance);
