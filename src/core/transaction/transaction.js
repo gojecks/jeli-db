@@ -82,7 +82,8 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
       update offline cache
     **/
     this.updateOfflineCache = function(type, data) {
-        if (!$inArray(tableInfo.TBL_NAME, privateApi.getNetworkResolver('ignoreSync', tableInfo.DB_NAME)) && data.length) {
+        var ignoreSync = privateApi.getNetworkResolver('ignoreSync', tableInfo.DB_NAME);
+        if (true !== ignoreSync && !$inArray(tableInfo.TBL_NAME, ignoreSync) && data.length) {
             _recordResolvers
                 .$set(tableInfo.TBL_NAME)
                 .data(type, data);
