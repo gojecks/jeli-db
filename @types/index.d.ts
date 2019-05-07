@@ -5,7 +5,6 @@ export = jdb;
  export as namespace jdb;
 
 declare function jdb(db_name:String, version?:Number):jdb.IJDBInstance;
-
 declare namespace jdb {
     interface IJDBInstance {
         open(options:IDBCoreOptions):IDBCorePromise;
@@ -14,11 +13,20 @@ declare namespace jdb {
     }
     
     interface IDBCoreOptions {
+        app_id?:String;
+        inProduction?:Boolean;
+        handler?: {
+            onSuccess: Function;
+            onError: Function;
+        };
         disableApiLoading?:Boolean;
         isClientMode?:Boolean;
         isLoginRequired?:Boolean;
+        logService?:Function;
+        conflictResolver?:Function;
         serviceHost?:String;
         live?:Boolean;
+        ignoreSync?:Boolean|Array<String>;
         storage?:String;
         location?:String;
         key?:String;
@@ -27,12 +35,15 @@ declare namespace jdb {
         interceptor?:Function;
         organisation:String;
     }
+
+    type eventResponse = (event:IDBCoreEvent) => {};
     
     interface IDBCorePromise {
         onSuccess(cb:Function): IDBCorePromise;
         onError(cb:Function): IDBCorePromise;
         then(cb:Function): IDBCorePromise;
         onUpgrade(cb:Function): IDBCorePromise;
+        onCreate(cb:Function): IDBCorePromise;
     }
     
     interface IDBPromise {
@@ -64,12 +75,12 @@ declare namespace jdb {
         helpers:IDBCoreHelpers;
         close(flag?:Boolean):void;
         api(URL:String, postData?:any, tbl?:String):IDBPromise;
-        createTable(name:String, columns:Array<any>):IDBCorePromise;
+        createTbl(name:String, columns:Array<any>):IDBCorePromise;
         drop(flag?:Boolean):IDBCorePromise;
         export(type:String, table:String):{initialize(title?:String):any};
         import(table:String, handler:IDBEventHandler):{getFile():any; getData():any}
         info():Array<IDBTableInfoSet>;
-        jql(query:String, handler:IDBEventHandler, parser?:any):IDBCoreEvent;
+        jQl(query:String, handler:IDBEventHandler, parser?:any):IDBCoreEvent;
         rename(newName:String):IDBPromise;
         sync():IDBCoreSync;
         table(name:String, mode:String): IDBCorePromise;
@@ -93,10 +104,17 @@ declare namespace jdb {
         delete(query:String|any):this;
         insert(data:Array<any>):this;
         update(data:any, query?:any):this;
+        dataProcessing(process: Boolean): this;
         select(selectFields:String, definition?:IDBCoreTransactionSelect):this;
         getColumn():Array<any>;
         qsl():any;
         execute():IDBCorePromise;
+    }
+
+    interface IDBCoreTransactionResult {
+        message:String;
+        mode:String;
+        result:IDBCoreTransaction;
     }
     
     interface IDBCoreTransactionSelect {
@@ -128,7 +146,30 @@ declare namespace jdb {
     interface IDBTableAlter {
         drop(columnName):void;
         add:IDBTableAlterAdd;
-        rename(newName):String;
+        rename(newName:String): void;
+    }
+
+    interface IDBTransactionResult {
+        message: String;
+    }
+
+    interface IDBSelectTransactionEvent {
+        state: String;
+        jDBNumRows():Number;
+        getRow(index: Number);
+        getResult():Array<any>;
+        first():any;
+        openCursor(listener: Function): void;
+        limit(start: number, end: Number): Array<any>|any;
+    }
+
+    interface IDBSelectTransactionCursorEvent {
+        result: {
+            value: Array<any>;
+        };
+        continue():void;
+        previous():void;
+        index():Number;
     }
     
     interface IDBTableAlterAdd {
@@ -151,8 +192,8 @@ declare namespace jdb {
     }
     
     interface IDBEventHandler {
-        onSuccess(fn:Function):void;
-        onError(fn:Function):void;
+        onSuccess(fn:any):void;
+        onError(fn:eventResponse):void;
     }
     
     interface IDBCoreHelpers {}
