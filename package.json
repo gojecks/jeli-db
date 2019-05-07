@@ -2,9 +2,10 @@
     "name": "jelidb",
     "version": "1.0.1-beta",
     "description": "Javascript Database for front-end development",
-    "main": "dist/jdb.js",
+    "main": "dist/jdb.min.js",
     "files": [
-        "dist",
+        "dist/jdb.min.js",
+        "dist/jdb.min.js.map",
         "@types"
     ],
     "types": "@types/index.d.ts",
