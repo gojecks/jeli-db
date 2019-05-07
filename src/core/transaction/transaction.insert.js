@@ -115,11 +115,6 @@ function transactionInsert() {
                 $self.updateOfflineCache('insert', $self.getAllRef(processedData));
             }
 
-            /**
-                broadcast event
-            **/
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
-
             //push records to our resolver
             return updateTable(processedData.length);
         }]);
@@ -159,6 +154,10 @@ function transactionInsert() {
     function updateTable(totalRecords) {
         if ($isArray(processedData) && totalRecords) {
             tableInfo.data.push.apply(tableInfo.data, processedData);
+            /**
+                broadcast event
+            **/
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
         }
 
         //return success after push
