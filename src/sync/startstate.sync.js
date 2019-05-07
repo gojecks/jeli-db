@@ -173,23 +173,27 @@
                       allowPushState(false);
                   }
               } else {
-                  syncConflictChecker(appName, resource, currentProcessTbl)
-                      .then(function(response) {
-                          //if columns was updated
-                          //Push all records to the server
-                          if (!response.pushRecord || response.pushRecord.columns.diff) {
-                              allowPushState(false);
-                          } else {
-                              //push only updated records
-                              //check pushRecord Status
-                              allowPushState(response.pushRecord);
-                          }
+                  syncConflictChecker({
+                      tbl: currentProcessTbl,
+                      appName: appName,
+                      clientTbl: privateApi.$getTable(appName, currentProcessTbl),
+                      resourceChecker: resource
+                  }, function(response) {
+                      //if columns was updated
+                      //Push all records to the server
+                      if (!response.pushRecord || response.pushRecord.columns.diff) {
+                          allowPushState(false);
+                      } else {
+                          //push only updated records
+                          //check pushRecord Status
+                          allowPushState(response.pushRecord);
+                      }
 
-                      }, function(response) {
-                          if ($isFunction(networkResolver.conflictResolver)) {
-                              networkResolver.conflictResolver.apply(networkResolver, [response, currentProcessTbl, mergeTbl, failedConflictResolver]);
-                          }
-                      });
+                  }, function(response) {
+                      if ($isFunction(networkResolver.conflictResolver)) {
+                          networkResolver.conflictResolver.apply(networkResolver, [response, currentProcessTbl, mergeTbl, failedConflictResolver]);
+                      }
+                  });
               }
           };
 

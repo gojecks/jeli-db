@@ -5,7 +5,7 @@
     @param: metadata
     @param: networkResolver
   **/
-  function syncDataComparism(server, local, metadata, networkResolver) {
+  function syncDataComparism(server, local, networkResolver) {
       var changes = { hashChanged: 0, dataChanged: 0 };
       //process server tables
       var comparism = new snapShot(server, local),
@@ -31,7 +31,7 @@
           //ignore deleted tables
           var checkDeletedTables = networkResolver.deletedRecords.table[server.TBL_NAME];
           if (checkDeletedTables) {
-              if (!$isEqual(checkDeletedTables, server._hash)) {
+              if (checkDeletedTables !== server._hash) {
                   syncHelper.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server');
                   changes.hashChanged++;
               }
