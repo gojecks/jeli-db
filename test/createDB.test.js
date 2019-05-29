@@ -3,12 +3,12 @@ jdb.JDB_STORAGE_SYSTEM('indexeddb', jIDBAdapter);
 jdb.JDB_STORAGE_SYSTEM('sql', jSQLAdapter);
 jdb('TestBed', 1)
     .open({
-        storage: 'indexeddb',
+        storage: 'sql',
         organisation: 'Test',
         ignoreSync: true
     })
     .onCreate((res) => {
-        res.result.api.localTransport('assets/bundle/schema.json', (schema) => {
+        res.result.api.localTransport('assets/schema.json', (schema) => {
             Object.keys(schema).forEach(tbl => {
                 res.result.createTbl(tbl, schema[tbl]);
             });
@@ -16,8 +16,8 @@ jdb('TestBed', 1)
 
 
         // load the bundled files
-        res.result.api.localTransport('assets/bundle/categories.json', (order) => {
-            res.result.transaction('mfs_category', 'writeonly')
+        res.result.api.localTransport('assets/order.json', (order) => {
+            res.result.transaction('Orders', 'writeonly')
                 .onSuccess((orderTbl) => {
                     orderTbl.result
                         .dataProcessing(false)
@@ -28,28 +28,16 @@ jdb('TestBed', 1)
                 .onError(console.log);
         });
 
-        res.result.api.localTransport('assets/bundle/products.json', (products) => {
-            res.result.transaction('mfs_products', 'writeonly')
-                .onSuccess((productTbl) => {
-                    productTbl.result
+        res.result.api.localTransport('assets/customer.json', (customer) => {
+            res.result.transaction('Customers', 'writeonly')
+                .onSuccess((customerTbl) => {
+                    customerTbl.result
                         .dataProcessing(false)
-                        .insert(products)
+                        .insert(customer)
                         .execute()
-                        .onSuccess(console.log)
                         .onError(console.log);
                 });
         });
-
-        // res.result.api.localTransport('assets/customer.json', (customer) => {
-        //     res.result.transaction('Customers', 'writeonly')
-        //         .onSuccess((customerTbl) => {
-        //             customerTbl.result
-        //                 .dataProcessing(false)
-        //                 .insert(customer)
-        //                 .execute()
-        //                 .onError(console.log);
-        //         });
-        // });
     })
     .onUpgrade((res) => {
         // do something

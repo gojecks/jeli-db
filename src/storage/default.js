@@ -12,14 +12,16 @@ function DefaultStorage(config, callback) {
      */
     privateApi
         .storageEventHandler
-        .subscribe(eventNamingIndex(dbName, 'insert'), saveData)
+        .subscribe(eventNamingIndex(dbName, 'insert'), function(tableName, data, lastInsertId) {
+            _storage[tableName].lastInsertId = lastInsertId;
+            saveData(tableName);
+        })
         .subscribe(eventNamingIndex(dbName, 'update'), saveData)
         .subscribe(eventNamingIndex(dbName, 'delete'), function(tableName, delItem) {
             // remove the data
             _storage[tableName + ":data"] = _storage[tableName + ":data"].filter(function(item) {
                 return !$inArray(item._ref, delItem);
             });
-
             saveData(tableName);
         })
         .subscribe(eventNamingIndex(dbName, 'onCreateTable'), onCreateTable)

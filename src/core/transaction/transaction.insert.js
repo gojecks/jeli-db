@@ -76,7 +76,6 @@ function transactionInsert() {
                         Object.keys(pData).forEach(function(key) {
                             //check auto_increment
                             if (!pData[key] && columns[key].hasOwnProperty('AUTO_INCREMENT')) {
-
                                 pData[key] = tableInfo.lastInsertId;
                             }
                         });
@@ -96,7 +95,8 @@ function transactionInsert() {
                     _data: item
                 });
             });
-
+            // set lastinsert ID
+            tableInfo.lastInsertId = (tableInfo.lastInsertId + _data.length);
             _data = null;
         }
     }
@@ -158,7 +158,7 @@ function transactionInsert() {
             /**
                 broadcast event
             **/
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData, tableInfo.lastInsertId]);
         }
 
         //return success after push
