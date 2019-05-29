@@ -1,11 +1,12 @@
-//queryDB resourceManager
-
-function resourceManager(name) {
-    var _resourceName = privateApi.getResourceName(name),
-        _resource = getStorageItem(_resourceName, name);
+/**
+ * ResourceManager()
+ * @param {*} name 
+ */
+function ResourceManager(name) {
+    var _resource = getStorageItem(privateApi.storeMapping.resourceName, name) || getDBSetUp(name);
 
     this.getResource = function() {
-        return _resource || getStorageItem(_resourceName, name);
+        return _resource || getStorageItem(privateApi.storeMapping.resourceName, name);
     };
 
     /**
@@ -15,7 +16,7 @@ function resourceManager(name) {
     this.setResource = function(resource, _name) {
         _resource = resource || _resource || this.getResource();
         //set and save the resource
-        setStorageItem(_name || _resourceName, _resource, name);
+        setStorageItem(_name || privateApi.storeMapping.resourceName, _resource, name);
 
         return this;
     };
@@ -33,7 +34,7 @@ function resourceManager(name) {
 
     this.removeResource = function() {
         _resource = null;
-        return delStorageItem(_resourceName, name);
+        return delStorageItem(privateApi.storeMapping.resourceName, name);
     };
 
     this.getTableLastSyncDate = function(tbl) {
@@ -52,12 +53,16 @@ function resourceManager(name) {
     this.getTableNames = function() {
         return _resource && _resource.resourceManager && Object.keys(_resource.resourceManager);
     };
+
+    this.addTableToResource = function(tableName, data) {
+        _resource.resourceManager[tableName] = data;
+    }
 }
 /**
  * 
  * @param {*} tbl 
  */
-resourceManager.prototype.removeTableFromResource = function(tbl) {
+ResourceManager.prototype.removeTableFromResource = function(tbl) {
     var resourceControl = this.getResource();
     if (resourceControl && resourceControl.resourceManager.hasOwnProperty(tbl)) {
         delete resourceControl.resourceManager[tbl];
@@ -70,7 +75,7 @@ resourceManager.prototype.removeTableFromResource = function(tbl) {
  * @param {*} oldName 
  * @param {*} newName 
  */
-resourceManager.prototype.renameTableResource = function(oldName, newName) {
+ResourceManager.prototype.renameTableResource = function(oldName, newName) {
     var resourceControl = this.getResource();
     if (resourceControl && resourceControl.resourceManager.hasOwnProperty(oldName)) {
         resourceControl.resourceManager[newName] = resourceControl.resourceManager[oldName];
@@ -80,3 +85,7 @@ resourceManager.prototype.renameTableResource = function(oldName, newName) {
         this.setResource(resourceControl);
     }
 };
+/**
+ * set the static name
+ */
+privateApi.storeMapping.resourceName = "_r_";

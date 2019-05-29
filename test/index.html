@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>JDB</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+</head>
+
+<body>
+    <div class="container">
+        <h2>TESTBED DATABASE</h2>
+        <pre>
+            <textarea class="form-control" placeholder="Write query here"></textarea>
+            <button class="btn btn-primary pull-right" onclick="tryit()">Try it out</button>
+        </pre>
+        <div class="well" id="result"></div>
+
+        <h4>Orders Table</h4>
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th style="width:15%">OrderID</th>
+                    <th>CustomerID</th>
+                    <th>EmployeeID</th>
+                    <th>OrderDate</th>
+                    <th>ShipperID</th>
+                </tr>
+                <tr>
+                    <td>10308</td>
+                    <td>2</td>
+                    <td>7</td>
+                    <td>1996-09-18</td>
+                    <td>3</td>
+                </tr>
+                <tr>
+                    <td>10309</td>
+                    <td>37</td>
+                    <td>3</td>
+                    <td>1996-09-19</td>
+                    <td>1</td>
+                </tr>
+                <tr>
+                    <td>10310</td>
+                    <td>77</td>
+                    <td>8</td>
+                    <td>1996-09-20</td>
+                    <td>2</td>
+                </tr>
+            </tbody>
+        </table>
+        <h4>Customer Table</h4>
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th style="width:15%">CustomerID</th>
+                    <th>CustomerName</th>
+                    <th>ContactName</th>
+                    <th>Address</th>
+                    <th>City</th>
+                    <th>PostalCode</th>
+                    <th>Country</th>
+                </tr>
+                <tr>
+                    <td>1<br><br></td>
+                    <td>Alfreds Futterkiste</td>
+                    <td>Maria Anders</td>
+                    <td>Obere Str. 57</td>
+                    <td>Berlin</td>
+                    <td>12209</td>
+                    <td>Germany</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Ana Trujillo Emparedados y helados</td>
+                    <td>Ana Trujillo</td>
+                    <td>Avda. de la Constitución 2222</td>
+                    <td>México D.F.</td>
+                    <td>05021</td>
+                    <td>Mexico</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Antonio Moreno Taquería</td>
+                    <td>Antonio Moreno</td>
+                    <td>Mataderos 2312</td>
+                    <td>México D.F.</td>
+                    <td>05023</td>
+                    <td>Mexico</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="../dist/jdb.js"></script>
+    <script src="../../jdb.adapters/dist/sqlite.js"></script>
+    <script src="../../jdb.adapters/dist/indexeddb.js"></script>
+    <script src="createDB.test.js"></script>
+</body>
+
+</html>

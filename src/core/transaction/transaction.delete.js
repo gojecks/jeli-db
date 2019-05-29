@@ -2,7 +2,20 @@
 //@Arguments 'Query'
 //@return Object
 //@ExecuteState return {obj}
-
+/**
+ * 
+ * @param {*} query 
+ * 
+ * 
+ * WhereIn Query
+ * delete -t -IN(@value([values]) @field(t1.column))
+ * 
+ * WhereNotIn Query
+ * delete -t NOTIN(@value([values]) @field(t1.column))
+ * 
+ * Like Query
+ * delete -t Like(@value(needle) @field(t1.column))
+ */
 function transactionDelete(query) {
     var $self = this,
         delItem = [];
@@ -18,13 +31,13 @@ function transactionDelete(query) {
 
             delItem = query.byRefs;
         } else {
-            new $query(this.tableInfo.data.slice())._(query, function(item, idx) {
+            new $query(this.tableInfo.data)._(query, function(item, idx) {
                 delItem.push(item._ref);
-                $self.tableInfo.data.splice(idx, 1);
             });
         }
     } else {
         delItem = $self.getAllRef();
+        $self.tableInfo.data = [];
     }
 
     this.executeState.push(["delete", function(disableOfflineCache) {
@@ -34,11 +47,9 @@ function transactionDelete(query) {
                 $self.updateOfflineCache('delete', delItem);
             }
 
-            /**
-                broadcast event
-            **/
-            privateApi.storageEventHandler.broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'delete'), [$self.tableInfo.TBL_NAME, delItem]);
-
+            privateApi
+                .storageEventHandler
+                .broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'delete'), [$self.tableInfo.TBL_NAME, delItem]);
         }
         //return success Message
         return ({

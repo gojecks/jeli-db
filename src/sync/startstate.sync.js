@@ -158,8 +158,15 @@
                   if (isDeletedTable(resource.resourceManager, currentProcessTbl)) {
                       syncHelper.setMessage(currentProcessTbl + ' doesn\'t exist on the server');
                       if (networkResolver.resolveDeletedTable(currentProcessTbl)) {
-                          privateApi.removeTable(currentProcessTbl, appName, true);
-                          privateApi.$getActiveDB(appName).$get('resourceManager').removeTableFromResource(currentProcessTbl);
+                          privateApi
+                              .storageEventHandler
+                              .broadcast(eventNamingIndex(appName, 'onDropTable'), [currentProcessTbl]);
+
+                          privateApi
+                              .$getActiveDB(appName)
+                              .$get('resourceManager')
+                              .removeTableFromResource(currentProcessTbl);
+
                           syncHelper.setMessage(currentProcessTbl + ' removed from local DB');
                       }
 
@@ -248,7 +255,7 @@
                           syncHelper[state](appName);
                       }
                       //remove deleteRecords
-                      privateApi.$taskPerformer.del(privateApi.$delRecordName);
+                      privateApi.$taskPerformer.del(privateApi.storeMapping.delRecordName);
                   }
               },
               pull: function(response) {

@@ -12,42 +12,40 @@ ApplicationInstance.prototype.transaction = function(table, mode) {
     }
 
     function validateTableSchema(tableData, table) {
-        if (!tableData.hasOwnProperty('columns') || !$isEqual(tableData.DB_NAME, dbName) || !$isEqual(tableData.TBL_NAME, table)) {
+        if (!tableData || !tableData.columns || !$isEqual(tableData.DB_NAME, dbName) || !$isEqual(tableData.TBL_NAME, table)) {
             err.push("Table (" + table + ") is not well configured, if you re the owner please delete the table and create again");
         }
     }
 
     // create a new defer state
-    var defer = new _Promise();
+    var defer = new _Promise(),
+        tableData = null,
+        err = [],
+        isMultipleTable = false,
+        tableJoinMapping = {};
     if (table) {
-        var tableData = null,
-            err = [],
-            isMultipleTable = false,
-            tableJoinMapping = {};
-
         //required table is an array
         if ($isArray(table)) {
             tableData = {};
-            var c = table.length;
-            while (c--) {
-                var tbl = table[c],
-                    saveName = tbl;
+            table.forEach(function(tbl) {
+                tbl = tbl.trim();
+                var saveName = tbl;
                 if ($inArray(' as ', tbl)) {
-                    var spltTbl = tbl.split(' as ');
-                    spltTbl.forEach(function(item, idx) {
-                        spltTbl[idx] = $removeWhiteSpace(item);
-                        return 1;
-                    });
+                    var spltTbl = tbl.split(' as ')
+                        .map(function(key) {
+                            return key.trim();
+                        });
 
                     tbl = spltTbl.shift();
                     saveName = spltTbl.pop();
                     tableJoinMapping[tbl] = saveName;
+                } else {
+                    tableJoinMapping[tbl] = tbl;
                 }
 
                 tableData[saveName] = getRequiredTable(tbl);
                 validateTableSchema(tableData[saveName], tbl);
-            }
-
+            });
             //change mode to read
             mode = "read";
             isMultipleTable = true;
@@ -55,13 +53,14 @@ ApplicationInstance.prototype.transaction = function(table, mode) {
             tableData = getRequiredTable(table);
             validateTableSchema(tableData, table);
             tableJoinMapping[table] = null;
+            table = [table];
         }
 
-        // validate tableSchema
-
+        // set the tables
+        tableJoinMapping._ = table;
 
         if (err.length) {
-            defer.reject({ message: err.join("\n"), errorCode: 401 });
+            defer.reject({ message: err.join("\n"), errorCode: 400 });
         } else {
             defer.resolve({ result: new jTblQuery(tableData, mode, isMultipleTable, tableJoinMapping), tables: table, mode: mode });
         }

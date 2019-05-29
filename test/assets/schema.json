@@ -1,0 +1,37 @@
+{
+    "Orders": [{
+        "OrderID": {
+            "type": "int",
+            "AUTO_INCREMENT": true
+        },
+        "CustomerID": {
+            "type": "int"
+        },
+        "OrderDate": {
+            "type": "DateTime"
+        }
+    }],
+    "Customers": [{
+        "CustomerID": {
+            "type": "int"
+        },
+        "CustomerName": {
+            "type": "text"
+        },
+        "ContactName": {
+            "type": "text"
+        },
+        "Country": {
+            "type": "text"
+        },
+        "PostalCode": {
+            "type": "text"
+        },
+        "Address": {
+            "type": "text"
+        },
+        "City": {
+            "type": "text"
+        }
+    }]
+}

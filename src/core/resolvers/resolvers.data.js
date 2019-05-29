@@ -57,8 +57,7 @@ function DBRecordResolvers(name) {
         return _newSyncData;
     }
 
-    var _records = {},
-        _lRecordName = privateApi.getDataResolverName(name);
+    var _records = {};
 
     var _fn = ({
         $set: function(tbl) {
@@ -86,7 +85,7 @@ function DBRecordResolvers(name) {
                             _records[tbl].data[type][ref] = true;
                         });
 
-                        setStorageItem(_lRecordName, _records, name);
+                        setStorageItem(privateApi.storeMapping.pendingSync, _records, name);
                     }
 
                 },
@@ -95,7 +94,7 @@ function DBRecordResolvers(name) {
                         //push the data to the list
                         _records[tbl].columns[type].push.apply(_records[tbl].columns[type], data);
 
-                        setStorageItem(_lRecordName, _records, name);
+                        setStorageItem(privateApi.storeMapping.pendingSync, _records, name);
                     }
                 }
             });
@@ -111,11 +110,11 @@ function DBRecordResolvers(name) {
             var lStorage;
             if (_records[tbl]) {
                 delete _records[tbl];
-                lStorage = getStorageItem(_lRecordName, name);
+                lStorage = getStorageItem(privateApi.storeMapping.pendingSync, name);
                 if (lStorage) {
                     //delete from localStorage
                     delete lStorage[tbl];
-                    setStorageItem(_lRecordName, lStorage, name);
+                    setStorageItem(privateApi.storeMapping.pendingSync, lStorage, name);
                 }
             }
 
@@ -137,17 +136,17 @@ function DBRecordResolvers(name) {
         $destroy: function() {
             if ($isEmptyObject(_records)) {
                 _records = {};
-                setStorageItem(_lRecordName, {}, name);
+                setStorageItem(privateApi.storeMapping.pendingSync, {}, name);
             }
         },
         rename: function(newName) {
             setStorageItem(privateApi.getDataResolverName(newName), _records, name);
-            delStorageItem(_lRecordName);
+            delStorageItem(privateApi.storeMapping.pendingSync);
         }
     });
 
     if (name) {
-        var lStorage = getStorageItem(_lRecordName, name);
+        var lStorage = getStorageItem(privateApi.storeMapping.pendingSync, name);
         if (lStorage) {
             _records = lStorage;
         }

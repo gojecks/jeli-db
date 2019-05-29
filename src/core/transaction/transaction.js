@@ -3,11 +3,9 @@
 // @return Object
 
 function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
-
     var select = "",
         tblMode = mode || 'read',
         _recordResolvers = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('recordResolvers');
-
     this.executeState = [];
     this.tableInfo = tableInfo;
     this.tables = tables;
@@ -33,11 +31,6 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
         });
     };
 
-    this.dataProcessing = function(process) {
-        this.processData = process;
-        return this;
-    };
-
     //Check if Table Information is available from the DB
     if (!$isObject(tableInfo)) {
         errorBuilder('Unable to perform query at the moment, please try again later');
@@ -45,6 +38,20 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
 
     //Check the required Mode
     if ($inArray('write', tblMode) && !this.isMultipleTable) {
+        this.dataProcessing = function(process) {
+            this.processData = process;
+            return this;
+        };
+
+        this.updateOfflineCache = function(type, data) {
+            var ignoreSync = privateApi.getNetworkResolver('ignoreSync', tableInfo.DB_NAME);
+            if (true !== ignoreSync && !$inArray(tableInfo.TBL_NAME, ignoreSync) && data.length) {
+                _recordResolvers
+                    .$set(tableInfo.TBL_NAME)
+                    .data(type, data);
+            }
+        };
+
         this.insert = transactionInsert;
         this.update = transactionUpdate;
         this._autoSync = liveProcessor(tableInfo.TBL_NAME, tableInfo.DB_NAME);
@@ -77,19 +84,6 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
         this.qsl = new generateQuickSearchApi(this);
 
     }
-
-    /**
-      update offline cache
-    **/
-    this.updateOfflineCache = function(type, data) {
-        var ignoreSync = privateApi.getNetworkResolver('ignoreSync', tableInfo.DB_NAME);
-        if (true !== ignoreSync && !$inArray(tableInfo.TBL_NAME, ignoreSync) && data.length) {
-            _recordResolvers
-                .$set(tableInfo.TBL_NAME)
-                .data(type, data);
-        }
-    };
-
 
     function generateQuickSearchApi(_super) {
         var self = this;

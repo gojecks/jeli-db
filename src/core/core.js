@@ -118,7 +118,7 @@
                     /**
                      * dataBase exists
                      */
-                    if (dbChecker) {
+                    if (dbChecker && dbChecker.version > 0) {
                         if (isSameVersion) {
                             //set exists mode
                             // validate versions
@@ -138,11 +138,10 @@
                          * create our database instance
                          */
                         jeliInstance.type = "createMode";
-                        privateApi.$set(name, { tables: {}, 'version': version });
                         //set Message
                         jeliInstance.message = name + " DB was successfully created!!";
                         // Object Store in Db
-                        jEliUpdateStorage(name);
+                        privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
                     }
                     //resolve the request
                     defer.resolve(jeliInstance);
@@ -246,10 +245,7 @@
                             }
                         }
                         //register DB to QueryDB
-                        privateApi.$set(name, dbTables);
-                        privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [Object.keys(dbTables.tables)]);
-                        setStorageItem(name, dbTables);
-
+                        privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, dbTables]);
                         //start the DB
                         startDB();
                     }, handleNetworkError('schema', "Unable to load schema, please try again.", function() {

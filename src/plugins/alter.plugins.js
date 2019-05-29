@@ -25,19 +25,18 @@ function alterPluginFn(query, handler) {
             db
                 .table(query[1])
                 .onSuccess(function(alt) {
-                    var exp = query[query.length - 1],
-                        key = query[query.length - 2],
-                        type = 'new',
-                        task = taskType[query[3]] || query[3];
                     switch (query[2]) {
                         case ('add'):
                         case ('a'):
-
-                            alt
-                                .result
-                                .Alter
-                                .add[task](jSonParser(key || exp), jSonParser(exp));
-
+                            var task = taskType[query[3]] || query[3];
+                            if (alt.result.Alter.add.hasOwnProperty(task)) {
+                                alt
+                                    .result
+                                    .Alter
+                                    .add[task](query[4], jSonParser(query[5]));
+                            } else {
+                                msg = "Unable to find command " + query[3];
+                            }
                             break;
                         case ('drop'):
                         case ('d'):

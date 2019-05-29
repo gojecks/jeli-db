@@ -1,100 +1,75 @@
-    //queryDB taskPerformer
-    function _privateTaskPerfomer(self) {
-        var _publicApi = function() {
-            this.updateDeletedRecord = updateDeletedRecord;
-            this.set = setStorageItem;
-            this.get = getStorageItem;
-            this.del = delStorageItem;
-        };
-
-        /**
-         * 
-         * @param {*} name 
-         * @param {*} tblName 
-         * @param {*} updateFn 
-         * @param {*} lastSynced 
-         */
-        _publicApi.prototype.updateDB = function(name, tblName, updateFn, lastSynced) {
-            //put the data to DB
-            if (name) {
-                //update the table lastModified
-                var table;
-                if (tblName) {
-                    table = self.$getTable(name, tblName);
-                    if (table) {
-                        table.lastModified = +new Date;
-                        if (updateFn && $isFunction(updateFn)) {
-                            updateFn.apply(updateFn, [table]);
-                        }
-                    }
-
+function _privateTaskPerfomer() {
+    var _publicApi = Object.create({
+        updateDeletedRecord: updateDeletedRecord,
+        set: setStorageItem,
+        get: getStorageItem,
+        del: delStorageItem
+    });
+    /**
+     * 
+     * @param {*} name 
+     * @param {*} tblName 
+     * @param {*} updateFn 
+     * @param {*} lastSynced 
+     */
+    _publicApi.updateDB = function(name, tblName, updateFn, lastSynced) {
+        var openedDb = privateApi.$getActiveDB(name);
+        //put the data to DB
+        if (openedDb) {
+            //update the table lastModified
+            var table = privateApi.$getTable(name, tblName);
+            if (table) {
+                var ret = {};
+                ret.lastModified = +new Date;
+                if (updateFn && $isFunction(updateFn)) {
+                    updateFn.apply(updateFn, [ret]);
                 }
 
-                //update DB key
-                var dbRef = self.$getActiveDB(name).$get('resourceManager').getResource();
-                if (dbRef) {
-                    dbRef.lastUpdated = +new Date;
-                    dbRef.lastSyncedDate = lastSynced || dbRef.lastSyncedDate;
-
-                    if (tblName && table) {
-                        if (!dbRef.resourceManager[tblName]) {
-                            dbRef.resourceManager[tblName] = {
-                                _hash: table._hash,
-                                lastModified: +new Date,
-                                created: table.created || +new Date
-                            };
-                        }
-
-                        /**
-                         * set last sync date for table
-                         */
-                        dbRef.resourceManager[tblName].lastSyncedDate = lastSynced || dbRef.resourceManager[tblName].lastSyncedDate || null;
-
-                    }
-
-                    //update
-                    self.$getActiveDB(name).$get('resourceManager').setResource(dbRef);
-                }
-
-                setStorageItem(name, self.$get(name), name);
-                //check if storage have been cleared by user
-                if (!dbRef) {
-                    this.storageChecker(name);
-                }
-            }
-        };
-
-        /**
-         * 
-         * @param {*} name 
-         */
-        _publicApi.prototype.initializeDB = function(name) {
-            //set recordResolvers
-            if (!self.$getActiveDB(name).$get('resourceManager').$isExists()) {
-                return false;
-            } else {
-                //retrieve current DB items
-                var storageData = getStorageItem(name);
-                //set delRecords
-                if (storageData) {
-                    self.$set(name, storageData);
-                    // clean up data
-                    storageData = null;
-                    return true;
-                }
+                privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onUpdateTable'), [tblName, ret]);
             }
 
+            /**
+             * update Database resource
+             */
+            var resourceManager = openedDb.$get('resourceManager'),
+                dbRef = resourceManager.getResource();
+            if (dbRef) {
+                if (table) {
+                    // new synced table
+                    if (!dbRef.resourceManager[tblName]) {
+                        resourceManager.addTableToResource(tblName, {
+                            lastModified: table.lastModified,
+                            _hash: table._hash,
+                            created: table.created || +new Date
+                        });
+                    }
+                }
+                /**
+                 * set last sync date for table
+                 */
+                if (dbRef.resourceManager.hasOwnProperty(tblName)) {
+                    dbRef.resourceManager[tblName].lastSyncedDate = lastSynced || dbRef.resourceManager[tblName].lastSyncedDate || null;
+                }
+                dbRef.lastUpdated = +new Date;
+                dbRef.lastSyncedDate = lastSynced || dbRef.lastSyncedDate;
+                //update
+                resourceManager.setResource(dbRef);
+            }
+        }
+    };
+
+    /**
+     * 
+     * @param {*} name 
+     */
+    _publicApi.initializeDB = function(name) {
+        //set recordResolvers
+        if (!privateApi.$getActiveDB(name).$get('resourceManager').$isExists()) {
             return false;
-        };
-
-        /**
-         * 
-         * @param {*} name 
-         */
-        _publicApi.prototype.storageChecker = function(name) {
-            self.$getActiveDB(name).$get('resourceManager').setResource(getDBSetUp(name))
         }
 
-        return (new _publicApi);
-
+        return true;
     };
+
+    return _publicApi;
+};

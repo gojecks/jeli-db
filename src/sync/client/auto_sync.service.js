@@ -31,6 +31,6 @@ function liveProcessor(tbl, appName) {
             cbSuccess({});
         }
         // update storage
-        jEliUpdateStorage(appName, tbl);
+        jdbUpdateStorage(appName, tbl);
     };
 }

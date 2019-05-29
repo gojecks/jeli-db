@@ -1,6 +1,12 @@
 "use strict";
 
 function $query(data) {
+    Object.defineProperty(this, 'data', {
+        set: function(cdata) {
+            data = cdata;
+        }
+    });
+
     this.sortBy = function() {
         var sortArguments = arguments;
         if ($isArray(data)) {
@@ -62,7 +68,7 @@ function $query(data) {
          * return data when logic is undefined
          */
         if (!logic) {
-            return data;
+            return data.map(function(item) { return item._data; });
         }
 
         var _search = [],
@@ -73,11 +79,13 @@ function $query(data) {
         //Query the required Data
         //Match the Result with Logic
         //@return : ARRAY Search result
-        expect(data).each(function(item, idx) {
-            if (_setLogicPerformer.call(null, item, idx)) {
-                callback(item, idx);
+        var len = 0;
+        while (data.length > len) {
+            if (_setLogicPerformer.call(null, data[len], len)) {
+                callback(data[len], len);
             }
-        });
+            len++;
+        }
 
         return _search;
     };
@@ -89,33 +97,46 @@ function $query(data) {
 //@return : Function
 
 function externalQuery(logic, replacer) {
-    var keyLen;
-
 
     function jsonMatcher(res1, res2) {
         return JSON.stringify(res1) == JSON.stringify(res2);
     }
 
     function objectQueryTaskPerformer(item) {
-        var found = 0;
+        var found = false;
         //Loop through the logic
         //match found item
         var matcher = item._data || item;
-        expect(logic).each(function(_res1, op) {
-            if (queryMatcher(_res1, ModelSetterGetter(op, matcher), matcher)) {
-                found++;
+        logic.forEach(function(param) {
+            if (found) {
+                return;
             }
+            var keys = Object.keys(param);
+            var matched = 0;
+            keys.forEach(function(key) {
+                if ($query.matcher(param[key], ModelSetterGetter(key, matcher), matcher)) {
+                    matched++;
+                }
+            });
+
+            found = keys.length == matched;
         });
 
-        return keyLen === found;
+        return found;
     }
 
     if (logic) {
-        if (!$isObject(logic)) {
-            logic = _parseCondition(splitStringCondition(logic), replacer);
+        if ($isString(logic)) {
+            logic = $query._parseCondition(logic, replacer);
         }
-
-        keyLen = Object.keys(logic).length;
+        /**
+         * user defined logic as object
+         * convert to array
+         */
+        else if ($isObject(logic)) {
+            logic = [logic];
+        }
+        // create or expect instance
         return objectQueryTaskPerformer;
     }
 }
@@ -123,18 +144,47 @@ function externalQuery(logic, replacer) {
  * 
  * @param {*} condition 
  */
-function _parseCondition(condition, replacer) {
-    var ret = {},
+$query._parseCondition = function(condition, replacer) {
+    condition = $removeWhiteSpace(condition || "").split(/[||]/gi)
+        .filter(function(cond) { return !!cond; })
+        .map(function(cond) {
+            return cond.split(/[&&]/gi).filter(function(cond) {
+                return !!cond;
+            });
+        });
+
+    var ret = [],
         len = condition.length,
         cCheck;
     while (len--) {
         if (condition[len]) {
-            cCheck = condition[len].split(/:(?:like):/gi);
-            if (cCheck.length > 1) { //Like Condition found
-                ret[cCheck[0]] = { "$lk": cCheck[1] }
-            } else {
-                ret = extend(ret, convertExpressionStringToObject(condition[len], replacer));
-            }
+            var params = {};
+            condition[len].forEach(function(cond) {
+                cCheck = cond.replace(/\((.*)\)/, "~$1").split("~");
+                //Like Condition found
+                if (cCheck.length > 1) {
+                    var clause = buildSelectQuery(cCheck[1], 0, /[@]/);
+                    switch (cCheck[0].toLowerCase()) {
+                        case ("like"):
+                            params[clause.field] = {
+                                type: "$lk",
+                                value: clause.value
+                            };
+                            break;
+                        case ("in"):
+                            params[clause.field] = clause;
+                            clause.type = "$inClause";
+                            break;
+                        case ("notin"):
+                            params[clause.field] = clause;
+                            clause.type = "$notInClause";
+                            break;
+                    }
+                } else {
+                    $query.convertExpressionStringToObject(cond, replacer, params);
+                }
+            });
+            ret.push(params);
         }
     }
 
@@ -143,17 +193,15 @@ function _parseCondition(condition, replacer) {
 
 /**
  * 
- * @param {*} query 
- * @param {*} val 
+ * @param {*} $query 
+ * @param {*} $val 
+ * @param {*} item 
  */
-function queryMatcher($query, $val, item) {
+$query.matcher = function($query, $val, item) {
     var _fnd = false;
     if ($isObject($query)) {
-        var q = Object.keys($query)[0],
-            _val = ModelSetterGetter($query[q], item) || $query[q];
-
-
-        switch (q) {
+        var _val = ModelSetterGetter($query.value, item) || $query.value;
+        switch ($query.type) {
             case ("$lte"):
                 _fnd = $val <= _val;
                 break;
@@ -169,8 +217,14 @@ function queryMatcher($query, $val, item) {
             case ('$inArray'):
                 _fnd = $inArray(_val, $val || []);
                 break;
+            case ('$inClause'):
+                _fnd = $inArray($val, _val);
+                break;
+            case ('$notInClause'):
+                _fnd = !$inArray($val, _val);
+                break;
             case ('$lk'):
-                _fnd = String($val).search(_val) > -1;
+                _fnd = (($val || "").toLowerCase()).search(_val.toLowerCase()) > -1;
                 break;
             case ('$notInArray'):
                 _fnd = !$inArray(_val, $val || []);
@@ -191,10 +245,9 @@ function queryMatcher($query, $val, item) {
                 _fnd = _val == $val;
                 break;
             case ('$!'):
-                _fnd = !!$val
+                _fnd = (!!$val == _val);
                 break;
         }
-
         return _fnd;
     } else if ($isObject($val)) {
         return jsonMatcher($query, $val);
@@ -206,55 +259,80 @@ function queryMatcher($query, $val, item) {
 /**
  * 
  * @param {*} expression 
+ * symbols and meaning
  */
 
-function convertExpressionStringToObject(expression, replacer) {
-    var exp = expression.split(/([|()=<>!*+//&-])/ig),
+$query.convertExpressionStringToObject = function(expression, replacer, params) {
+    var exp = expression.split(/([|()\[\]=~<>!*+//&-])/ig),
         start = exp.shift(),
         end = exp.pop(),
         operand = exp.join(''),
-        _cond = {};
-    _cond[start || end] = {};
-
+        value,
+        type;
     /**
      * parse end value before writing
      */
     if (end) {
-        var _end = ModelSetterGetter(end, replacer || {}) || jSonParser(end);
+        value = ModelSetterGetter(end, replacer || {}) || jSonParser(end);
     }
-
     switch (operand) {
         case ("==="):
-            _cond[start]['$is'] = _end;
+            type = '$is';
             break;
         case ("=="):
         case ("="):
-            _cond[start]['$isEqual'] = end;
+            type = '$isEqual';
+            value = end;
             break;
         case (">="):
-            _cond[start]['$gte'] = _end;
+            type = '$gte';
             break;
         case (">"):
-            _cond[start]['$gt'] = _end;
+            type = '$gt';
             break;
         case ("<="):
-            _cond[start]['$lte'] = _end;
+            type = '$lte';
             break;
         case ("<"):
-            _cond[start]['$lt'] = _end;
-            break;
-        case ("!=="):
-            _cond[start]['$not'] = _end;
+            type = '$lt';
             break;
         case ("!="):
-            _cond[start]['$isNot'] = _end;
+            type = '$not';
+            break;
+        case ("!=="):
+            type = '$isNot';
             break;
         case ("!"):
-            _cond[end]["$!"] = false;
+            type = "$!";
+            value = false;
+            break;
+        case ("!!"):
+            type = "$!";
+            value = true;
+            break;
+        case ("[]"):
+            type = "$inArray";
+            break;
+        case ("![]"):
+            type = "$notInArray";
+            break;
+        case ("([])"):
+            type = "$inClause";
+            console.log(value, end);
+            break;
+        case ("~"):
+            type = "$lk";
             break;
         default:
-            _cond[start]['$!'] = true;
+            type = '$!';
+            value = true;
             break;
     }
-    return _cond;
+
+    // assign the prop to the params
+    params[start || end] = {
+        type: type,
+        value: value
+    };
+    return params;
 }

@@ -40,25 +40,20 @@ function transactionUpdate(updateData, query) {
     }
 
 
-    var where,
-        setData = structureUpdateData(updateData),
+    var setData = structureUpdateData(updateData),
         u = this.tableInfo.data.length,
         updated = 0,
-        store = function(idx) {
-            //set the current Value
-            $self.tableInfo.data[idx]._data = extend(true, $self.tableInfo.data[idx]._data, setData);
-            updated++;
-            rowsToUpdate.push($self.tableInfo.data[idx]);
-        },
         rowsToUpdate = [];
     /**
-      check if query is an object or string
-      set the where query
-    **/
-    if ($isString(query)) {
-        where = (query) ? removeSingleQuote(query) : !1
-    } else {
-        where = query;
+     * 
+     * @param {*} data 
+     * @param {*} idx 
+     */
+    function store(data, idx) {
+        //set the current Value
+        $self.tableInfo.data[idx]._data = extend(true, $self.tableInfo.data[idx]._data, setData);
+        updated++;
+        rowsToUpdate.push($self.tableInfo.data[idx]);
     }
 
     this.executeState.push(["update", function(disableOfflineCache) {
@@ -68,14 +63,11 @@ function transactionUpdate(updateData, query) {
             throw Error($self.getError());
         }
 
-        if (where) {
-            new $query($self.tableInfo.data)._(where, function(item, idx) {
-                //store the data
-                store(idx);
-            });
+        if (query) {
+            new $query($self.tableInfo.data)._(query, store);
         } else {
             while (u--) {
-                store(u);
+                store(null, u);
             }
         }
 
@@ -87,10 +79,19 @@ function transactionUpdate(updateData, query) {
         /**
             broadcast event
         **/
-        privateApi.storageEventHandler.broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'update'), [$self.tableInfo.TBL_NAME, rowsToUpdate]);
+        privateApi
+            .storageEventHandler
+            .broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'update'), [$self.tableInfo.TBL_NAME,
+                rowsToUpdate.map(function(item) {
+                    return {
+                        _ref: item._ref,
+                        _data: setData
+                    }
+                })
+            ]);
 
         //empty the rows 
-        rowsToUpdate = [];
+        rowsToUpdate.length = 0;
 
         //return success
         return { message: updated + " row(s) updated." };

@@ -37,7 +37,12 @@
   }
 
   function getDBSetUp(name) {
-      return ({ started: new Date().getTime(), lastUpdated: new Date().getTime(), resourceManager: {}, lastSyncedDate: null });
+      return ({
+          started: new Date().getTime(),
+          lastUpdated: new Date().getTime(),
+          resourceManager: {},
+          lastSyncedDate: null
+      });
   }
 
   /**
@@ -47,7 +52,7 @@
    */
 
   function updateDeletedRecord(ref, obj) {
-      var checker = getStorageItem(privateApi.$delRecordName),
+      var checker = getStorageItem(privateApi.storeMapping.delRecordName),
           _resolvers = privateApi.$getActiveDB(obj.db).$get('resolvers');
       if (checker && checker[obj.db]) {
           _resolvers.register('deletedRecords', checker[obj.db]);
@@ -84,7 +89,7 @@
       //extend the delete Object
       //with the current deleteResolver
       checker[obj.db] = _delRecords;
-      setStorageItem(privateApi.$delRecordName, checker);
+      setStorageItem(privateApi.storeMapping.delRecordName, checker);
   }
 
   //Property Watch
@@ -143,20 +148,35 @@
    * 
    * @param {*} query 
    */
-  function buildSelectQuery(query, entryPoint) {
+  function buildSelectQuery(query, entryPoint, regexp) {
+      /**
+       * split the query on regex an
+       */
+      if (regexp) {
+          query = query.split(regexp).map(function(key) {
+              return key.trim();
+          });
+
+          entryPoint = entryPoint || 0;
+      }
+
       var definition = {};
       if (query.length > entryPoint) {
           if ($isString(query[entryPoint])) {
               // splice our query
               // set definition
               [].concat.call(query).splice(entryPoint).map(function(qKey) {
-                  qKey = qKey.replace(/\((.*?)\)/, "~$1").split("~");
+                  qKey = qKey.replace(/\((.*)\)/, "~$1").split("~");
                   // function Query
                   if (qKey.length > 1) {
                       if ($isJsonString(qKey[1])) {
                           definition[qKey[0]] = JSON.parse(qKey[1]);
                       } else {
-                          definition[qKey[0]] = qKey[1];
+                          if ($inArray(qKey[0], ["join"])) {
+                              definition[qKey[0]] = [buildSelectQuery(qKey[1], 0, /[@]/)];
+                          } else {
+                              definition[qKey[0]] = qKey[1];
+                          }
                       }
 
                   }
@@ -197,9 +217,9 @@
       return JSON.parse(JSON.stringify(data));
   }
 
-  //@Function Name jEliUpdateStorage
+  //@Function Name jdbUpdateStorage
   //Updates the required Database
-  function jEliUpdateStorage() {
+  function jdbUpdateStorage() {
       privateApi.$taskPerformer.updateDB.apply(privateApi.$taskPerformer, arguments);
   }
 

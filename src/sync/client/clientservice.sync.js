@@ -16,7 +16,7 @@ function clientService(appName) {
                 privateApi
                     .$resolveUpdate(appName, tbl, { insert: res._rec })
                     .then(function(_ret) {
-                        jEliUpdateStorage(appName, tbl);
+                        jdbUpdateStorage(appName, tbl);
                         //resolve promise
                         $defer.resolve(sqlResultExtender(dbSuccessPromiseObject('select', ""), _ret.insert));
                     });

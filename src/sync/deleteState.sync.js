@@ -11,7 +11,7 @@
        * @param {*} res 
        */
       function cleanUp(task, res) {
-          var _delRecordManager = getStorageItem(privateApi.$delRecordName, appName),
+          var _delRecordManager = getStorageItem(privateApi.storeMapping.delRecordName, appName),
               _resData = res.renamed || res.removed,
               _totalTask = Object.keys(deleteRecords[task]),
               _inc = 0,
@@ -38,7 +38,7 @@
           }
 
           //update the storage
-          setStorageItem(privateApi.$delRecordName, _delRecordManager, appName);
+          setStorageItem(privateApi.storeMapping.delRecordName, _delRecordManager, appName);
           /**
            * reset deletedRecords
            */

@@ -18,11 +18,11 @@ _privateApi.prototype.setStorage = function(dbName, config, callback) {
 
     if ($isFunction(storageInit)) {
         storageInit.privateApi = Object.create({
-            getResourceName: this.getResourceName,
             $getActiveDB: this.$getActiveDB,
             storageEventHandler: this.storageEventHandler,
             eventNamingIndex: eventNamingIndex,
-            getDataResolverName: this.getDataResolverName
+            generateStruct: this.generateStruct,
+            storeMapping: this.storeMapping
         });
 
         _activeDBInstance.$new('_storage_', new storageInit({

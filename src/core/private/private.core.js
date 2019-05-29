@@ -3,13 +3,16 @@
  */
 function _privateApi() {
     //setup our DBName
-    this.$dbName = "_resourceManager";
     this.accessStorage = 'jEliAccessToken';
     this.stack = [];
-    this.$delRecordName = '_deletedRecordsManager';
-    this.$taskPerformer = _privateTaskPerfomer(this);
+    this.$taskPerformer = _privateTaskPerfomer();
     this.$activeDB = null;
     this.openedDB = new openedDBHandler();
+    this.storeMapping = {
+        delRecordName: "_d_",
+        resourceName: "_r_",
+        pendingSync: "_l_"
+    };
 
     /**
      * 
@@ -27,21 +30,14 @@ function _privateApi() {
         return this;
     };
 
-    this.getResourceName = function(db) {
-        return this.$dbName + "_" + db;
-    };
-
-    this.getDataResolverName = function(dbName) {
-        return "_l_" + dbName;
-    };
-
     /**
      * 
      * @param {*} name 
      * @param {*} data 
      */
     this.$set = function(name, data) {
-        this.openedDB.$get(name).$set('_db_', data);
+        // this.openedDB.$get(name).$set('_db_', data);
+        this.openedDB.$get(name).$get('_storage_').setItem(name, data);
         return this;
     };
 
@@ -55,8 +51,8 @@ function _privateApi() {
             return null;
         }
 
-        var _db = this.openedDB.$get(name).$get('_db_');
-        if (_db && properties) {
+        var _db = this.openedDB.$get(name).$get('_storage_').getItem();
+        if (properties) {
             if ($isArray(properties)) {
                 var _ret = {};
                 properties.forEach(function(key) {
@@ -88,24 +84,6 @@ function _privateApi() {
     /**
      * 
      * @param {*} dbName 
-     * @param {*} oldTable 
-     * @param {*} newTable 
-     * @param {*} removeTable 
-     */
-    this.replicateTable = function(dbName, oldTable, newTable, removeTable) {
-        var currentDB = this.$get(dbName);
-        if (currentDB && currentDB.tables[oldTable]) {
-            currentDB.tables[newTable] = currentDB.tables[oldTable];
-            currentDB.tables[newTable].TBL_NAME = newTable;
-            if (removeTable) {
-                delete currentDB.tables[oldTable];
-            }
-        }
-    };
-
-    /**
-     * 
-     * @param {*} dbName 
      * @param {*} tableName 
      * @param {*} option 
      */
@@ -124,19 +102,18 @@ function _privateApi() {
         })[0];
     };
 
-    /**
-     * 
-     * @param {*} tbl 
-     * @param {*} db 
-     * @param {*} updateStorage 
-     */
-    this.removeTable = function(tbl, db, updateStorage) {
-        if (delete this.$get(db, 'tables')[tbl] && updateStorage) {
-            jEliUpdateStorage(db, tbl);
-        }
-    };
-
     this.storageEventHandler = new $eventStacks();
+
+    this.generateStruct = function(cache) {
+        var ret = { tables: {}, version: cache.version };
+        if (cache.hasOwnProperty(this.storeMapping.resourceName)) {
+            Object.keys(cache[this.storeMapping.resourceName].resourceManager).forEach(function(tbl) {
+                ret.tables[tbl] = Object.create(cache[tbl]);
+                ret.tables[tbl].data = cache[tbl + ":data"];
+            });
+        }
+        return ret;
+    }
 
     //_privateApi initializer
     defineProperty(this.stack, "push", function() {
@@ -154,18 +131,6 @@ _privateApi.prototype.getDbTablesNames = function(db) {
     return Object.keys(this.$get(db || this.$activeDB, 'tables'));
 };
 
-
-/**
- * 
- * @param {*} db 
- * @param {*} tbl 
- * @param {*} tableDefinition 
- */
-_privateApi.prototype.$newTable = function(db, tbl, tableDefinition) {
-    this.$get(db, 'tables')[tbl] = extend({}, tableDefinition);
-    this.$taskPerformer.updateDB(db, tbl);
-    return true;
-};
 
 /**
  * 
@@ -234,7 +199,7 @@ _privateApi.prototype.isOpen = function(name) {
         })
         .$set('dataTypes', new DataTypeHandler())
         .$new('resolvers', new openedDBResolvers())
-        .$new('resourceManager', new resourceManager(name))
+        .$new('resourceManager', new ResourceManager(name))
         .$new('recordResolvers', new DBRecordResolvers(name));
 
     _openedDB = null;

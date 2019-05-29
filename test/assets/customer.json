@@ -1,0 +1,25 @@
+[{
+    "CustomerID": 1,
+    "CustomerName": "Alfreds Futterkiste",
+    "ContactName": "Maria Anders",
+    "Country": "Germany",
+    "Address": "Obere Str. 57",
+    "City": "Berlin",
+    "PostalCode": 12209
+}, {
+    "CustomerID": 2,
+    "CustomerName": "Ana Trujillo Emparedados y helados",
+    "ContactName": "Ana Trujillo",
+    "Country": "Mexico",
+    "Address": "Avda. de la Constitución 2222",
+    "City": "México D.F.",
+    "PostalCode": "05021"
+}, {
+    "CustomerID": 3,
+    "CustomerName": "Antonio Moreno Taquería",
+    "ContactName": "Antonio Moreno",
+    "Country": "Mexico",
+    "Address": "Mataderos 2312",
+    "City": "México D.F.",
+    "PostalCode": "05023"
+}]

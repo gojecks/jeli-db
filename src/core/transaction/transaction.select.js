@@ -6,7 +6,6 @@
  *     -query : select -* -TBL_NAME
  *     -definition: {
  *     where:STRING,
- *     like:STRING,
  *     limit:STRING,
  *     orderBy:STRING,
  *     groupBy:FIELD,
@@ -15,13 +14,24 @@
  *     join:[{
  *         table:STRING,
  *         on:STRING,
- *         type:STRING (INNER,OUTER,LEFT,RIGHT),
+ *         clause:STRING (INNER,OUTER,LEFT,RIGHT),
  *         where:{},
  *         feilds:{ //OPTIONAL
  *         
  *         }
  *     }]
  *     }
+ * JOIN Query
+ * select -t1.Column, t2.Column -TBL as t1, TBL2 as t2 -join(@table(t2) @clause(INNER) @on(t1.column=t2.column))
+ * 
+ * WhereIn Query
+ * select -* -t1, t2 -where(IN([@select(t2.column) @table(t2) || @value([values])] @field(t1.column)))
+ * 
+ * WhereNotIn Query
+ * select -* -t1, t2 -where(NOTIN([@select(t2.column) @table(t2) || @value([values])] @field(t1.column)))
+ * 
+ * Like Query
+ * select -* -t1 -where(Like(@value(needle) @field(t1.column)))
  * **/
 function transactionSelect(selectFields, definition) {
     var $self = this,
@@ -35,8 +45,8 @@ function transactionSelect(selectFields, definition) {
 
     var queryDefinition = extend(true, {
         fields: selectFields,
-        where: "",
-        inClause: [],
+        where: null,
+        in: [],
         ref: false,
         like: "",
         join: null
@@ -78,7 +88,7 @@ function transactionSelect(selectFields, definition) {
                     }
 
                     //reference to the tables
-                    if (!$self.tableInfo[$removeWhiteSpace(tblName)]) {
+                    if (!$self.tableInfo[tblName.trim()]) {
                         $self.setDBError(tblName + " was not found, Include table in transaction Array eg: db.transaction(['table_1','table_2'])");
                     }
                 }
@@ -103,7 +113,7 @@ function transactionSelect(selectFields, definition) {
     function setJoinTypeFn(isMatch, idx, resolver, clause, joinType) {
         //INNER JOIN FN
         //@argument resolver {OBJECT}
-        switch (joinType) {
+        switch (joinType.toLowerCase()) {
             /**
              * The INNER JOIN keyword selects records that have matching values in both tables.
              */
@@ -165,47 +175,45 @@ function transactionSelect(selectFields, definition) {
      * @param {*} clause 
      */
     function matchTableFn(joinObj, clause) {
-        var joinOn = splitStringCondition(joinObj.on)[0].split("="),
+        var joinOn = joinObj.on.split("="),
             startLogic = joinOn[0].split("."),
             innerLogic = joinOn[1].split("."),
-            queryMatchIsLeft = $isEqual($self.tables[$removeWhiteSpace(joinObj.table)], startLogic[0]),
+            queryMatchIsLeft = $isEqual(joinObj.table, startLogic[0]),
             isRightClause = $isEqual('right', clause);
         /**
          * compare the matching tables
          */
-        if ((!isRightClause && queryMatchIsLeft) || (isRightClause && !queryMatchIsLeft)) {
-            startLogic = joinOn[1].split(".");
-            innerLogic = joinOn[0].split(".");
+        if (isRightClause && !queryMatchIsLeft) {
+            var stash = startLogic;
+            startLogic = innerLogic;
+            innerLogic = stash;
+            stash = null;
         }
 
-        var leftTable = removeJeliDataStructure($self.tableInfo[startLogic[0]].data.slice()),
-            rightTable = removeJeliDataStructure($self.tableInfo[innerLogic[0]].data.slice()),
+        var leftTable = getTableData(startLogic[0]),
+            rightTable = getTableData(innerLogic[0]),
             leftCol = startLogic[1],
             rightCol = innerLogic[1],
             leftTableMappingName = startLogic[0],
             rightTableMappingName = innerLogic[0],
             counter = 0;
-
         /**
-         * run WHERE and SELECT query on the join table1
-         * before matching them
+         * check if clause is inner 
+         * check length of each table
+         * t2 > t1
+         * t1 = t2
+         * t2 = t1
          */
-        if (!isRightClause) {
-            rightTable = $self.getColumn(new $query(rightTable)._(joinObj.where || null), joinObj);
-        } else {
-            leftTable = $self.getColumn(new $query(leftTable)._(joinObj.where || null), joinObj);
+        if (clause == "inner" && leftTable.length > rightTable.length) {
+            var stash = leftTable;
+            leftTable = rightTable;
+            rightTable = leftTable;
         }
 
-        /**
-         * Get the rightCol Mapping Value
-         */
-        var _right_table_map_ = rightTable.map(function(_item_) { return _item_[rightCol]; });
-
+        var _right_table_map_ = rightTable.map(function(item) { return item._data[rightCol]; });
         //start process
         //query the leftTable Data
         leftTable.forEach(filterRightTable);
-
-
         /**
          * 
          * @param {*} lItem 
@@ -213,15 +221,14 @@ function transactionSelect(selectFields, definition) {
          */
         function filterRightTable(lItem, _index) {
             var resObject = {},
-                _idx_ = _right_table_map_.indexOf(lItem[leftCol]),
-                $isFound = _idx_ > -1
-            resObject[leftTableMappingName] = lItem;
+                _idx_ = _right_table_map_.indexOf(lItem._data[leftCol]),
+                $isFound = _idx_ > -1;
+            resObject[leftTableMappingName] = lItem._data;
             resObject[rightTableMappingName] = {};
 
             if ($isFound) {
-                resObject[rightTableMappingName] = rightTable[_idx_];
+                resObject[rightTableMappingName] = rightTable[_idx_]._data;
             }
-
             setJoinTypeFn($isFound, _index, resObject, clause, joinObj.clause);
         }
 
@@ -230,32 +237,6 @@ function transactionSelect(selectFields, definition) {
                 return matchTableFn(joinObj, match)
             }
         });
-    }
-
-
-    function stripWhereClause() {
-        if ($isObject(queryDefinition.where)) {
-            return;
-        }
-        // check for INARRAY CLAUSE in query
-        // @usage : INARRAY([HAYSTACK, needle])
-        queryDefinition.where.replace(/INARRAY\(\[(.*?)\]\)/, function(key, match) {
-            queryDefinition.inClause.push({
-                replacer: key,
-                query: match.split(",")[0],
-                contains: match.split(",")[1]
-            });
-
-            return key;
-        });
-    }
-
-    function runInClause() {
-        if (!queryDefinition.inClause.length) {
-            return;
-        }
-
-        queryDefinition.inClause.map(performInClauseQuery);
     }
 
     /**
@@ -271,32 +252,55 @@ function transactionSelect(selectFields, definition) {
         return _newChunk
     }
 
-    /**
-     * 
-     * @param {*} item 
-     * @param {*} idx 
-     */
-    function performInClauseQuery(item, idx) {
-        var inQuery = item.query.split(/(@)/gi).filter(function(citem) {
-                return !$inArray("@", citem);
-            }),
-            inQueryDefinition = buildSelectQuery(inQuery);
-        inQueryDefinition.fields = inQuery[1];
+    function getTableData(tableName) {
+        return ($self.tableInfo[tableName] || $self.tableInfo).data;
+    }
 
-        if (!$self.tableInfo.hasOwnProperty(inQuery[2])) {
-            return $self.setDBError(inQuery[2] + " was not found, Include table in transaction");
+    function performInClauseQuery() {
+        queryDefinition.where.forEach(function(item) {
+            Object.keys(item).forEach(function(key) {
+                if ($inArray(item[key].type, ["$inClause", "$notInClause"])) {
+                    runClause(item, key);
+                }
+            });
+        });
+
+        function runClause(item, key) {
+            var clause = item[key],
+                value = clause.value;
+            if (!value && clause.table) {
+                if (!$self.tableInfo.hasOwnProperty(clause.table) && !$isEqual($self.tableInfo['TBL_NAME'], clause.table)) {
+                    return $self.setDBError(clause.table + " was not found, Include table in transaction");
+                }
+
+                if (!clause.select || clause.select === "*") {
+                    return $self.setDBError("invalid clause field, field should contain a single column");
+                }
+
+                clause.isArrayResult = true;
+                value = $self.getColumn(new $query(getTableData(clause.table))._(clause.where), clause);
+            }
+
+            // attach clause to query
+            item[key] = {
+                type: clause.type,
+                value: value
+            };
         }
-
-        queryDefinition.where = queryDefinition.where.replace(
-            item.replacer,
-            "String(JSON.stringify(" + JSON.stringify($self.getColumn(new $query(removeJeliDataStructure($self.tableInfo[inQuery[2]].data.slice()))._(inQueryDefinition.where || ""), inQueryDefinition)) + ")).indexOf(" + item.contains + ") > -1;"
-        );
     }
 
     //Push our executeState Function into Array
     this.executeState.push(["select", function() {
-        stripWhereClause();
-        runInClause();
+        // convert where query to an object
+        if (queryDefinition.where) {
+            if ($isString(queryDefinition.where)) {
+                queryDefinition.where = $query._parseCondition(queryDefinition.where);
+            } else if ($isObject(queryDefinition.where)) {
+                console.warn("Support for Object type WHERE clause will be removed in next version");
+                queryDefinition.where = [queryDefinition.where];
+            }
+            performInClauseQuery();
+        }
 
         if ($self.hasError()) {
             //Throw new error
@@ -313,7 +317,7 @@ function transactionSelect(selectFields, definition) {
                         matchTableFn(join, 'left').recur('right');
                         break;
                     default:
-                        matchTableFn(join, join.clause);
+                        matchTableFn(join, join.clause.toLowerCase());
                         break;
                 }
             });
@@ -326,8 +330,7 @@ function transactionSelect(selectFields, definition) {
         }
 
         //return the processed Data
-        var data = removeJeliDataStructure($self.tableInfo.data.slice());
-        return $self.getColumn(new $query(data)._(queryDefinition.where), queryDefinition);
+        return $self.getColumn(new $query(getTableData($self.tables._[0]))._(queryDefinition.where), queryDefinition);
     }]);
 
     /*
@@ -343,7 +346,7 @@ function transactionSelect(selectFields, definition) {
     */
     var join = function(definition) {
             if (!$isObject(definition)) {
-                throw new Error("join DEFINITION should be an object");
+                throw new TypeError("join DEFINITION should be an object");
             }
 
             queryDefinition.join.push(definition);

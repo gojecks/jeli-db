@@ -27,7 +27,6 @@
         "url": "https://github.com/gojecks/jEliDB/issues"
     },
     "homepage": "https://github.com/gojecks/jEliDB#readme",
-    "private": true,
     "devDependencies": {
         "grunt": "^0.4.5",
         "grunt-cli": "^0.1.13",

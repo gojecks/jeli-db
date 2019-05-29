@@ -73,10 +73,11 @@ function transactionInsert() {
                     if (!_dataExists) {
                         tableInfo.lastInsertId++;
                         //update the data to store
-                        findInList.call(pData, function(i, n) {
+                        Object.keys(pData).forEach(function(key) {
                             //check auto_increment
-                            if ($isUndefined(n) && columns[i].hasOwnProperty('AUTO_INCREMENT')) {
-                                pData[i] = tableInfo.lastInsertId;
+                            if (!pData[key] && columns[key].hasOwnProperty('AUTO_INCREMENT')) {
+
+                                pData[key] = tableInfo.lastInsertId;
                             }
                         });
 

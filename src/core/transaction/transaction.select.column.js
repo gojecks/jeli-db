@@ -1,7 +1,8 @@
 //get table column
 function transactionSelectColumn(data, definition) {
     //set the data to get column info from
-    var columns = (definition.fields || "").split(','),
+    var fields = (definition.fields || definition.select || ""),
+        columns = fields.split(','),
         retData = [],
         requiredFields = [],
         data = getTableData(),
@@ -9,14 +10,11 @@ function transactionSelectColumn(data, definition) {
         replacer = function(str) {
             return str.replace(/\((.*?)\)/, "|$1").split("|");
         };
-    /**
-        @perFormLimitTask
-        -Task
-            :GROUPBY
-            :orderBy
-            :limit
-    **/
 
+    /**
+     * 
+     * @param {*} cdata 
+     */
     function performOrderLimitTask(cdata) {
         var actions = {
             groupBy: function() {
@@ -32,7 +30,7 @@ function transactionSelectColumn(data, definition) {
                  * only when been used as filter options in expressions
                  */
                 if ($inArray(':', propertyName)) {
-                    order = $removeWhiteSpace(propertyName.split(":")[1]);
+                    order = propertyName.split(":")[1].trim();
                 }
 
                 /**
@@ -131,8 +129,11 @@ function transactionSelectColumn(data, definition) {
     **/
 
     var _privateApi = {
-        COUNT: function(cdata) {
-            return cdata.length
+        COUNT: function(cdata, field) {
+            if (field) {
+                return (cdata[field] || []).length
+            }
+            return data.length
         },
         LOWERCASE: function(cdata, field) {
             return cdata[field].toLowerCase();
@@ -160,15 +161,28 @@ function transactionSelectColumn(data, definition) {
     function _custom(field) {
         field = replacer(field);
         return function(cdata) {
-            return ((_privateApi[field[0]] && !cdata.hasOwnProperty(field[0])) ? _privateApi[field[0]](cdata, field[1]) : _privateApi.GET(cdata, field[0]));
+            if (_privateApi[field[0]] && !cdata.hasOwnProperty(field[0])) {
+                return _privateApi[field[0]](cdata, field[1])
+            }
+
+            return _privateApi.GET(cdata, field[0]);
         };
     }
 
     //loop through the data
     //return the required column
-    if (!$isEqual(definition.fields, '*') && definition.fields) {
-        buildColumn();
-        data.forEach(setColumnData);
+    if (!$inArray('*', fields) && fields) {
+        if (!definition.isArrayResult) {
+            buildColumn();
+            data.forEach(setColumnData);
+        } else {
+            /**
+             * return the field that matches the result
+             */
+            return data.map(function(item) {
+                return item[fields];
+            });
+        }
     } else {
         return performOrderLimitTask(data);
     }
@@ -182,15 +196,12 @@ function transactionSelectColumn(data, definition) {
             var aCol = replacer(columns[_cLen]);
             aCol = aCol[1] || aCol[0];
 
-            var
-                fieldName = aCol.split(' as '),
+            var fieldName = aCol.split(' as '),
                 tCol;
-
-
             //if fieldName contains table name
             if ($inArray('.', aCol)) {
                 var spltCol = aCol.split(".");
-                tCol = $removeWhiteSpace(spltCol.shift());
+                tCol = spltCol.shift().trim();
                 // split our required column on ' as '
                 fieldName = spltCol.join('.').split(' as ');
                 //AS Clause is required 
@@ -200,15 +211,13 @@ function transactionSelectColumn(data, definition) {
             }
 
             // remove whiteSpace from our fieldName
-            fieldName = JSON.parse($removeWhiteSpace(JSON.stringify(fieldName)));
-
-            var
-                _as = fieldName.pop(),
+            fieldName = JSON.parse(JSON.stringify(fieldName).trim());
+            var _as = fieldName.pop().trim(),
                 field = fieldName.length ? fieldName.shift() : _as;
 
             requiredFields.push({
                 _as: _as,
-                custom: _custom($removeWhiteSpace(columns[_cLen].split(" as ")[0])),
+                custom: _custom(columns[_cLen].split(" as ")[0].trim()),
                 field: field,
                 tCol: tCol
             });

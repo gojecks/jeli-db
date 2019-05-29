@@ -22,12 +22,15 @@ function jEliDBTBL(tableInfo) {
             }
         });
 
-        /**
-            broadcast event
-        **/
-        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME, tableInfo.data]);
         //update the DB
-        jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+        jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
+            table.columns = tableInfo.columns
+        });
+
+        /**
+         * broadcast event
+         **/
+        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME]);
     };
 
     this.Alter.add = ({
@@ -35,8 +38,7 @@ function jEliDBTBL(tableInfo) {
         unique: indexAction,
         foreign: foreignAction,
         mode: modeAction,
-        column: columnAction,
-
+        column: columnAction
     });
 
     /**
@@ -44,13 +46,14 @@ function jEliDBTBL(tableInfo) {
      */
     this.Alter.rename = function(newTableName) {
         if (newTableName && !$isEqual(newTableName, tableInfo.TBL_NAME)) {
+            var db = privateApi.$getActiveDB(tableInfo.DB_NAME);
             // rename the tableInfo
-            if (privateApi.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(newTableName)) {
+            if (db.$get('$tableExist')(newTableName)) {
                 return "Table already exists";
             }
 
             //update the deletedRecords
-            var $resource = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
+            var $resource = db.$get('resourceManager');
             if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
                 privateApi.$taskPerformer.updateDeletedRecord('rename', {
                     oldName: tableInfo.TBL_NAME,
@@ -60,17 +63,16 @@ function jEliDBTBL(tableInfo) {
                 });
             }
 
-            $resource.renameTableResource(tableInfo.TBL_NAME, newTableName);
-            privateApi.replicateTable(tableInfo.DB_NAME, tableInfo.TBL_NAME, newTableName, true);
             /**
              * broadcastEvent
              */
             privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onRenameTable'), [tableInfo.TBL_NAME, newTableName]);
-            info.tableName = tableInfo.TBL_NAME = newTableName;
+            $resource.renameTableResource(info.tableName, newTableName);
+            info.tableName = newTableName;
             /**
              * updated storage
              */
-            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+            jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
 
             return dbSuccessPromiseObject("rename", "Table renamed successfully");
         }
@@ -90,15 +92,16 @@ function jEliDBTBL(tableInfo) {
         }
 
         //update the DB
-        jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
-            table.data = [];
+        tableInfo.data.length = 0;
+        jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
             table._hash = "";
             table._records = table.lastInsertId = 0;
-            /**
-                broadcast event
-            **/
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onTruncateTable'), [tableInfo.TBL_NAME]);
         });
+
+        /**
+         * broadcast event
+         */
+        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onTruncateTable'), [tableInfo.TBL_NAME]);
 
         return dbSuccessPromiseObject("truncate", tableInfo.TBL_NAME + " was truncated");
     };
@@ -128,9 +131,6 @@ function jEliDBTBL(tableInfo) {
         **/
         privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onDropTable'), [tableInfo.TBL_NAME]);
 
-        //delete the table from DB
-        privateApi.removeTable(tableInfo.TBL_NAME, tableInfo.DB_NAME, true);
-
         return dbSuccessPromiseObject("drop", "Table (" + tableInfo.TBL_NAME + ") was dropped successfully");
     };
 
@@ -139,13 +139,14 @@ function jEliDBTBL(tableInfo) {
 
     //Table constructor
     function constructTable(cFn) {
-        expect(tableInfo.data).each(function(item, idx) {
+        var columns = columnObjFn(tableInfo.columns[0]);
+        tableInfo.data.forEach(function(item, idx) {
             //perform task if argument is a function
             if ($isFunction(cFn)) {
                 cFn(item);
             }
             //Update the dataSet
-            tableInfo.data[idx]._data = extend(columnObjFn(tableInfo.columns[0]), item._data);
+            tableInfo.data[idx]._data = extend(true, columns, item._data);
         });
     }
 
@@ -155,10 +156,13 @@ function jEliDBTBL(tableInfo) {
      */
     function primaryAction(key) {
         if (key && tableInfo.columns[0][key]) {
-            tableInfo.primaryKey = key;
-            tableInfo.columns[0][key].primaryKey = true;
             //update the DB
-            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+            jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
+                tableInfo.columns[0][key].primaryKey = true;
+                table.primaryKey = key;
+                table.columns = tableInfo.columns;
+                table.columns[0][key].primaryKey = true;
+            });
         }
 
         return this;
@@ -171,14 +175,15 @@ function jEliDBTBL(tableInfo) {
      */
     function foreignAction(key, tableName) {
         if (key && tableName && tableInfo.columns[0][key]) {
-            if (!tableInfo.foreignKey && privateApi.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(tableName)) {
-                tableInfo.foreignKey = {
-                    key: key,
-                    table: tableName
-                };
+            if (privateApi.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(tableName)) {
+                //update the DB
+                jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
+                    table.foreignKey = {
+                        key: key,
+                        table: tableName
+                    }
+                });
             }
-            //update the DB
-            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
         }
 
         return this
@@ -197,16 +202,18 @@ function jEliDBTBL(tableInfo) {
                 nColumn[columnName] = config ? config : {};
             }
 
-            tableInfo.columns[0] = extend(true, tableInfo.columns[0], nColumn);
             //reconstruct the table
+            tableInfo.columns[0] = extend(true, tableInfo.columns[0], nColumn);
             constructTable();
 
             /**
-                 broadcast event
-             **/
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME, tableInfo.data]);
+             * broadcast event
+             */
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME]);
             //update the DB
-            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+            jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
+                table.columns = tableInfo.columns;
+            });
         }
 
         return this;
@@ -214,13 +221,18 @@ function jEliDBTBL(tableInfo) {
 
     function indexAction(name, setting) {
         tableInfo.index[name] = setting || { unique: false };
+        jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
+            table.index = tableInfo.index;
+        });
     }
 
     function modeAction(mode) {
         if (!tableInfo.allowedMode[mode]) {
             tableInfo.allowedMode[mode] = 1;
             //update the DB
-            jEliUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+            jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
+                table.allowedMode = tableInfo.allowedMode;
+            });
         }
     }
 }
