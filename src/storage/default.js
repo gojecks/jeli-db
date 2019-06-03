@@ -40,8 +40,7 @@ function DefaultStorage(config, callback) {
         .subscribe(eventNamingIndex(dbName, 'onTruncateTable'), saveData)
         .subscribe(eventNamingIndex(dbName, 'onResolveSchema'), function(version, tables) {
             publicApi.setItem('version', version);
-            var tables = Object.keys(tables);
-            tables.forEach(function(tblName) {
+            Object.keys(tables).forEach(function(tblName) {
                 onCreateTable(tblName, tables[tblName]);
             });
         })
@@ -52,6 +51,7 @@ function DefaultStorage(config, callback) {
             publicApi.removeItem(oldTable);
             publicApi.removeItem(oldTable + ":data");
         })
+        .subscribe(eventNamingIndex(dbName, 'onAlterTable'), saveData)
         .subscribe(eventNamingIndex(dbName, 'onRenameDataBase'), function(oldName, newName, cb) {
             var oldData = this.getItem(oldName);
             Object.keys(oldData.tables).forEach(function(tbl) {
@@ -106,7 +106,8 @@ function DefaultStorage(config, callback) {
      * @param {*} definition 
      */
     function onCreateTable(tableName, definition) {
-        // create a new store for data
+        console.log()
+            // create a new store for data
         publicApi.setItem(tableName + ":data", []);
         publicApi.setItem(tableName, definition);
     }

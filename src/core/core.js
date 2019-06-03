@@ -97,7 +97,7 @@
                             return promise;
                         }
 
-                        if (!privateApi.$taskPerformer.initializeDB(name) && config.serviceHost) {
+                        if (!_activeDBApi.$get('resourceManager').$isExists() && config.serviceHost) {
                             initializeDBSuccess();
                         } else {
                             startDB();
@@ -134,6 +134,9 @@
                             dbChecker.version = version;
                         }
                     } else {
+                        _activeDBApi
+                            .$get('resourceManager')
+                            .setResource(getDBSetUp(name));
                         /**
                          * create our database instance
                          */
@@ -237,11 +240,11 @@
                     .getSchema(name, _loadServerData)
                     .then(function(mergeResponse) {
                         //Create a new version of the DB
-                        var dbTables = { tables: {}, 'version': version };
+                        var dbTables = {};
                         for (var tbl in mergeResponse.schemas) {
                             //set an empty data 
                             if (mergeResponse.schemas[tbl]) {
-                                dbTables.tables[tbl] = extend(mergeResponse.schemas[tbl], dbResource[tbl]);
+                                dbTables[tbl] = extend(mergeResponse.schemas[tbl], dbResource[tbl]);
                             }
                         }
                         //register DB to QueryDB

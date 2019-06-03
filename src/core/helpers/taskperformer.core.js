@@ -58,18 +58,5 @@ function _privateTaskPerfomer() {
         }
     };
 
-    /**
-     * 
-     * @param {*} name 
-     */
-    _publicApi.initializeDB = function(name) {
-        //set recordResolvers
-        if (!privateApi.$getActiveDB(name).$get('resourceManager').$isExists()) {
-            return false;
-        }
-
-        return true;
-    };
-
     return _publicApi;
 };

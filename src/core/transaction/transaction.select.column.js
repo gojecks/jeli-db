@@ -54,6 +54,7 @@ function transactionSelectColumn(data, definition) {
             }
         };
 
+
         Object.keys(actions).map(function(key) {
             if (definition[key]) {
                 actions[key](definition[key]);
@@ -171,7 +172,7 @@ function transactionSelectColumn(data, definition) {
 
     //loop through the data
     //return the required column
-    if (!$inArray('*', fields) && fields) {
+    if (fields && !$isEqual(fields, '*')) {
         if (!definition.isArrayResult) {
             buildColumn();
             data.forEach(setColumnData);
@@ -191,9 +192,8 @@ function transactionSelectColumn(data, definition) {
      * Generate column required column for mapping
      */
     function buildColumn() {
-        var _cLen = columns.length;
-        while (_cLen--) {
-            var aCol = replacer(columns[_cLen]);
+        columns.forEach(function(select) {
+            var aCol = replacer(select);
             aCol = aCol[1] || aCol[0];
 
             var fieldName = aCol.split(' as '),
@@ -205,23 +205,29 @@ function transactionSelectColumn(data, definition) {
                 // split our required column on ' as '
                 fieldName = spltCol.join('.').split(' as ');
                 //AS Clause is required 
-                if ($inArray(' as ', aCol)) {
-                    tCol = false;
-                }
+                // if ($inArray(' as ', aCol)) {
+                //     tCol = false;
+                // }
             }
 
             // remove whiteSpace from our fieldName
             fieldName = JSON.parse(JSON.stringify(fieldName).trim());
             var _as = fieldName.pop().trim(),
-                field = fieldName.length ? fieldName.shift() : _as;
+                field = fieldName.length ? fieldName.shift() : _as,
+                rCol = null;
+
+            if (field === '*' && $isEqual(_as, field)) {
+                rCol = Object.keys(data[0][tCol]);
+            }
 
             requiredFields.push({
                 _as: _as,
-                custom: _custom(columns[_cLen].split(" as ")[0].trim()),
+                custom: _custom(select.split(" as ")[0].trim()),
                 field: field,
-                tCol: tCol
+                tCol: tCol,
+                rCol: rCol
             });
-        }
+        });
     }
 
 
@@ -244,22 +250,21 @@ function transactionSelectColumn(data, definition) {
 
     //set the object to be returned
     function setColumnData(cData) {
-        var odata = {},
-            fnd = 0,
-            len = requiredFields.length;
-
-
+        var odata = {};
         //set the data
-        while (len > fnd) {
-            var _curField = requiredFields[fnd];
+        requiredFields.forEach(function(_curField) {
             if ($isEqual(_curField.field, '*')) {
-                odata[_curField.tCol] = cData[_curField.tCol] || cData;
+                if (_curField.rCol) {
+                    _curField.rCol.forEach(function(field) {
+                        odata[field] = cData[_curField.tCol][field];
+                    });
+                } else {
+                    odata[_curField._as] = cData[_curField.tCol] || cData;
+                }
             } else {
                 odata[_curField._as] = _curField.custom(cData);
             }
-
-            fnd++;
-        }
+        });
 
         retData.push(odata);
     }

@@ -30,7 +30,7 @@ function jEliDBTBL(tableInfo) {
         /**
          * broadcast event
          **/
-        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME]);
+        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onAlterTable'), [tableInfo.TBL_NAME, columnName, 0]);
     };
 
     this.Alter.add = ({
@@ -137,7 +137,10 @@ function jEliDBTBL(tableInfo) {
 
     this.onUpdate = new ApplicationRealtime('table', tableInfo.DB_NAME, tableInfo.TBL_NAME, tableInfo._hash);
 
-    //Table constructor
+    /**
+     * 
+     * @param {*} cFn 
+     */
     function constructTable(cFn) {
         var columns = columnObjFn(tableInfo.columns[0]);
         tableInfo.data.forEach(function(item, idx) {
@@ -209,7 +212,7 @@ function jEliDBTBL(tableInfo) {
             /**
              * broadcast event
              */
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableInfo.TBL_NAME]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onAlterTable'), [tableInfo.TBL_NAME, columnName, 1]);
             //update the DB
             jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
                 table.columns = tableInfo.columns;
@@ -219,6 +222,11 @@ function jEliDBTBL(tableInfo) {
         return this;
     }
 
+    /**
+     * 
+     * @param {*} name 
+     * @param {*} setting 
+     */
     function indexAction(name, setting) {
         tableInfo.index[name] = setting || { unique: false };
         jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
@@ -226,6 +234,10 @@ function jEliDBTBL(tableInfo) {
         });
     }
 
+    /**
+     * 
+     * @param {*} mode 
+     */
     function modeAction(mode) {
         if (!tableInfo.allowedMode[mode]) {
             tableInfo.allowedMode[mode] = 1;

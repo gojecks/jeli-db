@@ -23,7 +23,7 @@
   //Function to Store storage data
   //@return JSON String
   function setStorageItem(key, value, db) {
-      if (key && value && $isObject(value)) {
+      if (key && value) {
           privateApi.$getActiveDB(db)
               .$get('_storage_')
               .setItem(key, value);
@@ -36,7 +36,7 @@
       return true;
   }
 
-  function getDBSetUp(name) {
+  function getDBSetUp() {
       return ({
           started: new Date().getTime(),
           lastUpdated: new Date().getTime(),
@@ -196,6 +196,10 @@
           if (def.hasOwnProperty('defaultValue')) {
               if (def.defaultValue == "CURRENT_TIMESTAMP") {
                   return +new Date;
+              } else if (def.defaultValue == "DATE_TIME") {
+                  return new Date().toLocaleString();
+              } else if (def.defaultValue == "DATE") {
+                  return new Date().toLocaleDateString();
               } else if (def.defaultValue == "user_defined") {
                   return def.userDefinedValue;
               } else {
@@ -206,8 +210,8 @@
           return null;
       };
 
-      findInList.call(columns, function(idx, n) {
-          obj[idx] = _dbDefaultValueMatcher(n);
+      findInList.call(columns, function(prop, value) {
+          obj[prop] = _dbDefaultValueMatcher(value);
       });
 
       return obj;

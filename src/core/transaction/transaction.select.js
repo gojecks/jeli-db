@@ -349,7 +349,12 @@ function transactionSelect(selectFields, definition) {
                 throw new TypeError("join DEFINITION should be an object");
             }
 
-            queryDefinition.join.push(definition);
+            if (queryDefinition.join) {
+                queryDefinition.join = [definition];
+            } else {
+                queryDefinition.join.push(definition);
+            }
+
 
             return publicApi;
         },

@@ -3,7 +3,7 @@
  * @param {*} name 
  */
 function ResourceManager(name) {
-    var _resource = getStorageItem(privateApi.storeMapping.resourceName, name) || getDBSetUp(name);
+    var _resource = getStorageItem(privateApi.storeMapping.resourceName, name);
 
     this.getResource = function() {
         return _resource || getStorageItem(privateApi.storeMapping.resourceName, name);
@@ -14,7 +14,7 @@ function ResourceManager(name) {
      * @param {*} resource 
      */
     this.setResource = function(resource, _name) {
-        _resource = resource || _resource || this.getResource();
+        _resource = resource || _resource;
         //set and save the resource
         setStorageItem(_name || privateApi.storeMapping.resourceName, _resource, name);
 
@@ -55,6 +55,9 @@ function ResourceManager(name) {
     };
 
     this.addTableToResource = function(tableName, data) {
+        if ($isArray(_resource.resourceManager)) {
+            _resource.resourceManager = {};
+        }
         _resource.resourceManager[tableName] = data;
     }
 }

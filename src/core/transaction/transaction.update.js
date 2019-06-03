@@ -6,36 +6,30 @@
  * @return {OBJECT}
  */
 function transactionUpdate(updateData, query) {
-    var $self = this;
+    var $self = this,
+        columns = this.tableInfo.columns[0];
     //convert our query
     //Function structureUpdateData()
     function structureUpdateData(setData) {
         // return setData when its an object
         if ($isObject(setData)) {
             return setData;
-        }
+        } else if ($isString(setData)) {
+            //convert String Data to Object
+            var nString = removeSingleQuote(setData),
+                splitComma = nString.split(","),
+                i = splitComma.length,
+                tempObj = {};
+            //Loop through the split Data
+            while (i--) {
+                var splitEqualTo = splitComma[i].split("=");
+                //set the new Object Data
+                tempObj[splitEqualTo[0]] = splitEqualTo[1];
+            }
 
-        switch (typeof setData) {
-            case ('string'):
-                //convert String Data to Object
-                var nString = removeSingleQuote(setData),
-                    splitComma = nString.split(","),
-                    i = splitComma.length,
-                    tempObj = {};
-                //Loop through the split Data
-                while (i--) {
-                    var splitEqualTo = splitComma[i].split("=");
-                    //set the new Object Data
-                    tempObj[splitEqualTo[0]] = splitEqualTo[1];
-                }
-                return tempObj;
-                break;
-            case ('object'):
-                return setData;
-                break;
-            default:
-                $self.setDBError('Unable to update Table, unaccepted dataType recieved');
-                break;
+            return tempObj;
+        } else {
+            $self.setDBError('Unable to update Table, unaccepted dataType recieved');
         }
     }
 
@@ -44,6 +38,21 @@ function transactionUpdate(updateData, query) {
         u = this.tableInfo.data.length,
         updated = 0,
         rowsToUpdate = [];
+
+
+    /**
+     * check for onUpdate event in schema settings
+     */
+    Object.keys(columns).forEach(function(column) {
+        if (columns[column].hasOwnProperty('ON_UPDATE')) {
+            if (!setData.hasOwnProperty(column)) {
+                var col = {};
+                col[column] = columns[column];
+                var stamp = columnObjFn(col);
+                setData[column] = stamp[column];
+            }
+        }
+    });
     /**
      * 
      * @param {*} data 
