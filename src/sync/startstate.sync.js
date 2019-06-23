@@ -84,8 +84,9 @@
                   toResolve = [];
 
               if (resolvedData && resolvedData.data && resolvedData.data.delete) {
+                  var _deleted = expect(localResolved.data.delete);
                   for (var d in resolvedData.data.delete) {
-                      var _search = expect(localResolved.data.delete).search(resolvedData.data.delete[d].data);
+                      var _search = _deleted.search(resolvedData.data.delete[d].data);
 
                       if (!_search) {
                           toResolve.push(resolvedData.data.delete[d].data);
@@ -93,7 +94,7 @@
                   }
 
                   //update the local tables
-                  privateApi.$updateTableData(tbl, toResolve);
+                  privateApi.storageEventHandler.broadcast(eventNamingIndex(appName, 'insert'), [tbl, toResolve, true]);
               }
 
               privateApi.$taskPerformer.updateDB(appName, tbl, null, +new Date);

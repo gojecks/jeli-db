@@ -45,6 +45,4 @@ function syncConflictChecker(conflictChecker, success, error) {
             syncHelper.setMessage('unable to check for conflict, please check your internet setting');
             syncHelper.killState(conflictChecker.appName);
         });
-
-    return $promise;
 }

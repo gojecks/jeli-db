@@ -32,18 +32,37 @@ declare namespace jdb {
         key?:String;
         folderPath?:String;
         ajax?:Function;
-        interceptor?:Function;
+        interceptor?:(options: IDBHTTPRequest, requestState: IDBRequestState)=>any; 
         organisation:String;
     }
 
-    type eventResponse = (event:IDBCoreEvent) => {};
+    type eventResponse = (event:IDBCoreEvent) => any;
+
+    interface IDBHTTPRequest {
+        url: string;
+        __appName__: string;
+        data: any;
+        headers: any;
+        dataType: string;
+        contentType: string;
+        type: string;
+        cache: boolean;
+    }
+
+    interface IDBRequestState {
+        METHOD: string;
+        CACHE?: string;
+        URL: string;
+        AUTH_TYPE: number;
+        PRIVATE_API?: boolean;
+    }
     
     interface IDBCorePromise {
-        onSuccess(cb:Function): IDBCorePromise;
+        onSuccess(cb:eventResponse): IDBCorePromise;
         onError(cb:Function): IDBCorePromise;
         then(cb:Function): IDBCorePromise;
         onUpgrade(cb:Function): IDBCorePromise;
-        onCreate(cb:Function): IDBCorePromise;
+        onCreate(cb:eventResponse): IDBCorePromise;
     }
     
     interface IDBPromise {

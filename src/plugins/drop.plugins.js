@@ -13,8 +13,7 @@ function dropPluginFn(query, handler) {
 
     return function(db) {
         // @Function drops the required table
-        var result = false,
-            errMsg = { state: "drop", message: query[1] + " command was not found, please type help for JDB command" };
+        var errMsg = { state: "drop", message: query[1] + " command was not found, please type help for JDB command" };
 
         if (query.length > 2) {
             var flag = query[3] || false;
@@ -39,9 +38,9 @@ function dropPluginFn(query, handler) {
                 case ('db'):
                 case ('d'):
                     db
-                        .drop(flag)
+                        .drop(flag, query[2])
                         .onSuccess(function(state) {
-                            state.type = "database";
+                            state.type = query[1];
                             if ($isEqual(state.status, 'success')) {
                                 handler.onSuccess(state);
                             } else {

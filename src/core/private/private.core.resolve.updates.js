@@ -44,7 +44,7 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
             types.forEach(function(name) {
                 if (data[name] && data[name].length) {
                     _task[name](data[name]);
-                    self.storageEventHandler.broadcast(eventNamingIndex(db, name), [tbl.TBL_NAME, data[name]]);
+                    self.storageEventHandler.broadcast(eventNamingIndex(db, name), [tbl.TBL_NAME, data[name], false]);
                 }
             });
 

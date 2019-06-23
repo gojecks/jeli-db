@@ -135,7 +135,7 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
         switch (state.toLowerCase()) {
             case ('/database/push'):
             case ('/database/sync'):
-                options.data.postData = privateApi.$getTable(appName, tbl);
+                options.data.postData = privateApi.$getTable(appName, tbl, true);
                 options.data.action = "overwrite";
                 break;
             case ('/database/resource/add'):

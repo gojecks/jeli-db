@@ -136,7 +136,7 @@ function DBRecordResolvers(name) {
         $destroy: function() {
             if ($isEmptyObject(_records)) {
                 _records = {};
-                setStorageItem(privateApi.storeMapping.pendingSync, {}, name);
+                delStorageItem(privateApi.storeMapping.pendingSync);
             }
         },
         rename: function(newName) {

@@ -158,7 +158,7 @@ function transactionInsert() {
             /**
                 broadcast event
             **/
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData, tableInfo.lastInsertId]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData, false]);
         }
 
         //return success after push

@@ -14,10 +14,12 @@
              counter++;
          }
 
+         var diffRecursive = expect(diffAgainst);
+
          for (var inx in diffLoop) {
              //set the record to update
              var _diffData = { key: inx, data: diffLoop[inx] },
-                 _search = diffAgainst.filter(function(item, idx) {
+                 _search = diffRecursive.search(null, function(item, idx) {
                      //search data
                      if (type === 'data') {
                          return (item._ref === _diffData.data._ref);
@@ -25,7 +27,7 @@
                          //search columns
                          return (idx === inx);
                      }
-                 })[0];
+                 });
              //server data exist and local data exists
              if (_search) {
                  //changes have been made to either client or server

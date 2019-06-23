@@ -28,7 +28,13 @@
               return handler.onError(dbErrorPromiseObject("command requires parameters but got none,\n type help -[command]"));
           }
 
-          return taskPerformerObj[task].fn(taskType, handler)(this);
+          try {
+              taskPerformerObj[task].fn(taskType, handler)(this);
+          } catch (e) {
+              handler.onError(e);
+          } finally {}
+
+          return;
       }
 
       return handler.onError(dbErrorPromiseObject("Invalid command passed, use -help for help"));

@@ -73,12 +73,16 @@ function _privateApi() {
      * @param {*} dbName 
      * @param {*} tableName 
      */
-    this.$getTable = function(dbName, tableName) {
-        var _tbl = this.$get(dbName, 'tables');
-        if (_tbl && _tbl.hasOwnProperty(tableName)) {
-            return _tbl[tableName];
+    this.$getTable = function(dbName, tableName, extendable) {
+        var db = this.openedDB.$get(dbName).$get('_storage_'),
+            ret = null;
+        if (extendable) {
+            ret = extend(true, db.getItem(tableName));
+        } else {
+            ret = Object.create(db.getItem(tableName));
         }
-        return false;
+        ret.data = db.getItem(tableName + ":data");
+        return ret;
     };
 
     /**
@@ -108,8 +112,10 @@ function _privateApi() {
         var ret = { tables: {}, version: cache.version };
         if (cache.hasOwnProperty(this.storeMapping.resourceName)) {
             Object.keys(cache[this.storeMapping.resourceName].resourceManager).forEach(function(tbl) {
-                ret.tables[tbl] = Object.create(cache[tbl]);
-                ret.tables[tbl].data = cache[tbl + ":data"];
+                if (cache.hasOwnProperty(tbl)) {
+                    ret.tables[tbl] = Object.create(cache[tbl]);
+                    ret.tables[tbl].data = cache[tbl + ":data"];
+                }
             });
         }
         return ret;
@@ -129,21 +135,6 @@ function _privateApi() {
  */
 _privateApi.prototype.getDbTablesNames = function(db) {
     return Object.keys(this.$get(db || this.$activeDB, 'tables'));
-};
-
-
-/**
- * 
- * @param {*} tbl 
- * @param {*} data 
- */
-_privateApi.prototype.$updateTableData = function(db, tbl, data) {
-    var tblRecord = this.$getTable(db, tbl);
-    if (tblRecord) {
-        tblRecord.data.push.apply(tblRecord.data, data);
-    }
-
-    return this;
 };
 
 /**
