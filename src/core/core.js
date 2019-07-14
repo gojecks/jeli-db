@@ -277,7 +277,7 @@
                  * set the promise callback for upgradeneeded
                  **/
                 promise.then(function() {
-                    if ($isFunction(fn) && $isEqual(jeliInstance.type, 'upgradeMode')) {
+                    if ($isFunction(fn) && $inArray(jeliInstance.type, ['upgradeMode', 'createMode'])) {
                         if (jeliInstance) {
                             //initialize the upgraded FN
                             fn.call(fn, jeliInstance);

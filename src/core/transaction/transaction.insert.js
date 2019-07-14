@@ -1,103 +1,149 @@
-//set variable for processed Data
-
-function transactionInsert() {
+/**
+ * 
+ * @param {*} data 
+ * @param {*} hardInsert 
+ */
+function transactionInsert(data, hardInsert) {
     var processedData = [],
         _skipped = [],
-        _data = arguments,
         $self = this,
         tableInfo = $self.tableInfo,
         columns = tableInfo.columns[0],
         columnObj = columnObjFn(columns),
-        _typeValidator = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('dataTypes');
-
-    /*
-        Check if the our arguments is 1
-        if also the argument is an array
-        replace variable arg with arg[0]
-    */
-    if (_data.length === 1) {
-        if ($isArray(_data[0])) {
-            _data = _data[0];
-        } else if ($isObject(_data[0])) {
-            _data = [_data[0]];
-        } else if ($isString(_data[0])) {
-            this.setDBError("Invalid dataType, accepted types are  (ARRAY or OBJECT)");
-        }
+        _typeValidator = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('dataTypes'),
+        objectType = $isObject(data);
+    /**
+     * Data must an Array or Object format
+     * throw error if not in the format
+     */
+    if (!$isArray(data) && !objectType) {
+        this.setDBError("Invalid dataType, accepted types are  (ARRAY or OBJECT)");
     }
 
-    if (_data.length && columnObj && !this.hasError()) {
+    /**
+     * pardon object property
+     */
+    if (objectType) {
+        console.warn('[INSERT]: Support for Object data will be removed in later version');
+        data = [data];
+    }
+
+    function checkAndSetPrimaryKeys(pdata) {
+        tableInfo.lastInsertId++;
+        //update the data to store
+        Object.keys(pdata).forEach(function(key) {
+            //check auto_increment
+            if (!pdata[key] && columns[key].hasOwnProperty('AUTO_INCREMENT') && $inArray(columns[key].type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
+                pdata[key] = tableInfo.lastInsertId;
+            }
+        });
+    }
+
+
+    /**
+     * 
+     * @param {*} item 
+     * @param {*} keys 
+     */
+    function copyDataByIndex(item, keys) {
+        var cdata = {};
+        keys.forEach(function(key) {
+            cdata[keys[key]] = item[key];
+        });
+
+        return cdata;
+    }
+
+    function setLastInsertID() {
+        // set lastinsert ID
+        tableInfo.lastInsertId = (tableInfo.lastInsertId + processedData.length);
+        data = null;
+    }
+
+    function checkTableIndex(pData, _ref) {
+        var _index,
+            _dataExists = false;
+        for (_index in tableInfo.index) {
+            var _currentIndexCheck = tableInfo.index[_index];
+            if (_currentIndexCheck.indexes) {
+                // check the the index already exists
+                if (_currentIndexCheck.indexes[pData[_index]]) {
+                    if (_currentIndexCheck.unique) {
+                        _dataExists = true;
+                        _skipped.push(_currentIndexCheck.indexes[pData[_index]]);
+                    }
+                } else {
+                    _currentIndexCheck.indexes[pData[_index]] = _ref;
+                }
+            } else {
+                _currentIndexCheck.indexes = {};
+                _currentIndexCheck.indexes[pData[_index]] = _ref;
+            }
+        }
+
+        return _dataExists;
+    }
+
+    if (data.length && columnObj && !this.hasError()) {
+        /**
+         * check for hardInsert
+         * data must contain refs
+         */
+        if (hardInsert) {
+            /**
+             * remove data not jdb structure
+             */
+            processedData = data.map(function(item, idx) {
+                if (!item._ref) {
+                    _skipped.push(idx);
+                }
+                return item;
+            }).filter(function(item) { return (item._ref && item._data); });
+
+            setLastInsertID();
+        }
         /**
          * check if dataProcessing is disabled
          */
-        if (this.processData) {
-            _data.forEach(function(item, idx) {
+        else if (this.processData) {
+            data.forEach(function(item, idx) {
                 var cdata = {};
                 //switch type
                 if ($isObject(item)) {
                     cdata = item;
                 } else {
-                    var columnKeys = Object.keys(columnObj),
-                        k;
-                    //loop through the 
-                    for (k in columnKeys) {
-                        cdata[columnKeys[k]] = item[k];
-                    }
+                    cdata = copyDataByIndex(Object.keys(columnObj), item);
                 }
 
                 if (processData(cdata, idx)) {
                     var pData = extend(true, columnObj, cdata);
                     // check indexing
-                    var _dataExists = false,
-                        _ref = GUID(),
-                        _index;
-                    for (_index in tableInfo.index) {
-                        var _currentIndexCheck = tableInfo.index[_index];
-                        if (_currentIndexCheck.indexes) {
-                            // check the the index already exists
-                            if (_currentIndexCheck.indexes[pData[_index]]) {
-                                if (_currentIndexCheck.unique) {
-                                    _dataExists = true;
-                                    _skipped.push(_currentIndexCheck.indexes[pData[_index]]);
-                                }
-                            } else {
-                                _currentIndexCheck.indexes[pData[_index]] = _ref;
-                            }
-                        } else {
-                            _currentIndexCheck.indexes = {};
-                            _currentIndexCheck.indexes[pData[_index]] = _ref;
-                        }
-                    }
-
+                    var _ref = GUID(),
+                        _dataExists = checkTableIndex(pData, _ref);
                     //push data to processData array
                     //set obj ref GUID
                     if (!_dataExists) {
-                        tableInfo.lastInsertId++;
-                        //update the data to store
-                        Object.keys(pData).forEach(function(key) {
-                            //check auto_increment
-                            if (!pData[key] && columns[key].hasOwnProperty('AUTO_INCREMENT')) {
-                                pData[key] = tableInfo.lastInsertId;
-                            }
+                        checkAndSetPrimaryKeys(pData);
+                        processedData.push({
+                            _ref: _ref,
+                            _data: pData
                         });
-
-                        var newSet = {}
-                        newSet['_ref'] = _ref;
-                        newSet['_data'] = pData;
-                        processedData.push(newSet);
                     }
                 }
             });
         } else {
             // generate a new mapping dataset to be store
-            processedData = _data.map(function(item) {
+            processedData = data.map(function(item) {
+                var ref = GUID();
+                checkTableIndex(item, ref);
+                checkAndSetPrimaryKeys(item);
                 return ({
-                    _ref: GUID(),
+                    _ref: ref,
                     _data: item
                 });
             });
-            // set lastinsert ID
-            tableInfo.lastInsertId = (tableInfo.lastInsertId + _data.length);
-            _data = null;
+
+            setLastInsertID();
         }
     }
 
@@ -108,6 +154,7 @@ function transactionInsert() {
             if ($self.hasError()) {
                 //clear processed Data
                 processedData = [];
+                _skipped = [];
                 throw new Error($self.getError());
             }
 
@@ -123,7 +170,11 @@ function transactionInsert() {
 
     this.processState = "insert";
 
-
+    /**
+     * 
+     * @param {*} cData 
+     * @param {*} dataRef 
+     */
     function processData(cData, dataRef) {
         //Process the Data
         var passed = 1;
@@ -163,15 +214,12 @@ function transactionInsert() {
 
         //return success after push
         processedData = [];
-        _skippedTotal = _skipped.length;
-        _skipped = [];
         columns = _typeValidator = null;
         return ({
-            message: totalRecords + " record(s) inserted successfully, skipped " + _skippedTotal + " existing record(s)"
+            message: totalRecords + " record(s) inserted successfully, skipped " + _skipped.length + " existing record(s)",
+            skippedRecords: _skipped.slice(0)
         });
     }
-
-
 
     return this;
 };

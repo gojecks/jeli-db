@@ -34,7 +34,7 @@ ApplicationInstance.prototype['export'] = function(type, table) {
                 //set label
                 exp.row(Object.keys(_table.columns[0]));
                 //set the data
-                expect((_table.data || []).slice()).each(function(item) {
+                (_table.data || []).slice().forEach(function(item) {
                     exp.row(getValueInArray(item._data));
                 });
             }

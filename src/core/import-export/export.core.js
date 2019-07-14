@@ -120,9 +120,9 @@ exportersModule.prototype.jql = function() {
                     })
                 }
 
-                expect((table.data || []).slice()).each(function(item) {
-                    queries.push("insert -" + table.TBL_NAME + " -" + JSON.stringify(item._data));
-                });
+                if (table.data.length) {
+                    queries.push("insert -" + JSON.stringify(table.data) + "-" + table.TBL_NAME + "  -true");
+                }
             } catch (e) {
                 queries("### unable to process files please try again  ###");
             }

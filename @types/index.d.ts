@@ -75,6 +75,12 @@ declare namespace jdb {
         result:IDBApplicationInstance;
         errorCode?:Number;
     }
+
+    interface IDBStoreProcedure {
+        create(storeName: string, query: string): this;
+        delete(storeName: string): void;
+        execute(storeName: string, params?:any): IDBCorePromise; 
+    }
     
     interface IDBApplicationInstance {
         constructor(appName:String, version: String, requiredMethods?:Array<String>);
@@ -88,6 +94,7 @@ declare namespace jdb {
             resource:Function;
             appKey?:Function;
         };
+        storeProc: IDBStoreProcedure;
         onUpdate?:IDBApplicationRealtime;
         clientService?:IDBClientService;
         scheduler?:IDBApplicationScheduler;

@@ -3,7 +3,7 @@ jdb.JDB_STORAGE_SYSTEM('indexeddb', jIDBAdapter);
 jdb.JDB_STORAGE_SYSTEM('sql', jSQLAdapter);
 jdb('TestBed', 1)
     .open({
-        storage: 'sql',
+        storage: 'localStorage',
         organisation: 'Test',
         ignoreSync: true
     })

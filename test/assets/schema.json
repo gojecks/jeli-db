@@ -9,11 +9,18 @@
         },
         "OrderDate": {
             "type": "DateTime"
+        },
+        "EmployeeID": {
+            "type": "int"
+        },
+        "ShipperID": {
+            "type": "int"
         }
     }],
     "Customers": [{
         "CustomerID": {
-            "type": "int"
+            "type": "int",
+            "AUTO_INCREMENT": true
         },
         "CustomerName": {
             "type": "text"

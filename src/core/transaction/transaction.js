@@ -15,6 +15,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
     this.getError = function() {
         return this.errLog;
     };
+
     this.setDBError = function(msg) {
         if (!expect(this.errLog).contains(msg)) {
             this.errLog.push(msg);
@@ -126,7 +127,7 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                 var ret = { state: ex[0] };
                 try {
                     var res = ex[1].call(ex[1], disableOfflineCache);
-                    sqlResultExtender(ret, res);
+                    ret = sqlResultExtender(ret, res, this.tableInfo.lastInsertId);
                 } catch (e) {
                     ret.message = e.message;
                     error = true;

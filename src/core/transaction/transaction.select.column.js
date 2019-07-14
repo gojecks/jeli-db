@@ -55,7 +55,7 @@ function transactionSelectColumn(data, definition) {
         };
 
 
-        Object.keys(actions).map(function(key) {
+        Object.keys(actions).forEach(function(key) {
             if (definition[key]) {
                 actions[key](definition[key]);
             };
@@ -108,6 +108,27 @@ function transactionSelectColumn(data, definition) {
         return cData;
     }
 
+    function getNumberOnlyValues(field) {
+        var values = [];
+        data.forEach(function(item) {
+            if (item.hasOwnProperty(field) && typeof item[field] === 'number') {
+                values.push(item[field]);
+            }
+        });
+
+        return values;
+    }
+
+    /**
+     * 
+     * @param {*} value 
+     * @param {*} start 
+     * @param {*} end 
+     */
+    function getStrAtPos(value, start, end) {
+        return (value || '').substr(start, end);
+    }
+
 
     /**
         JDB Private FIELD VALUES
@@ -132,7 +153,7 @@ function transactionSelectColumn(data, definition) {
     var _privateApi = {
         COUNT: function(cdata, field) {
             if (field) {
-                return (cdata[field] || []).length
+                return data.filter(function(item) { return item[field]; }).length;
             }
             return data.length
         },
@@ -143,19 +164,78 @@ function transactionSelectColumn(data, definition) {
             return cdata[field].toUpperCase();
         },
         CURDATE: function() {
+            return new Date().toLocaleDateString();
+        },
+        CURDATETIME: function() {
             return new Date().toLocaleString();
         },
         TIMESTAMP: function(cdata, field) {
             return new Date(cdata[field]).getTime();
         },
         DATE_DIFF: function(cdata, field) {
-            return new Date(cdata[field.split(',')[0]]) - new Date(cdata[field.split(',')[1]]);
+            var dates = field.split(':');
+            return new Date(cdata[dates[0]] || +new Date).getTime() - new Date(cdata[dates[1]] || +new Date).getTime();
         },
         CASE: function(cdata, field) {
             return maskedEval(field.replace(new RegExp("when", "gi"), "").replace(new RegExp("then", "gi"), "?").replace(new RegExp("else", "gi"), ":"), cdata);
         },
         GET: function(cdata, field) {
             return ModelSetterGetter(field, cdata);
+        },
+        MIN: function(cdata, field) {
+            var values = getNumberOnlyValues(field);
+            return Math.min.apply(Math, values);
+        },
+        MAX: function(cdata, field) {
+            var values = getNumberOnlyValues(field);
+            return Math.max.apply(Math, values);
+        },
+        SUM: function(cdata, field) {
+            var values = getNumberOnlyValues(field);
+            return values.reduce(function(a, b) {
+                return a + b;
+            }, 0);
+        },
+        AVG: function(cdata, field) {
+            return this.SUM(cdata, field) / data.length;
+        },
+        DIV: function(cdata, fields) {
+            var divisionFields = fields.split(":");
+            return (cdata[divisionFields[0]] || 0) / (cdata[divisionFields[1]] || 0);
+        },
+        REVERSE: function(cdata, field) {
+            return (cdata[field] || '').split("").reverse().join("");
+        },
+        LENGTH: function(cdata, field) {
+            return (cdata[field] || '').length;
+        },
+        CONCAT: function(cdata, values) {
+            return values.replace(/\${(.*?)\}/gi, function(match, key) {
+                return cdata[key] || key;
+            });
+        },
+        RIGHT: function(cdata, values) {
+            values = values.split(":");
+            var len = parseInt(values[1]),
+                content = (cdata[values[0]] || '');
+            return getStrAtPos(content, (content.length - len++), len);
+        },
+        LEFT: function(cdata, values) {
+            values = values.split(":");
+            var len = parseInt(values[1]),
+                content = (cdata[values[0]] || '');
+            return getStrAtPos(content, 0, len);
+        },
+        INSTR: function(cdata, fields) {
+            fields = fields.split(":");
+            return (cdata[fields[0]] || '').indexOf(fields[1]);
+        },
+        TRIM: function(cdata, field) {
+            return (cdata[field] || '').trim();
+        },
+        SUBSTR: function(cdata, values) {
+            values = values.split(":");
+            return getStrAtPos(cdata[values[0]], parseInt(values[1]), parseInt(values[2]));
         }
     };
 
@@ -168,24 +248,6 @@ function transactionSelectColumn(data, definition) {
 
             return _privateApi.GET(cdata, field[0]);
         };
-    }
-
-    //loop through the data
-    //return the required column
-    if (fields && !$isEqual(fields, '*')) {
-        if (!definition.isArrayResult) {
-            buildColumn();
-            data.forEach(setColumnData);
-        } else {
-            /**
-             * return the field that matches the result
-             */
-            return data.map(function(item) {
-                return item[fields];
-            });
-        }
-    } else {
-        return performOrderLimitTask(data);
     }
 
     /**
@@ -254,22 +316,65 @@ function transactionSelectColumn(data, definition) {
         //set the data
         requiredFields.forEach(function(_curField) {
             if ($isEqual(_curField.field, '*')) {
-                if (_curField.rCol) {
-                    _curField.rCol.forEach(function(field) {
-                        odata[field] = cData[_curField.tCol][field];
-                    });
-                } else {
-                    odata[_curField._as] = cData[_curField.tCol] || cData;
-                }
+                resolveAsterixQuery(_curField);
             } else {
                 odata[_curField._as] = _curField.custom(cData);
             }
         });
 
+        function resolveAsterixQuery(curField) {
+            if (curField.rCol) {
+                curField.rCol.forEach(function(field) {
+                    odata[field] = cData[curField.tCol][field];
+                });
+            } else {
+                odata[_curField._as] = cData[curField.tCol] || cData;
+            }
+        }
+
         retData.push(odata);
     }
 
-    //return the data
+    /**
+     * COUNT, MIN, MAX
+     */
+    function hasSingleResultQuery() {
+        return ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].filter(function(key) {
+            return $inArray(key, fields);
+        }).length > 0;
+    }
 
+    function resolveData() {
+        if (!definition.isArrayResult) {
+            buildColumn();
+            /**
+             * check for COUNT fields
+             */
+            if (hasSingleResultQuery()) {
+                setColumnData(data[0], 0);
+            } else {
+                data.forEach(setColumnData);
+            }
+        } else {
+            /**
+             * return the field that matches the result
+             */
+            retData = data.map(function(item) {
+                return item[fields];
+            });
+        }
+    }
+
+    /**
+     * loop through the data
+     * return the required column
+     */
+    if (fields && !$isEqual(fields, '*')) {
+        resolveData();
+    } else {
+        retData = data.splice(0);
+    }
+
+    //return the data
     return performOrderLimitTask(retData);
 };

@@ -8,6 +8,7 @@ function ApplicationInstance(name, version, required) {
     //set the DB name for reference
     this.name = name;
     this.version = version;
+    this.storeProc = new StoreProcedure(this);
     this.env = {
         usage: function() {
             if (name && privateApi.openedDB.$hasOwnProperty(name)) {
@@ -20,13 +21,13 @@ function ApplicationInstance(name, version, required) {
             return privateApi.$getActiveDB(name).$get('resolvers').getResolvers('logger');
         },
         dataTypes: privateApi.$getActiveDB(name).$get('dataTypes'),
-        requestMapping: privateApi.getNetworkResolver('requestMapping', name),
         resource: function() {
             return privateApi.$getActiveDB(name).$get('resourceManager').getResource();
         }
     };
 
     if (privateApi.getNetworkResolver('serviceHost', name)) {
+        this.env.requestMapping = privateApi.getNetworkResolver('requestMapping', name);
         //add event listener to db
         this.onUpdate = new ApplicationRealtime('db', name, null);
         // clientService
