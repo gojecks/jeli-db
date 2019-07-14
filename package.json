@@ -1,6 +1,6 @@
 {
     "name": "jelidb",
-    "version": "1.0.4-beta",
+    "version": "1.0.5-beta",
     "description": "Javascript Database for front-end development",
     "main": "dist/jdb.min.js",
     "files": [
