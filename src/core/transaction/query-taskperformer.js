@@ -215,19 +215,15 @@ $query.matcher = function($query, $val, item) {
                 _fnd = $val > _val;
                 break;
             case ('$inArray'):
-                _fnd = $inArray(_val, $val || []);
-                break;
             case ('$inClause'):
                 _fnd = $inArray($val, _val);
-                break;
-            case ('$notInClause'):
-                _fnd = !$inArray($val, _val);
                 break;
             case ('$lk'):
                 _fnd = (($val || "").toLowerCase()).search(_val.toLowerCase()) > -1;
                 break;
             case ('$notInArray'):
-                _fnd = !$inArray(_val, $val || []);
+            case ('$notInClause'):
+                _fnd = !$inArray($val, _val);
                 break;
             case ('$is'):
                 _fnd = $isEqual(_val, $val);
@@ -254,6 +250,14 @@ $query.matcher = function($query, $val, item) {
     }
 
     return $query == $val;
+}
+
+/**
+ * 
+ * @param {*} value 
+ */
+function convertValueToArray(value) {
+    return JSON.parse('[' + (value || '') + ']');
 }
 
 /**
@@ -311,14 +315,14 @@ $query.convertExpressionStringToObject = function(expression, replacer, params) 
             value = true;
             break;
         case ("[]"):
+        case ("[=]"):
             type = "$inArray";
+            value = convertValueToArray(value);
             break;
         case ("![]"):
+        case ("[!]"):
             type = "$notInArray";
-            break;
-        case ("([])"):
-            type = "$inClause";
-            console.log(value, end);
+            value = convertValueToArray(value);
             break;
         case ("~"):
             type = "$lk";
