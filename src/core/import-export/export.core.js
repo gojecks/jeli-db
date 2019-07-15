@@ -117,11 +117,11 @@ exportersModule.prototype.jql = function() {
                 if (!$isEmptyObject(table.index)) {
                     expect(table.index).each(function(obj, indx) {
                         queries.push("alter -" + table.TBL_NAME + " -a -u -" + indx + " -" + JSON.stringify(obj));
-                    })
+                    });
                 }
 
                 if (table.data.length) {
-                    queries.push("insert -" + JSON.stringify(table.data) + "-" + table.TBL_NAME + "  -true");
+                    queries.push("insert -" + JSON.stringify(table.data) + " -" + table.TBL_NAME + "  -true");
                 }
             } catch (e) {
                 queries("### unable to process files please try again  ###");
@@ -137,6 +137,7 @@ exportersModule.prototype.jql = function() {
  * 
  * @param {*} doc 
  * @param {*} fileType 
+ * @param {*} fileExtension 
  */
 function exportGenerator(doc, fileType) {
     function getFileName(fileName) {
@@ -160,7 +161,7 @@ function exportGenerator(doc, fileType) {
             return 'downloading file';
         },
         print: function() {
-            if ($isObject(doc)) {
+            if (typeof doc === 'object') {
                 doc = JSON.stringify(doc);
             }
             return doc;
