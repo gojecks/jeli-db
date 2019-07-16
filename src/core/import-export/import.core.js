@@ -90,7 +90,7 @@ importModules.prototype.csv = function(content) {
 
 importModules.prototype.jql = function(content) {
     this.fileData.data = content.split(/\r\n|\n/).filter(function(text) {
-        return text.trim().substr(0, 1) !== "#"
+        return text.trim().substr(0, 2) !== "/*"
     });
 
     return this.fileData;

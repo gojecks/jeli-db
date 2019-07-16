@@ -8,6 +8,7 @@ jdb('TestBed', 1)
         ignoreSync: true
     })
     .onCreate((res) => {
+        console.log('onCreateMode');
         res.result.api.localTransport('assets/schema.json', (schema) => {
             Object.keys(schema).forEach(tbl => {
                 res.result.createTbl(tbl, schema[tbl]);
@@ -40,6 +41,7 @@ jdb('TestBed', 1)
         });
     })
     .onUpgrade((res) => {
+        console.log('onUpgrade');
         // do something
     })
     .then((res) => {

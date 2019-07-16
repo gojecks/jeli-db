@@ -271,38 +271,33 @@
                 defer.resolve(jeliInstance);
             }
 
-            //set upgradeneed to the promise Fn
-            promise.onUpgrade = function(fn) {
-                /**
-                 * set the promise callback for upgradeneeded
-                 **/
-                promise.then(function() {
-                    if ($isFunction(fn) && $inArray(jeliInstance.type, ['upgradeMode', 'createMode'])) {
-                        if (jeliInstance) {
-                            //initialize the upgraded FN
-                            fn.call(fn, jeliInstance);
-                        }
+            /**
+             * Upgrade and onCreate Registery
+             */
+            function onEventRegistry(triggerState) {
+                return function(fn) {
+                    /**
+                     * register the event
+                     */
+                    if ($isFunction(fn)) {
+                        promise.then(function() {
+                            if (jeliInstance && $inArray(jeliInstance.type, triggerState)) {
+                                fn.call(fn, jeliInstance);
+                            }
+                        });
                     }
-                });
 
-                return this;
-            };
+                    return promise;
+                };
+            }
+
+            //set upgradeneed to the promise Fn
+            promise.onUpgrade = onEventRegistry(['upgradeMode', 'createMode']);
 
             /**
              * onCreate Promise
              */
-            promise.onCreate = function(fn) {
-                promise.then(function() {
-                    if ($isFunction(fn) && $isEqual(jeliInstance.type, 'createMode')) {
-                        if (jeliInstance) {
-                            //initialize the upgraded FN
-                            fn.call(fn, jeliInstance);
-                        }
-                    }
-                });
-
-                return this;
-            };
+            promise.onCreate = onEventRegistry(['createMode']);
 
             return promise;
         }

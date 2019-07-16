@@ -108,27 +108,27 @@ exportersModule.prototype.json = function() {
 };
 
 exportersModule.prototype.jql = function() {
-    var queries = ['### JQL ###', '### generated ' + new Date().toLocaleString() + ' ###'];
+    var queries = '/** JQL **/\n/** generated ' + new Date().toLocaleString() + ' **/\n';
     return ({
         put: function(table) {
             // create table query
             try {
-                queries.push("create -" + table.TBL_NAME + " -" + JSON.stringify(table.columns));
+                queries += "create -" + table.TBL_NAME + " -" + JSON.stringify(table.columns) + '\n';
                 if (!$isEmptyObject(table.index)) {
                     expect(table.index).each(function(obj, indx) {
-                        queries.push("alter -" + table.TBL_NAME + " -a -u -" + indx + " -" + JSON.stringify(obj));
+                        queries += "alter -" + table.TBL_NAME + " -a -u -" + indx + " -" + JSON.stringify(obj) + '\n';
                     });
                 }
 
                 if (table.data.length) {
-                    queries.push("insert -" + JSON.stringify(table.data) + " -" + table.TBL_NAME + "  -true");
+                    queries += "insert -" + JSON.stringify(table.data) + " -" + table.TBL_NAME + "  -true \n";
                 }
             } catch (e) {
-                queries("### unable to process files please try again  ###");
+                queries = "/** unable to process files please try again  **/";
             }
         },
         close: function() {
-            return new exportGenerator(queries.join('\n'), 'jql');
+            return new exportGenerator(queries, 'jql');
         }
     })
 };

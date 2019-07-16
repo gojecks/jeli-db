@@ -77,14 +77,14 @@ function transactionSelect(selectFields, definition) {
         }
 
         //Loop through queryColumn
-        queryColumn.forEach(function(n) {
-            if ($inArray(n, ".")) {
+        queryColumn.forEach(function(query) {
+            if ($inArray(query, ".")) {
                 if ($self.isMultipleTable) {
-                    n = n.replace(/\((.*?)\)/, "|$1").split("|");
-                    if ($isEqual(n[0].toLowerCase(), 'case')) {
-                        tblName = n[1].split(new RegExp("when", "gi"))[1].split(".")[0];
+                    query = query.replace(/\((.*?)\)/, "|$1").split("|");
+                    if ($isEqual(query[0].toLowerCase(), 'case')) {
+                        tblName = query[1].split(new RegExp("when", "gi"))[1].split(".")[0];
                     } else {
-                        tblName = (n[1] || n[0]).split(".")[0];
+                        tblName = (query[1] || n[0]).split(".")[0];
                     }
 
                     //reference to the tables
@@ -333,18 +333,11 @@ function transactionSelect(selectFields, definition) {
         return $self.getColumn(new $query(getTableData($self.tables._[0]))._(queryDefinition.where), queryDefinition);
     }]);
 
-    /*
-      {
-        table:STRING,
-        on:STRING,
-        type:STRING (INNER,OUTER,LEFT,RIGHT),
-        where:{},
-        feilds:{ //OPTIONAL
-          
-        }
-      }
-    */
-    var join = function(definition) {
+    /**
+     * Select Public Api
+     */
+    var publicApi = Object.create({
+        join: function(definition) {
             if (!$isObject(definition)) {
                 throw new TypeError("join DEFINITION should be an object");
             }
@@ -356,43 +349,36 @@ function transactionSelect(selectFields, definition) {
             }
 
 
-            return publicApi;
+            return this;
         },
-        whereClause = function(where) {
-            //store where query
-            queryDefinition.where = where;
-            return publicApi;
-        },
-        limit = function(parseLimit) {
-            queryDefinition.limit = parseLimit;
-            return publicApi;
-        },
-        orderBy = function(orderBy) {
-            queryDefinition.orderBy = orderBy;
-            return publicApi;
-        },
-        groupBy = function(groupKey) {
-            queryDefinition.groupBy = groupKey;
-            return publicApi;
-        },
-        execute = function(condition) {
+        execute: function(condition) {
             return $self.execute(condition)
         },
-        groupByStrict = function(groupKey) {
+        groupByStrict: function(groupKey) {
             queryDefinition.groupByStrict = groupKey;
-            return publicApi;
-        };
-
-
-    var publicApi = ({
-        join: join,
-        limit: limit,
-        where: whereClause,
-        groupBy: groupBy,
-        orderBy: orderBy,
-        groupByStrict: groupByStrict,
-        execute: execute
+            return this;
+        },
+        groupBy: function(groupKey) {
+            queryDefinition.groupBy = groupKey;
+            return this;
+        },
+        orderBy: function(orderBy) {
+            queryDefinition.orderBy = orderBy;
+            return this;
+        }
     });
+
+    publicApi.whereClause = function(where) {
+        //store where query
+        queryDefinition.where = where;
+        return this;
+    };
+
+    publicApi.limit = function(parseLimit) {
+        queryDefinition.limit = parseLimit;
+        return this;
+    };
+
 
     return publicApi;
 };
