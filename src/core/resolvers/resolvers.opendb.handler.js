@@ -5,7 +5,12 @@
  * @return openedDBHandler INSTANCE
  */
 function openedDBHandler(definition) {
-    var _holder = Object.create(definition || {});
+    var _holder = Object.create({
+        open: false,
+        $tableExist: function(table) {
+            return _holder._storage_.isExists(table);
+        }
+    });
 
     /**
      * 

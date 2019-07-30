@@ -197,59 +197,63 @@ $query._parseCondition = function(condition, replacer) {
  * @param {*} $val 
  * @param {*} item 
  */
-$query.matcher = function($query, $val, item) {
+$query.matcher = function($query, fieldValue, item) {
     var _fnd = false;
     if ($isObject($query)) {
-        var _val = ModelSetterGetter($query.value, item) || $query.value;
+        var userDefinedCondition = ModelSetterGetter($query.value, item) || $query.value;
         switch ($query.type) {
             case ("$lte"):
-                _fnd = $val <= _val;
+                _fnd = fieldValue <= userDefinedCondition;
                 break;
             case ("$gte"):
-                _fnd = $val >= _val;
+                _fnd = fieldValue >= userDefinedCondition;
                 break;
             case ('$lt'):
-                _fnd = $val < _val;
+                _fnd = fieldValue < userDefinedCondition;
                 break;
             case ('$gt'):
-                _fnd = $val > _val;
+                _fnd = fieldValue > userDefinedCondition;
+                break;
+            case ('$inClause'):
+                _fnd = $inArray(fieldValue, userDefinedCondition);
                 break;
             case ('$inArray'):
-            case ('$inClause'):
-                _fnd = $inArray($val, _val);
+                _fnd = $inArray(userDefinedCondition, fieldValue);
                 break;
             case ('$lk'):
-                _fnd = (($val || "").toLowerCase()).search(_val.toLowerCase()) > -1;
+                _fnd = ((fieldValue || "").toLowerCase()).search(userDefinedCondition.toLowerCase()) > -1;
+                break;
+            case ('$notInClause'):
+                _fnd = !$inArray(fieldValue, userDefinedCondition);
                 break;
             case ('$notInArray'):
-            case ('$notInClause'):
-                _fnd = !$inArray($val, _val);
+                _fnd = !$inArray(userDefinedCondition, fieldValue);
                 break;
             case ('$is'):
-                _fnd = $isEqual(_val, $val);
+                _fnd = $isEqual(userDefinedCondition, fieldValue);
                 break;
             case ('$not'):
-                _fnd = !$isEqual(_val, $val);
+                _fnd = !$isEqual(userDefinedCondition, fieldValue);
                 break;
             case ('$isDefined'):
-                _fnd = $isEqual(_val, !$isEmpty($val));
+                _fnd = $isEqual(userDefinedCondition, !$isEmpty(fieldValue));
                 break;
             case ('$isNot'):
-                _fnd = _val != $val;
+                _fnd = userDefinedCondition != fieldValue;
                 break;
             case ('$isEqual'):
-                _fnd = _val == $val;
+                _fnd = userDefinedCondition == fieldValue;
                 break;
             case ('$!'):
-                _fnd = (!!$val == _val);
+                _fnd = (!!fieldValue == userDefinedCondition);
                 break;
         }
         return _fnd;
-    } else if ($isObject($val)) {
-        return jsonMatcher($query, $val);
+    } else if ($isObject(fieldValue)) {
+        return jsonMatcher($query, fieldValue);
     }
 
-    return $query == $val;
+    return $query == fieldValue;
 }
 
 /**
@@ -315,13 +319,19 @@ $query.convertExpressionStringToObject = function(expression, replacer, params) 
             value = true;
             break;
         case ("[]"):
-        case ("[=]"):
             type = "$inArray";
+            value = value;
+            break;
+        case ("[=]"):
+            type = '$inClause';
             value = convertValueToArray(value);
             break;
         case ("![]"):
-        case ("[!]"):
             type = "$notInArray";
+            value = value;
+            break;
+        case ("[!]"):
+            type = '$notInClause';
             value = convertValueToArray(value);
             break;
         case ("~"):

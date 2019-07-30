@@ -4,7 +4,7 @@
  * @param {*} dbName
  * @return {FUNCTION} 
  */
-function liveProcessor(tbl, appName) {
+function liveProcessor(appName) {
     var ignoreSync = privateApi.getNetworkResolver('ignoreSync', appName);
     var autoSync = privateApi.getNetworkResolver('live', appName);
     var recordResolver = privateApi.$getActiveDB(appName).$get('recordResolvers');
@@ -14,7 +14,7 @@ function liveProcessor(tbl, appName) {
      * @param {*} cbSuccess 
      * @param {*} cbError 
      */
-    return function(type, cbSuccess, cbError) {
+    return function(tbl, type, cbSuccess, cbError) {
         if (autoSync && !$inArray(tbl, ignoreSync)) {
             //process the request
             //Synchronize PUT STATE
@@ -25,10 +25,10 @@ function liveProcessor(tbl, appName) {
                     .then(cbSuccess, cbError);
             } else {
                 dataToSync = null;
-                cbSuccess({});
+                cbSuccess();
             }
         } else {
-            cbSuccess({});
+            cbSuccess();
         }
         // update storage
         jdbUpdateStorage(appName, tbl);

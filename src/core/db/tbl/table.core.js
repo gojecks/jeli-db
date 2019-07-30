@@ -161,10 +161,9 @@ function jEliDBTBL(tableInfo) {
         if (key && tableInfo.columns[0][key]) {
             //update the DB
             jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
-                tableInfo.columns[0][key].primaryKey = true;
+                tableInfo.columns[0][key].PRIMARY_KEY = true;
                 table.primaryKey = key;
                 table.columns = tableInfo.columns;
-                table.columns[0][key].primaryKey = true;
             });
         }
 

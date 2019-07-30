@@ -2,22 +2,24 @@
  * 
  * @param {*} data 
  * @param {*} hardInsert 
+ * @param {*} tableName  optional
  */
-function transactionInsert(data, hardInsert) {
+function transactionInsert(data, hardInsert, tableName) {
     var processedData = [],
         _skipped = [],
         $self = this,
-        tableInfo = $self.tableInfo,
+        tableInfo = this.getTableInfo(tableName),
+        time = performance.now(),
         columns = tableInfo.columns[0],
         columnObj = columnObjFn(columns),
-        _typeValidator = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('dataTypes'),
-        objectType = $isObject(data);
+        objectType = $isObject(data),
+        _validator = this.validator(tableInfo.TBL_NAME, columns);
     /**
      * Data must an Array or Object format
      * throw error if not in the format
      */
     if (!$isArray(data) && !objectType) {
-        this.setDBError("Invalid dataType, accepted types are  (ARRAY or OBJECT)");
+        this.setDBError("Invalid dataType received, accepted types are  (ARRAY or OBJECT)");
     }
 
     /**
@@ -28,12 +30,13 @@ function transactionInsert(data, hardInsert) {
         data = [data];
     }
 
-    function checkAndSetPrimaryKeys(pdata) {
+    function checkAndSetAutoIncrements(pdata) {
         tableInfo.lastInsertId++;
         //update the data to store
         Object.keys(pdata).forEach(function(key) {
             //check auto_increment
-            if (!pdata[key] && columns[key].hasOwnProperty('AUTO_INCREMENT') && $inArray(columns[key].type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
+            var column = columns[key];
+            if (!pdata[key] && column.hasOwnProperty('AUTO_INCREMENT') && $inArray(columns.type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
                 pdata[key] = tableInfo.lastInsertId;
             }
         });
@@ -106,16 +109,17 @@ function transactionInsert(data, hardInsert) {
          * check if dataProcessing is disabled
          */
         else if (this.processData) {
+            var columnNames = Object.keys(columnObj);
             data.forEach(function(item, idx) {
                 var cdata = {};
                 //switch type
                 if ($isObject(item)) {
                     cdata = item;
                 } else {
-                    cdata = copyDataByIndex(Object.keys(columnObj), item);
+                    cdata = copyDataByIndex(columnNames, item);
                 }
 
-                if (processData(cdata, idx)) {
+                if (_validator(cdata, idx)) {
                     var pData = extend(true, columnObj, cdata);
                     // check indexing
                     var _ref = GUID(),
@@ -123,7 +127,7 @@ function transactionInsert(data, hardInsert) {
                     //push data to processData array
                     //set obj ref GUID
                     if (!_dataExists) {
-                        checkAndSetPrimaryKeys(pData);
+                        checkAndSetAutoIncrements(pData);
                         processedData.push({
                             _ref: _ref,
                             _data: pData
@@ -136,10 +140,11 @@ function transactionInsert(data, hardInsert) {
             processedData = data.map(function(item) {
                 var ref = GUID();
                 checkTableIndex(item, ref);
-                checkAndSetPrimaryKeys(item);
+                checkAndSetAutoIncrements(item);
+                var pData = extend(true, columnObj, item);
                 return ({
                     _ref: ref,
-                    _data: item
+                    _data: pData
                 });
             });
 
@@ -148,62 +153,13 @@ function transactionInsert(data, hardInsert) {
     }
 
 
-    if (!$isEqual(this.processState, "insert")) {
-        this.executeState.push(["insert", function(disableOfflineCache) {
-            //errorLog Must be empty
-            if ($self.hasError()) {
-                //clear processed Data
-                processedData = [];
-                _skipped = [];
-                throw new Error($self.getError());
-            }
-
-            // update offline
-            if (!disableOfflineCache) {
-                $self.updateOfflineCache('insert', $self.getAllRef(processedData));
-            }
-
-            //push records to our resolver
-            return updateTable(processedData.length);
-        }]);
-    }
-
-    this.processState = "insert";
 
     /**
-     * 
-     * @param {*} cData 
-     * @param {*} dataRef 
+     * Update the table content
+     * @param {*} totalRecords 
      */
-    function processData(cData, dataRef) {
-        //Process the Data
-        var passed = 1;
-        if (cData) {
-            expect(cData).each(function(val, idx) {
-                //check if column is in table
-                if (!columns[idx]) {
-                    //throw new error
-                    $self.setDBError('column (' + idx + ') was not found on this table (' + tableInfo.TBL_NAME + '), to add a new column use the addColumn FN - ref #' + dataRef);
-                    passed = !1;
-                    return;
-                }
-
-                var type = typeof cData[idx],
-                    requiredType = (columns[idx].type || 'string').toUpperCase();
-                if (!_typeValidator.validate(cData[idx], requiredType)) {
-                    $self.setDBError(idx + " Field requires " + requiredType + ", but got " + type + "- ref #" + dataRef);
-                    passed = !1;
-                }
-            });
-
-            return passed;
-        }
-
-        return !1;
-    }
-
-    //Update the table content
     function updateTable(totalRecords) {
+        var totalRecords = processedData.length;
         if ($isArray(processedData) && totalRecords) {
             tableInfo.data.push.apply(tableInfo.data, processedData);
             /**
@@ -214,12 +170,35 @@ function transactionInsert(data, hardInsert) {
 
         //return success after push
         processedData = [];
-        columns = _typeValidator = null;
-        return ({
-            message: totalRecords + " record(s) inserted successfully, skipped " + _skipped.length + " existing record(s)",
-            skippedRecords: _skipped.slice(0)
-        });
+        columns = null;
+        return new InsertQueryEvent(
+            tableInfo.TBL_NAME,
+            tableInfo.lastInsertId, {
+                timing: performance.now() - time,
+                message: totalRecords + " record(s) inserted successfully, skipped " + _skipped.length + " existing record(s)",
+                skippedRecords: _skipped.slice(0)
+            });
     }
+
+    this.executeState.push(["insert", function(disableOfflineCache) {
+        //errorLog Must be empty
+        if ($self.hasError()) {
+            //clear processed Data
+            processedData = [];
+            _skipped = [];
+            throw new Error($self.getError());
+        }
+
+        // update offline
+        if (!disableOfflineCache) {
+            $self.updateOfflineCache('insert', $self.getAllRef(processedData), tableInfo.TBL_NAME);
+        }
+
+        //push records to our resolver
+        return updateTable();
+    }]);
+
+
 
     return this;
 };

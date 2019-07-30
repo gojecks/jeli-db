@@ -1,6 +1,28 @@
 //Query DB
+var transactionManager = {
+    _records: {},
+    add: function(db, tbl, definition) {
+        if (!this._records.hasOwnProperty(db)) {
+            this._records[db] = {};
+        };
+
+        this._records[db][tbl] = definition;
+    },
+    has: function(db, tbl) {
+        return this._records.hasOwnProperty(db) && this._records[db].hasOwnProperty(tbl);
+    },
+    remove: function(db, tbl) {
+        if (this.has(db, tbl)) {
+            delete this._records[db][tbl];
+        }
+    }
+};
+
+
 ApplicationInstance.prototype.transaction = function(table, mode) {
-    var dbName = this.name;
+    var dbName = this.name,
+        defer = new _Promise(),
+        promise = new DBPromise(defer);
     //getRequired Table Fn
     function getRequiredTable(cTable) {
         if (!privateApi.$getActiveDB(dbName).$get('$tableExist')(cTable)) {
@@ -18,8 +40,7 @@ ApplicationInstance.prototype.transaction = function(table, mode) {
     }
 
     // create a new defer state
-    var defer = new _Promise(),
-        tableData = null,
+    var tableData = null,
         err = [],
         isMultipleTable = false,
         tableJoinMapping = {};
@@ -47,7 +68,6 @@ ApplicationInstance.prototype.transaction = function(table, mode) {
                 validateTableSchema(tableData[saveName], tbl);
             });
             //change mode to read
-            mode = "read";
             isMultipleTable = true;
         } else {
             tableData = getRequiredTable(table);
@@ -58,13 +78,12 @@ ApplicationInstance.prototype.transaction = function(table, mode) {
 
         // set the tables
         tableJoinMapping._ = table;
-
         if (err.length) {
             defer.reject({ message: err.join("\n"), errorCode: 400 });
         } else {
-            defer.resolve({ result: new jTblQuery(tableData, mode, isMultipleTable, tableJoinMapping), tables: table, mode: mode });
+            defer.resolve({ result: new jTblQuery(tableData, mode, isMultipleTable, tableJoinMapping, dbName), tables: table, mode: mode });
         }
     }
 
-    return new DBPromise(defer);
+    return promise;
 };

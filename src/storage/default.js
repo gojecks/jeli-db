@@ -5,7 +5,7 @@
  */
 function DefaultStorage(config, callback) {
     var dbName = config.name,
-        publicApi = {},
+        publicApi = Object.create(null),
         _privateStore = {};
     /**
      * Event listener
@@ -22,9 +22,6 @@ function DefaultStorage(config, callback) {
         .subscribe(eventNamingIndex(dbName, 'update'), saveData)
         .subscribe(eventNamingIndex(dbName, 'delete'), function(tableName, delItem) {
             // remove the data
-            _privateStore[tableName + ":data"] = _privateStore[tableName + ":data"].filter(function(item) {
-                return !$inArray(item._ref, delItem);
-            });
             saveData(tableName);
         })
         .subscribe(eventNamingIndex(dbName, 'onCreateTable'), onCreateTable)
@@ -56,15 +53,15 @@ function DefaultStorage(config, callback) {
         })
         .subscribe(eventNamingIndex(dbName, 'onAlterTable'), saveData)
         .subscribe(eventNamingIndex(dbName, 'onRenameDataBase'), function(oldName, newName, cb) {
-            var oldData = this.getItem(oldName);
+            var oldData = publicApi.getItem(oldName);
             Object.keys(oldData.tables).forEach(function(tbl) {
                 oldData.tables[tbl].DB_NAME = newName;
                 oldData.tables[tbl].lastModified = +new Date
             });
-            this.setItem(newName, oldData);
-            this.setItem(privateApi.getResourceName(newName), this.getItem(privateApi.getResourceName(oldName)));
+            publicApi.setItem(newName, oldData);
+            publicApi.setItem(privateApi.getResourceName(newName), publicApi.getItem(privateApi.getResourceName(oldName)));
             privateApi.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
-            this.removeItem(oldName);
+            publicApi.removeItem(oldName);
             (cb || noop)();
         });
 
@@ -151,6 +148,10 @@ function DefaultStorage(config, callback) {
 
     publicApi.usage = function(name) {
         return (window[config.type][getStoreName(name)] || '').length;
+    };
+
+    publicApi.isExists = function(name) {
+        return _privateStore.hasOwnProperty(name);
     };
 
 

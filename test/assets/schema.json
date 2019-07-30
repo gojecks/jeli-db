@@ -15,6 +15,9 @@
         },
         "ShipperID": {
             "type": "int"
+        },
+        "categoryIds": {
+            "type": "array"
         }
     }],
     "Customers": [{
@@ -38,6 +41,89 @@
             "type": "text"
         },
         "City": {
+            "type": "text"
+        }
+    }],
+    "mfs_products": [{
+        "Id": {
+            "type": "int"
+        },
+        "ProductNo": {
+            "type": "text"
+        },
+        "Name": {
+            "type": "text"
+        },
+        "Description": {
+            "type": "text"
+        },
+        "MainImage": {
+            "type": "text"
+        },
+        "Width": {
+            "type": "int"
+        },
+        "Height": {
+            "type": "int"
+        },
+        "Depth": {
+            "type": "int"
+        },
+        "RAPScheduleNo": {
+            "type": "text"
+        },
+        "ContractorCatalogNo": {
+            "type": "text"
+        },
+        "Manufacturer": {
+            "type": "text"
+        },
+        "IsHireable": {
+            "type": "boolean"
+        },
+        "ProductLineInfo": {
+            "type": "text"
+        },
+        "DvaRecommendationOrLimit": {
+            "type": "any"
+        },
+        "SupplyLimitAndDuration": {
+            "type": "text"
+        },
+        "TypeOfAssessments": {
+            "type": "text"
+        },
+        "IsDeleted": {
+            "type": "boolean"
+        },
+        "CreatedBy": {
+            "type": "int"
+        },
+        "CreatedDate": {
+            "type": "DATE"
+        },
+        "LastUpdatedBy": {
+            "type": "int"
+        },
+        "LastUpdatedDate": {
+            "type": "DATE"
+        },
+        "ProductImages": {
+            "type": "array"
+        },
+        "ProductFiles": {
+            "type": "array"
+        },
+        "CategoryIds": {
+            "type": "array"
+        },
+        "ProductToCategory": {
+            "type": "text"
+        },
+        "ProductToProductImage": {
+            "type": "text"
+        },
+        "ProductToProductOrder": {
             "type": "text"
         }
     }]

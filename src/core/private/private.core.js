@@ -21,7 +21,7 @@ function _privateApi() {
     this.$setActiveDB = function(name) {
         // open the DB
         if (!this.openedDB.$hasOwnProperty(name)) {
-            this.openedDB.$new(name, new openedDBHandler({ open: false }));
+            this.openedDB.$new(name, new openedDBHandler());
             this.$activeDB = name;
         } else if (!$isEqual(this.$activeDB, name)) {
             this.$activeDB = name;
@@ -114,7 +114,14 @@ function _privateApi() {
             Object.keys(cache[this.storeMapping.resourceName].resourceManager).forEach(function(tbl) {
                 if (cache.hasOwnProperty(tbl)) {
                     ret.tables[tbl] = Object.create(cache[tbl]);
-                    ret.tables[tbl].data = cache[tbl + ":data"];
+                    Object.defineProperty(ret.tables[tbl], 'data', {
+                        get: function() {
+                            return cache[this.TBL_NAME + ":data"]
+                        },
+                        set: function(value) {
+                            cache[this.TBL_NAME + ":data"] = value;
+                        }
+                    });
                 }
             });
         }
@@ -185,9 +192,6 @@ _privateApi.prototype.isOpen = function(name) {
 
     _openedDB
         .$set('open', true)
-        .$set('$tableExist', function(table) {
-            return self.$get(name, 'tables').hasOwnProperty(table);
-        })
         .$set('dataTypes', new DataTypeHandler())
         .$new('resolvers', new openedDBResolvers())
         .$new('resourceManager', new ResourceManager(name))

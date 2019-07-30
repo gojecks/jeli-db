@@ -2,8 +2,11 @@
  * 
  * @param {*} ret 
  * @param {*} objectStore 
+ * @param {*} timing 
  */
-function SelectQueryEvent(ret, objectStore) {
+function SelectQueryEvent(objectStore, timing) {
+    this.state = "select";
+    this.timing = timing;
     this.getResult = function() {
         return objectStore;
     };
@@ -16,22 +19,14 @@ function SelectQueryEvent(ret, objectStore) {
         return copy(objectStore).slice(start, end);
     };
 
-    /**
-     * add the ret object to the instance
-     */
-    var _this = this;
-    Object.keys(ret).forEach(function(key) {
-        _this[key] = ret[key];
-    });
+    this.jDBNumRows = function() {
+        return objectStore.length;
+    };
+
+    this.getRow = function(row) {
+        return objectStore[row];
+    };
 }
-
-SelectQueryEvent.prototype.jDBNumRows = function() {
-    return this.getResult().length;
-};
-
-SelectQueryEvent.prototype.getRow = function(row) {
-    return this.getResult()[row];
-};
 
 SelectQueryEvent.prototype.openCursor = function(fn) {
     var start = 0,

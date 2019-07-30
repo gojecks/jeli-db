@@ -14,6 +14,10 @@
     function jEliDB(name, version) {
         var defer = new _Promise(),
             jeliInstance = {},
+            eventRegistry = {
+                onCreate: noop,
+                onUpgrade: noop
+            },
             version = parseInt(version || "1"),
             _defaultConfig = {
                 isClientMode: false,
@@ -118,7 +122,7 @@
                     /**
                      * dataBase exists
                      */
-                    if (dbChecker && dbChecker.version > 0) {
+                    if (dbChecker && dbChecker.version) {
                         if (isSameVersion) {
                             //set exists mode
                             // validate versions
@@ -132,6 +136,13 @@
                             jeliInstance.type = "upgradeMode";
                             // update the version
                             dbChecker.version = version;
+                            // save the version
+                            _activeDBApi.$get('_storage_').setItem('version', version);
+
+                            /**
+                             * trigger our create and update mode
+                             */
+                            eventRegistry.onUpgrade();
                         }
                     } else {
                         _activeDBApi
@@ -143,10 +154,16 @@
                         jeliInstance.type = "createMode";
                         //set Message
                         jeliInstance.message = name + " DB was successfully created!!";
+
+                        /**
+                         * trigger our create and update mode
+                         */
+                        eventRegistry.onCreate();
+                        eventRegistry.onUpgrade();
                         // Object Store in Db
                         privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
                     }
-                    //resolve the request
+
                     defer.resolve(jeliInstance);
                 }
 
@@ -274,17 +291,20 @@
             /**
              * Upgrade and onCreate Registery
              */
-            function onEventRegistry(triggerState) {
+            function onEventRegistry(state, triggerState) {
                 return function(fn) {
                     /**
                      * register the event
                      */
                     if ($isFunction(fn)) {
-                        promise.then(function() {
+                        /**
+                         * register the event
+                         */
+                        eventRegistry[state] = function() {
                             if (jeliInstance && $inArray(jeliInstance.type, triggerState)) {
                                 fn.call(fn, jeliInstance);
                             }
-                        });
+                        }
                     }
 
                     return promise;
@@ -292,12 +312,12 @@
             }
 
             //set upgradeneed to the promise Fn
-            promise.onUpgrade = onEventRegistry(['upgradeMode', 'createMode']);
+            promise.onUpgrade = onEventRegistry('onUpgrade', ['upgradeMode', 'createMode']);
 
             /**
              * onCreate Promise
              */
-            promise.onCreate = onEventRegistry(['createMode']);
+            promise.onCreate = onEventRegistry('onCreate', ['createMode']);
 
             return promise;
         }

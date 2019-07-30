@@ -4,39 +4,39 @@
 export = jdb;
  export as namespace jdb;
 
-declare function jdb(db_name:String, version?:Number):jdb.IJDBInstance;
+declare function jdb(db_name: string, version?: number): jdb.IJDBInstance;
 declare namespace jdb {
     interface IJDBInstance {
-        open(options:IDBCoreOptions):IDBCorePromise;
-        isClientMode():{open:Function; requiresLogin:Function};
-        requiresLogin():{open:Function};
+        open(options: IDBCoreOptions): IDBCorePromise;
+        isClientMode(): {open: Function; requiresLogin: Function};
+        requiresLogin(): {open: Function};
     }
-    
+
     interface IDBCoreOptions {
-        app_id?:String;
-        inProduction?:Boolean;
+        app_id?: string;
+        inProduction?: boolean;
         handler?: {
             onSuccess: Function;
             onError: Function;
         };
-        disableApiLoading?:Boolean;
-        isClientMode?:Boolean;
-        isLoginRequired?:Boolean;
-        logService?:Function;
-        conflictResolver?:Function;
-        serviceHost?:String;
-        live?:Boolean;
-        ignoreSync?:Boolean|Array<String>;
-        storage?:String;
-        location?:String;
-        key?:String;
-        folderPath?:String;
-        ajax?:Function;
-        interceptor?:(options: IDBHTTPRequest, requestState: IDBRequestState)=>any; 
-        organisation:String;
+        disableApiLoading?: boolean;
+        isClientMode?: boolean;
+        isLoginRequired?: boolean;
+        logService?: Function;
+        conflictResolver?: Function;
+        serviceHost?: string;
+        live?: boolean;
+        ignoreSync?: boolean|Array<String>;
+        storage?: string;
+        location?: string;
+        key?: string;
+        folderPath?: string;
+        ajax?: Function;
+        interceptor?: (options: IDBHTTPRequest, requestState: IDBRequestState) => any;
+        organisation: string;
     }
 
-    type eventResponse = (event:IDBCoreEvent) => any;
+    type eventResponse = (event: IDBCoreEvent<IDBApplicationInstance|any>) => any;
 
     interface IDBHTTPRequest {
         url: string;
@@ -56,216 +56,244 @@ declare namespace jdb {
         AUTH_TYPE: number;
         PRIVATE_API?: boolean;
     }
-    
-    interface IDBCorePromise {
-        onSuccess(cb:eventResponse): IDBCorePromise;
-        onError(cb:Function): IDBCorePromise;
-        then(cb:Function): IDBCorePromise;
-        onUpgrade(cb:Function): IDBCorePromise;
-        onCreate(cb:eventResponse): IDBCorePromise;
-    }
-    
+
     interface IDBPromise {
-        then(succ:Function, err:Function):IDBPromise;
+        onSuccess(cb: eventResponse): this;
+        onError(cb: Function): this;
+        then(succ: Function, err?: Function): IDBPromise;
     }
-    
-    interface IDBCoreEvent {
-        message:String;
-        mode:String;
-        result:IDBApplicationInstance;
-        errorCode?:Number;
+
+    interface IDBCorePromise extends IDBPromise {
+        onUpgrade(cb: Function): this;
+        onCreate(cb: eventResponse): this;
+    }
+
+    interface IDBCoreEvent<P> {
+        message?: string;
+        mode?: string;
+        result: P;
+        errorCode?: number;
+    };
+
+    interface IDBCoreTransactionEvent {
+        timing: number;
+        message: string;
     }
 
     interface IDBStoreProcedure {
         create(storeName: string, query: string): this;
         delete(storeName: string): void;
-        execute(storeName: string, params?:any): IDBCorePromise; 
+        execute(storeName: string, params?: any): IDBPromise;
     }
-    
+
     interface IDBApplicationInstance {
-        constructor(appName:String, version: String, requiredMethods?:Array<String>);
-        name:String;
-        version:Number;
+        name: string;
+        version: number;
         env: {
-            usage:Function;
-            logger:Function;
-            dataTypes:any;
-            requestMapping:any;
-            resource:Function;
-            appKey?:Function;
+            usage: Function;
+            logger: Function;
+            dataTypes: any;
+            requestMapping: any;
+            resource: Function;
+            appKey?: Function;
         };
         storeProc: IDBStoreProcedure;
-        onUpdate?:IDBApplicationRealtime;
-        clientService?:IDBClientService;
-        scheduler?:IDBApplicationScheduler;
-        helpers:IDBCoreHelpers;
-        close(flag?:Boolean):void;
-        api(URL:String, postData?:any, tbl?:String):IDBPromise;
-        createTbl(name:String, columns:Array<any>):IDBCorePromise;
-        drop(flag?:Boolean):IDBCorePromise;
-        export(type:String, table:String):{initialize(title?:String):any};
-        import(table:String, handler:IDBEventHandler):{getFile():any; getData():any}
-        info():Array<IDBTableInfoSet>;
-        jQl(query:String, handler:IDBEventHandler, parser?:any):IDBCoreEvent;
-        rename(newName:String):IDBPromise;
-        sync():IDBCoreSync;
-        table(name:String, mode:String): IDBCorePromise;
-        transaction(table:String|Array<String>, mode?:String): IDBCorePromise;
+        onUpdate?: IDBApplicationRealtime;
+        clientService?: IDBClientService;
+        scheduler?: IDBApplicationScheduler;
+        helpers: IDBCoreHelpers;
+        close(flag?: boolean): void;
+        api(URL: string, postData?: any, tbl?: string): IDBPromise;
+        createTbl(name: string, columns: Array<any>): IDBPromise;
+        drop(flag?: boolean): IDBPromise;
+        export(type: string, table: string): {initialize(title?: string): any};
+        import(table: string, handler: IDBEventHandler): {getFile(): any; getData(): any};
+        info(): Array<IDBTableInfoSet>;
+        jQl(query: string, handler: IDBEventHandler, parser?: any): void;
+        rename(newName: string): IDBPromise;
+        sync(): IDBCoreSync;
+        table(name: string, mode: string): IDBPromise;
+        transaction(table: string|Array<String>, mode?: string): IDBPromise;
+        batchTransaction(data: Array<IDBBatchTransactionDataTypes>): IDBPromise;
         users(): IDBUsers;
     }
-    
+
     interface IDBUsers {
-        add(userInfo:any);
-        remove(userInfo:any);
-        authorize(authorizeData:any);
-        reAuthorize(authorizeData:any);
-        updateUser(userInfo:any);
-        validatePassword(userInfo:any);
-        isExists(queryInfo:any);
-        addAuthority(authorityInfo:any);
-        removeAuthority(authorityInfo:any);
+        add(userInfo: any): IDBPromise;
+        remove(userInfo: any): IDBPromise;
+        authorize(authorizeData: any): IDBPromise;
+        reAuthorize(authorizeData: any): IDBPromise;
+        updateUser(userInfo: any): IDBPromise;
+        validatePassword(userInfo: any): IDBPromise;
+        isExists(queryInfo: any): IDBPromise;
+        addAuthority(authorityInfo: any): IDBPromise;
+        removeAuthority(authorityInfo: any): IDBPromise;
     }
-    
+
+    interface IDBAuthorizedUserInstance {
+        getUserInfo<UserInfo>(): UserInfo;
+        getAccessToken<AccessToken>(): AccessToken;
+        isPasswordReset(): boolean;
+    }
+
+    interface IDBAddUserInstance {
+        getUserInfo<UserInfo>(): UserInfo;
+        getLastInsertId(): number;
+        getAccessToken<AccessToken>(): AccessToken;
+        getResponseData(): any;
+    }
+
     interface IDBCoreTransaction {
-        delete(query:String|any):this;
-        insert(data:Array<any>):this;
-        update(data:any, query?:any):this;
+        delete(query: string|any): this;
+        insert(data: Array<any>): this;
+        update(data: any, query?: any): this;
+        insertReplace(data: Array<any>, upateRef?: string): this;
         dataProcessing(process: Boolean): this;
-        select(selectFields:String, definition?:IDBCoreTransactionSelect):this;
-        getColumn():Array<any>;
-        qsl():any;
-        execute():IDBCorePromise;
+        select(selectFields: string, definition?: IDBCoreTransactionSelect): this;
+        getColumn(): Array<any>;
+        qsl(): any;
+        execute(): IDBPromise;
     }
 
-    interface IDBCoreTransactionResult {
-        message:String;
-        mode:String;
-        result:IDBCoreTransaction;
-    }
-    
     interface IDBCoreTransactionSelect {
-        where:String,
-        like:String,
-        limit:String,
-        orderBy:String,
-        groupBy:String,
-        groupByStrict:String,
-        ref:Boolean,
-        join:Array<{
-            table:String,
-            on:String,
-            type:String,
-            where:any,
-            feilds:any
-        }>
-    }
-    
-    interface IDBTable {
-        info:any;
-        Alter:IDBTableAlter;
-        columns:Array<any>;
-        truncate(flag?:Boolean):IDBCoreEvent;
-        drop(flag?:Boolean):IDBCoreEvent;
-        onUpdate?:IDBApplicationRealtime;
-    }
-    
-    interface IDBTableAlter {
-        drop(columnName):void;
-        add:IDBTableAlterAdd;
-        rename(newName:String): void;
+        where?: string;
+        like?: string;
+        limit?: string;
+        orderBy?: string;
+        groupBy?: string;
+        groupByStrict?: string;
+        ref?: boolean;
+        join?: Array<{
+            table: string;
+            on: string;
+            type: string;
+            where: any;
+            feilds: any;
+        }>;
     }
 
-    interface IDBTransactionResult {
-        message: String;
+    interface IDBTable {
+        info: any;
+        Alter: IDBTableAlter;
+        columns: Array<any>;
+        onUpdate?: IDBApplicationRealtime;
+        truncate(flag?: boolean): IDBCoreEvent<any>;
+        drop(flag?: boolean): IDBCoreEvent<any>;
+    }
+
+    interface IDBTableAlter {
+        add: IDBTableAlterAdd;
+        drop(columnName: string): void;
+        rename(newName: string): void;
+    }
+
+    interface IDBCoreWriteTransactionsEvents {
+        transactions: Array<IDBCoreTransactionEvent|IDBInsertTransactionEvent>;
+    }
+
+    interface IDBBatchTransactionDataTypes {
+        type: string;
+        table: string;
+        data?: Array<any>|any;
+        query?: any;
+    };
+
+    interface IDBSchemaDefinition {
+        type: string;
+        AUTO_INCREMENT?: boolean;
+        ON_UPDATE?: string;
+        defaultValue?: any;
+        PRIMARY_KEY?: boolean;
+        NOT_NULL?: boolean;
     }
 
     interface IDBSelectTransactionEvent {
         state: String;
-        jDBNumRows():Number;
+        jDBNumRows(): number;
         getRow(index: Number);
-        getResult():Array<any>;
-        first():any;
+        getResult(): Array<any>;
+        first(): any;
         openCursor(listener: Function): void;
         limit(start: number, end: Number): Array<any>|any;
+    }
+
+    interface IDBInsertTransactionEvent extends IDBCoreTransactionEvent{
+        skippedRecords: Array<string>;
     }
 
     interface IDBSelectTransactionCursorEvent {
         result: {
             value: Array<any>;
         };
-        continue():void;
-        previous():void;
-        index():Number;
+        continue(): void;
+        previous(): void;
+        index(): number;
     }
-    
+
     interface IDBTableAlterAdd {
-        primary();
-        unique();
-        foreign();
-        mode();
-        column();
+        primary(): void;
+        unique(columnName: string, settings?:any): void;
+        foreign(): void;
+        mode(mode: string): void;
+        column(colunmName: string, config:IDBSchemaDefinition): void;
     }
-    
-    
+
     interface IDBTableInfoSet {
-        name:String;
-        records:any;
-        columns:Array<any>;
-        primaryKey:any;
+        name: string;
+        records: any;
+        columns: Array<any>;
+        primaryKey: any;
         foreignKey?: any;
-        allowedMode:String;
-        lastModified:Number|any;
+        allowedMode: string;
+        lastModified: number|any;
     }
-    
+
     interface IDBEventHandler {
-        onSuccess(fn:any):void;
-        onError(fn:eventResponse):void;
+        onSuccess(fn: any): void;
+        onError(fn: eventResponse): void;
     }
-    
+
     interface IDBCoreHelpers {}
-    
+
     interface IDBTableColum {
-        type:String;
-        defaultValue?:any;
-        AUTO_INCREMENT?:Boolean;
+        type: string;
+        defaultValue?: any;
+        AUTO_INCREMENT?: boolean;
         PRIMARY_KEY?: any;
     }
-    
+
     interface IDBApplicationRealtime {
-        once():void;
-        disconnect():void;
-        start():void;
-        callback:Function;
-        timer:Number;
-        payload:any;
-        types:Array<String>;
-        trial:Number;
-        url:String;
+        callback: Function;
+        timer: number;
+        payload: any;
+        types: Array<String>;
+        trial: number;
+        url: string;
+        once(): void;
+        disconnect(): void;
+        start(): void;
     }
-    
+
     interface IDBClientService {
-        getByRef(tbl:String, query:IDBQuery):IDBPromise;
-        getAll(tbl:String, query:IDBQuery):IDBPromise;
-        getOne(tbl:String, query:IDBQuery):IDBPromise;
-        push(tblName:String, data:any):IDBPromise;
-        delete(tblName:String, data:any):IDBPromise;
-        query(query:IDBQuery):IDBPromise;
-        getNumRows(query:IDBQuery, tblName:String):IDBPromise;
+        getByRef(tbl: string, query: IDBQuery): IDBPromise;
+        getAll(tbl: string, query: IDBQuery): IDBPromise;
+        getOne(tbl: string, query: IDBQuery): IDBPromise;
+        push(tblName: string, data: any): IDBPromise;
+        delete(tblName: string, data: any): IDBPromise;
+        query(query: IDBQuery): IDBPromise;
+        getNumRows(query: IDBQuery, tblName: string): IDBPromise;
     }
-    
-    interface IDBQuery {
-    
-    }
-    
+
+    interface IDBQuery {}
+
     interface IDBApplicationScheduler {
-    
     }
-    
+
     interface IDBCoreSync {
-        constructor(appName:String);
-        Entity(tablesToSync?:String|Array<String>):{
-            configSync(config?:IDBCoreOptions, forceSyc?:Boolean):{
-                processEntity(handler:IDBEventHandler):void
+        // constructor(appName: string);
+        Entity(tablesToSync?: string|Array<String>):{
+            configSync(config?: IDBCoreOptions, forceSyc?: boolean): {
+                processEntity(handler: IDBEventHandler): void
             } | IDBClientService;
         };
     }

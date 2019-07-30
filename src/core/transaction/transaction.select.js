@@ -36,7 +36,8 @@
 function transactionSelect(selectFields, definition) {
     var $self = this,
         _sData = [],
-        _qTables = [];
+        _qTables = [],
+        time = performance.now();
 
     //reference our select query
     if (!selectFields) {
@@ -88,7 +89,7 @@ function transactionSelect(selectFields, definition) {
                     }
 
                     //reference to the tables
-                    if (!$self.tableInfo[tblName.trim()]) {
+                    if (!$self.tableInfoExists(tblName.trim())) {
                         $self.setDBError(tblName + " was not found, Include table in transaction Array eg: db.transaction(['table_1','table_2'])");
                     }
                 }
@@ -253,7 +254,7 @@ function transactionSelect(selectFields, definition) {
     }
 
     function getTableData(tableName) {
-        return ($self.tableInfo[tableName] || $self.tableInfo).data;
+        return $self.getTableInfo(tableName).data;
     }
 
     function performInClauseQuery() {
@@ -267,9 +268,10 @@ function transactionSelect(selectFields, definition) {
 
         function runClause(item, key) {
             var clause = item[key],
-                value = clause.value;
+                value = clause.value,
+                clauseTable = getTableData(clause.table);
             if (!value && clause.table) {
-                if (!$self.tableInfo.hasOwnProperty(clause.table) && !$isEqual($self.tableInfo['TBL_NAME'], clause.table)) {
+                if (!$self.tableInfoExists(clause.table) && !$isEqual(clauseTable['TBL_NAME'], clause.table)) {
                     return $self.setDBError(clause.table + " was not found, Include table in transaction");
                 }
 
@@ -278,7 +280,7 @@ function transactionSelect(selectFields, definition) {
                 }
 
                 clause.isArrayResult = true;
-                value = $self.getColumn(new $query(getTableData(clause.table))._(clause.where), clause);
+                value = $self.getColumn(new $query(clauseTable)._(clause.where), clause);
             }
 
             // attach clause to query
@@ -307,6 +309,7 @@ function transactionSelect(selectFields, definition) {
             throw new Error($self.getError());
         }
 
+        var resultSet = [];
         if (queryDefinition.join) {
             //Table matcher
             //Matches the leftTable to RightTable
@@ -323,14 +326,16 @@ function transactionSelect(selectFields, definition) {
             });
 
             if (queryDefinition.where) {
-                return $self.getColumn(new $query(_sData)._(queryDefinition.where), queryDefinition);
+                resultSet = $self.getColumn(new $query(_sData)._(queryDefinition.where), queryDefinition);
             } else {
-                return $self.getColumn(_sData, queryDefinition);
+                resultSet = $self.getColumn(_sData, queryDefinition);
             }
+        } else {
+            resultSet = $self.getColumn(new $query(getTableData($self.tables._[0]))._(queryDefinition.where), queryDefinition);
         }
 
         //return the processed Data
-        return $self.getColumn(new $query(getTableData($self.tables._[0]))._(queryDefinition.where), queryDefinition);
+        return new SelectQueryEvent(resultSet, (performance.now() - time));
     }]);
 
     /**

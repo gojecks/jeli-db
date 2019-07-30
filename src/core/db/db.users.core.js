@@ -4,55 +4,26 @@
  */
 ApplicationInstance.prototype._users = function() {
     var _secure = '',
-        _promise = new _Promise(),
-        db = this,
-        $defer = new DBPromise(_promise);
-
+        db = this;
     /**
      * 
      * @param {*} uInfo 
      */
     function addUser(uInfo) {
-        if ($isObject(uInfo)) {
-            var _newInfo = ({ _ref: GUID(), _data: extend(true, { time: (+new Date) }, uInfo) }),
-                //Put the Data
-                postData = { data: { insert: [_newInfo] } };
-            //use the db API Method
-            db.api('/user/create', postData, _secure)
-                .then(function(res) {
-                    //Put the new user
-                    var ret = dbSuccessPromiseObject('createUser', "User Created successfully");
-                    //if direct login after login
-                    //set the getUserInfo and getAccessToken
-                    ret.result.getUserInfo = function() {
-                        delete _newInfo._data.time;
-                        delete _newInfo._data.access;
-                        _newInfo.__uid = res.result.lastInsertId;
-                        return _newInfo;
-                    };
-
-                    ret.result.getLastInsertId = function() {
-                        return res.result.lastInsertId;
-                    };
-
-                    ret.result.getAccessToken = function() {
-                        return res.result.access_info;
-                    };
-
-                    ret.getResponseData = function() {
-                        return res.result;
-                    };
-
-                    if (res.result.ok) {
-                        _promise.resolve(ret);
-                    } else {
-                        _promise.reject(dbErrorPromiseObject('Failed to register User'));
-                    }
-                }, function() {
-                    _promise.reject(dbErrorPromiseObject('Failed to register User'));
-                });
-
-        }
+        var _promise = new _Promise(),
+            $defer = new DBPromise(_promise),
+            _newInfo = ({ _ref: GUID(), _data: extend(true, { time: (+new Date) }, uInfo) }),
+            //Put the Data
+            postData = { data: { insert: [_newInfo] } };
+        //use the db API Method
+        db.api('/user/create', postData)
+            .then(function(res) {
+                //Put the new user
+                var ret = new AddUserEventInstance(res, _newInfo);
+                _promise.resolve(ret);
+            }, function() {
+                _promise.reject(dbErrorPromiseObject('Failed to register User'));
+            });
 
         return $defer;
     }
@@ -62,10 +33,14 @@ ApplicationInstance.prototype._users = function() {
      * @param {*} uInfo 
      */
     function removeUser(uInfo) {
+        var _promise = new _Promise(),
+            $defer = new DBPromise(_promise);
         if ($isObject(uInfo)) {
             var ref = {};
             ref[uInfo._ref] = true;
-
+            /**
+             * trigger api call
+             */
             db.api('/user/remove', { data: { delete: ref } })
                 .then(function(res) {
                     _promise.resolve(dbSuccessPromiseObject('removeUser', "User removed successfully"));
@@ -83,13 +58,17 @@ ApplicationInstance.prototype._users = function() {
      * @param {*} userData 
      */
     function updateUser(userData) {
+        var _promise = new _Promise(),
+            $defer = new DBPromise(_promise);
         if (userData) {
             //post our request to server
             db.api('/user/update', { data: { update: [userData] } })
                 .then(function(res) {
-                    res.state = "updateUser";
-                    res.result.message = "User Updated successfully";
-                    _promise.resolve(res);
+                    _promise.resolve({
+                        state: "updateUser",
+                        message: "User Updated successfully",
+                        result: res.result
+                    });
                 }, function() {
                     _promise.reject(dbErrorPromiseObject('Failed to update User, please try again later'))
                 });
@@ -104,6 +83,8 @@ ApplicationInstance.prototype._users = function() {
      * @param {*} queryData 
      */
     function isExists(queryData) {
+        var _promise = new _Promise(),
+            $defer = new DBPromise(_promise);
         db.api('/user/exists', queryData)
             .then(function(res) {
                 _promise.resolve(res.result);
@@ -119,29 +100,15 @@ ApplicationInstance.prototype._users = function() {
      * @param {*} queryData 
      */
     function getUsers(queryData) {
-        var postData = { param: queryData, limit: "JDB_SINGLE" };
+        var _promise = new _Promise(),
+            $defer = new DBPromise(_promise),
+            postData = { param: queryData, limit: "JDB_SINGLE" };
         //post our request to server
         db.api('/user/authorize', postData)
             .then(function(res) {
-                var ret = dbSuccessPromiseObject('authorize', "");
-                ret.result.getUserInfo = function() {
-                    return res.result._rec;
-                };
-
-                ret.result.getAccessToken = function() {
-                    return res.result.access_info;
-                };
-
-                ret.result.isPasswordReset = function() {
-                    return res.result._rec.hasOwnProperty('forcePasswordReset');
-                };
+                var ret = new AuthorizeUserInstance(res.result);
                 //resolve the promise
-                if (!res.result.hasOwnProperty('access_info')) {
-                    _promise.reject(dbErrorPromiseObject('Unable to log user in'))
-                } else {
-                    _promise.resolve(ret);
-                }
-
+                _promise.resolve(ret);
             }, function(err) {
                 _promise.reject(dbErrorPromiseObject(err.message));
             });

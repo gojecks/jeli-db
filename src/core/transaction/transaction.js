@@ -1,23 +1,45 @@
-//@Function Name {jTblQuery}
-//@argument {object}
-// @return Object
-
-function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
-    var select = "",
-        tblMode = mode || 'read',
-        _recordResolvers = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('recordResolvers');
+/**
+ * 
+ * @param {*} tableInfo 
+ * @param {*} mode 
+ * @param {*} isMultipleTable 
+ * @param {*} tables 
+ * @param {*} dbName 
+ */
+function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
+    var tblMode = mode || 'read',
+        _recordResolvers = privateApi.$getActiveDB(dbName).$get('recordResolvers');
     this.executeState = [];
-    this.tableInfo = tableInfo;
     this.tables = tables;
     this.errLog = [];
     this.isMultipleTable = isMultipleTable;
+    this.DB_NAME = dbName;
     this.processData = true;
     this.getError = function() {
         return this.errLog;
     };
 
+    this.cleanup = function() {
+        tableInfo = null;
+        this.executeState.length = 0;
+        this.errLog.length = 0;
+        _recordResolvers = null;
+    };
+
+    this.getTableInfo = function(tableName) {
+        if (isMultipleTable && tableInfo.hasOwnProperty(tableName)) {
+            return tableInfo[tableName];
+        }
+
+        return tableInfo;
+    };
+
+    this.tableInfoExists = function(tableName) {
+        return isMultipleTable && tableInfo.hasOwnProperty(tableName);
+    };
+
     this.setDBError = function(msg) {
-        if (!expect(this.errLog).contains(msg)) {
+        if (!$inArray(msg, this.errLog)) {
             this.errLog.push(msg);
         }
     };
@@ -27,9 +49,19 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
     };
 
     this.getAllRef = function(data) {
-        return [].map.call(data || this.tableInfo.data, function(item) {
+        return [].map.call(data || tableInfo.data, function(item) {
             return item._ref;
         });
+    };
+
+    this.getColumnValues = function(data, columnName) {
+        return data.reduce(function(previousValue, currentValue) {
+            var value = currentValue._data[columnName];
+            if (!$isUndefined(value) && !$isNull(value)) {
+                previousValue.push(value);
+            }
+            return previousValue;
+        }, []);
     };
 
     //Check if Table Information is available from the DB
@@ -38,24 +70,25 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
     }
 
     //Check the required Mode
-    if ($inArray('write', tblMode) && !this.isMultipleTable) {
+    if ($inArray('write', tblMode)) {
         this.dataProcessing = function(process) {
             this.processData = process;
             return this;
         };
 
-        this.updateOfflineCache = function(type, data) {
-            var ignoreSync = privateApi.getNetworkResolver('ignoreSync', tableInfo.DB_NAME);
-            if (true !== ignoreSync && !$inArray(tableInfo.TBL_NAME, ignoreSync) && data.length) {
+        this.updateOfflineCache = function(type, data, tableName) {
+            var ignoreSync = privateApi.getNetworkResolver('ignoreSync', dbName);
+            if (true !== ignoreSync && !$inArray(tableName, ignoreSync) && data.length) {
                 _recordResolvers
-                    .$set(tableInfo.TBL_NAME)
+                    .$set(tableName)
                     .data(type, data);
             }
         };
-
+        this.validator = TransactionDataAndColumnValidator;
         this.insert = transactionInsert;
+        this.insertReplace = TransactionInsertReplace;
         this.update = transactionUpdate;
-        this._autoSync = liveProcessor(tableInfo.TBL_NAME, tableInfo.DB_NAME);
+        this._autoSync = liveProcessor(dbName);
 
         //@Function lastInsertId
         //@parameter null
@@ -88,8 +121,8 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
 
     function generateQuickSearchApi(_super) {
         var self = this;
-        if (!_super.isMultipleTable) {
-            expect(_super.tableInfo.columns[0]).each(function(column, columnName) {
+        if (!isMultipleTable) {
+            expect(tableInfo.columns[0]).each(function(column, columnName) {
                 self['findby' + columnName] = buildQuery(columnName);
             });
         } else {
@@ -98,13 +131,23 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
 
 
         function buildQuery(columnName) {
+            var query = {};
+            query[columnName] = {
+                type: "$isEqual",
+                value: null
+            };
+
             return function(value, table) {
-                if (_super.isMultipleTable && !table) {
+                if (isMultipleTable && !table) {
                     errorBuilder('Current state is having multiple table, please specify the table');
                 }
+                /**
+                 * set the query value
+                 */
+                query[columnName].value = value;
 
                 return _super.select('*', {
-                        where: columnName + "==" + value
+                        where: query
                     })
                     .execute();
 
@@ -113,47 +156,60 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables) {
     }
 }
 
-
 jTblQuery.prototype.execute = function(disableOfflineCache) {
     if (this.executeState.length) {
         var defer = new _Promise(),
             error = !1,
             $self = this,
-            executeLen = this.executeState.length;
-
+            executeLen = this.executeState.length,
+            total = executeLen,
+            results = [];
         while (executeLen--) {
-            var ex = this.executeState.pop();
-            if (ex.length > 1) {
-                var ret = { state: ex[0] };
-                try {
-                    var res = ex[1].call(ex[1], disableOfflineCache);
-                    ret = sqlResultExtender(ret, res, this.tableInfo.lastInsertId);
-                } catch (e) {
-                    ret.message = e.message;
-                    error = true;
-                } finally {
-                    $self.errLog = [];
-                    if ($inArray(ex[0], ["insert", "update", "delete"]) && !error) {
-                        /**
-                         * Sync to the backend
-                         * Available only when live is define in configuration
-                         * @param {TABLE_NAME}
-                         * @param {DB_NAME}
-                         * @return {FUNCTION}
-                         */
-                        $self._autoSync(ex[0], function(res) {
-                            ret.$ajax = extend(true, (res || {}.data));
-                            defer['resolve'](ret);
-                        }, function() {
-                            defer['reject'](ret);
-                        });
+            var ex = this.executeState.shift();
+            var res = { state: ex[0] };
+            try {
+                res = ex[1].call(ex[1], disableOfflineCache);
+            } catch (e) {
+                res.message = e.message;
+                error = true;
+            } finally {
+                $self.errLog = [];
+                if ($inArray(ex[0], ["insert", "update", "delete"]) && !error) {
+                    /**
+                     * Sync to the backend
+                     * Available only when live is define in configuration
+                     * @param {TABLE_NAME}
+                     * @param {DB_NAME}
+                     * @return {FUNCTION}
+                     */
+                    $self._autoSync(res.table, ex[0], function(ajaxResponse) {
+                        if (ajaxResponse) {
+                            ret.$ajax = ajaxResponse;
+                        }
 
-                    } else {
-                        defer[!error ? 'resolve' : 'reject'](ret);
-                    }
+                        results.push(res);
+                        complete('resolve');
+                    }, function() {
+                        results.push(res);
+                        complete('reject');
+                    });
+
+                } else {
+                    results.push(res);
+                    complete(error ? 'reject' : 'resolve');
                 }
             }
         };
+
+        function complete(type) {
+            /**
+             * cleanUp
+             */
+            if (!executeLen) {
+                defer[type]((total > 1) ? results : results.pop());
+                $self.cleanup();
+            }
+        }
 
 
         return new DBPromise(defer);

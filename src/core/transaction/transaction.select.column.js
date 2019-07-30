@@ -298,14 +298,9 @@ function transactionSelectColumn(data, definition) {
         //return data when its defined
         if ($isArray(data)) {
             return data;
-        } else if ($self.tableInfo.data) //return data when single table search
-        {
-            return $self.tableInfo.data;
-        } else if ($isString(data)) {
-            return $self.tableInfo[data].data;
         }
 
-        return [];
+        return $self.getTableInfo(data) || [];
     }
 
 

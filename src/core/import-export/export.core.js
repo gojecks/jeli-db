@@ -121,7 +121,7 @@ exportersModule.prototype.jql = function() {
                 }
 
                 if (table.data.length) {
-                    queries += "insert -" + JSON.stringify(table.data) + " -" + table.TBL_NAME + "  -true \n";
+                    queries += "insert -" + JSON.stringify(table.data) + " -" + table.TBL_NAME + "  -hard \n";
                 }
             } catch (e) {
                 queries = "/** unable to process files please try again  **/";

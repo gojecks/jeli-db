@@ -1,5 +1,5 @@
 jEliDB.JDB_PLUGINS.jQl('insert', {
-    help: ['-insert -[data] -[tbl_name] -replace [true|false]'],
+    help: ['insert -[data] -[tbl_name] (optional: [-replace -columnName] -hard  -skip)'],
     requiresParam: true,
     fn: insertPluginFn
 });
@@ -8,17 +8,26 @@ jEliDB.JDB_PLUGINS.jQl('insert', {
 function insertPluginFn(query, handler) {
     var tblName = query[2],
         data = query[1] || [],
-        replace = query[3] || false,
-        result = false;
+        options = query.slice(3),
+        replaceCall = $inArray('replace', options),
+        skipProcessing = $inArray('skip', options),
+        hardInsert = $inArray('hard', options);
 
     return function(db) {
-        //insert into the table
         db
             .transaction(tblName, "writeonly")
-            .onSuccess(function(ins) {
-                var res = ins.result;
-                res
-                    .insert.call(res, data, replace)
+            .onSuccess(function(tx) {
+                var instance = tx.result.dataProcessing(!skipProcessing);
+                /**
+                 * check for insert or replace call
+                 */
+                if (replaceCall) {
+                    instance = instance.insertOrReplace(data, options[1]);
+                } else {
+                    instance = instance.insert(data, hardInsert);
+                }
+
+                instance
                     .execute()
                     .onSuccess(handler.onSuccess)
                     .onError(handler.onError);

@@ -189,34 +189,6 @@
       return definition;
   }
 
-  function columnObjFn(columns) {
-      var obj = {};
-
-      function _dbDefaultValueMatcher(def) {
-          if (def.hasOwnProperty('defaultValue')) {
-              if (def.defaultValue == "CURRENT_TIMESTAMP") {
-                  return +new Date;
-              } else if (def.defaultValue == "DATE_TIME") {
-                  return new Date().toLocaleString();
-              } else if (def.defaultValue == "DATE") {
-                  return new Date().toLocaleDateString();
-              } else if (def.defaultValue == "user_defined") {
-                  return def.userDefinedValue;
-              } else {
-                  return def.defaultValue;
-              }
-          }
-
-          return null;
-      };
-
-      findInList.call(columns, function(prop, value) {
-          obj[prop] = _dbDefaultValueMatcher(value);
-      });
-
-      return obj;
-  }
-
   function jEliDeepCopy(data) {
       return JSON.parse(JSON.stringify(data));
   }
@@ -228,8 +200,10 @@
   }
 
   /**
-    DB event naming
-  **/
+   * DB event Naming
+   * @param {*} dbName 
+   * @param {*} evName 
+   */
   function eventNamingIndex(dbName, evName) {
       return "/event/" + dbName + "/" + evName;
   }

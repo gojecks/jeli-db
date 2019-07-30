@@ -1,23 +1,5 @@
   /**
    * 
-   * @param {*} ret 
-   * @param {*} objStore 
-   */
-  function sqlResultExtender(ret, objStore, lastInsertId) {
-      if ($isObject(ret)) {
-          if ($isEqual(ret.state, 'select')) {
-              return new SelectQueryEvent(ret, objStore);
-          } else if ($isEqual(ret.state, 'insert')) {
-              return new InsertQueryEvent(ret, objStore, lastInsertId);
-          } else {
-              ret.result = objStore;
-              return ret;
-          }
-      }
-  }
-
-  /**
-   * 
    * @param {*} state 
    * @param {*} message 
    */

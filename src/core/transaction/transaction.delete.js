@@ -16,46 +16,73 @@
  * Like Query
  * delete -t Like(@value(needle) @field(t1.column))
  */
-function transactionDelete(query) {
+
+/**
+ * 
+ * @param {*} query 
+ * @param {*} tableName 
+ */
+function transactionDelete(query, tableName) {
     var $self = this,
-        delItem = [];
+        delItem = [],
+        time = performance.now(),
+        tableInfo = this.getTableInfo(tableName);
     if (query) {
         if ($isObject(query) && query.hasOwnProperty('byRefs')) {
             if (!$isArray(query.byRefs)) {
-                throw Error(["ByRefs requires ArrayList<ref>"]);
+                throw Error("ByRefs requires ArrayList<ref>");
             }
-
-            $self.tableInfo.data = $self.tableInfo.data.filter(function(item) {
-                return !$inArray(item._ref, query.byRefs);
-            });
 
             delItem = query.byRefs;
         } else {
-            new $query(this.tableInfo.data)._(query, function(item, idx) {
+            new $query(tableInfo.data)._(query, function(item, idx) {
                 delItem.push(item._ref);
             });
         }
     } else {
-        delItem = $self.getAllRef();
-        $self.tableInfo.data = [];
+        delItem = $self.getAllRef(tableName);
     }
 
     this.executeState.push(["delete", function(disableOfflineCache) {
         if (delItem.length) {
             //push records to our resolver
             if (!disableOfflineCache) {
-                $self.updateOfflineCache('delete', delItem);
+                $self.updateOfflineCache('delete', delItem, tableInfo.TBL_NAME);
+            }
+
+            /**
+             * Remove all data by filtering
+             */
+            var dataLen = tableInfo.data.length
+            if ($isEqual(delItem.length, dataLen)) {
+                tableInfo.data.length = 0;
+            } else {
+                while (dataLen--) {
+                    var item = tableInfo.data[dataLen];
+                    if ($inArray(item._ref, delItem)) {
+                        /**
+                         * remove the object
+                         */
+                        tableInfo.data.splice(dataLen, 1);
+                    }
+                }
             }
 
             privateApi
                 .storageEventHandler
-                .broadcast(eventNamingIndex($self.tableInfo.DB_NAME, 'delete'), [$self.tableInfo.TBL_NAME, delItem]);
+                .broadcast(eventNamingIndex(tableInfo.DB_NAME, 'delete'), [tableInfo.TBL_NAME, delItem]);
         }
         //return success Message
         return ({
-            message: delItem.length + " record(s) removed"
+            state: "delete",
+            table: tableInfo.TBL_NAME,
+            result: {
+                timing: performance.now() - time,
+                message: delItem.length + " record(s) removed"
+            }
         });
     }]);
+
 
     return this;
 };

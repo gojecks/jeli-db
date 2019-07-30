@@ -6,7 +6,11 @@
    * @param {*} parser 
    */
   ApplicationInstance.prototype.jQl = function(query, handler, parser) {
-      var taskType = this.jQl.parser(query, parser || {}).split(/\s+(?:-)/gi)
+      var _this = this,
+          taskType = query.split(/\s+(?:-)/gi)
+          .map(function(key) {
+              return _this.jQl.parser(key, parser || {});
+          })
           .map(function(q) { return q.trim(); })
           .map(function(a) { try { return JSON.parse(a); } catch (e) {}; return a; }),
           taskPerformerObj = customPlugins.$getAll(),
