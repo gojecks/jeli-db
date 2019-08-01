@@ -37,6 +37,7 @@ declare namespace jdb {
     }
 
     type eventResponse = (event: IDBCoreEvent<IDBApplicationInstance|any>) => any;
+    type IDBCorePromiseResponse = (event: IDBCoreEvent<IDBApplicationInstance|any>, next: Function) => any;
 
     interface IDBHTTPRequest {
         url: string;
@@ -64,16 +65,16 @@ declare namespace jdb {
     }
 
     interface IDBCorePromise extends IDBPromise {
-        onUpgrade(cb: Function): this;
-        onCreate(cb: eventResponse): this;
+        onUpgrade(cb: IDBCorePromiseResponse): this;
+        onCreate(cb: IDBCorePromiseResponse): this;
     }
 
-    interface IDBCoreEvent<P> {
+    interface IDBCoreEvent<P=any> {
         message?: string;
         mode?: string;
         result: P;
         errorCode?: number;
-    };
+    }
 
     interface IDBCoreTransactionEvent {
         timing: number;
@@ -196,7 +197,7 @@ declare namespace jdb {
         table: string;
         data?: Array<any>|any;
         query?: any;
-    };
+    }
 
     interface IDBSchemaDefinition {
         type: string;

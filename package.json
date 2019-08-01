@@ -1,6 +1,6 @@
 {
     "name": "jelidb",
-    "version": "1.0.7-beta",
+    "version": "1.0.8-beta",
     "description": "Javascript Database for front-end development",
     "main": "dist/jdb.min.js",
     "files": [
@@ -30,7 +30,7 @@
     "dependencies": {
         "jdb.sql.adapter": "^1.0.0-beta",
         "jdb.indexeddb.adapter": "^1.0.0-beta",
-        "jdb.flatfile.adapter": "^1.0.0-beta"
+        "jdb.flat-file.adapter": "^1.0.0-beta"
     },
     "devDependencies": {
         "grunt": "^0.4.5",

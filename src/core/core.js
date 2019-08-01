@@ -15,8 +15,12 @@
         var defer = new _Promise(),
             jeliInstance = {},
             eventRegistry = {
-                onCreate: noop,
-                onUpgrade: noop
+                onCreate: function(a, next) {
+                    next();
+                },
+                onUpgrade: function(a, next) {
+                    next();
+                }
             },
             version = parseInt(version || "1"),
             _defaultConfig = {
@@ -129,6 +133,7 @@
                             jeliInstance.message = name + " DB already exists with version no:(" + dbChecker.version;
                             jeliInstance.message += "), having " + Object.keys(dbChecker.tables).length + " tables";
                             jeliInstance.type = "existMode";
+                            defer.resolve(jeliInstance);
                         } else {
                             //set Message
                             // DB is already created but versioning is different
@@ -142,7 +147,12 @@
                             /**
                              * trigger our create and update mode
                              */
-                            eventRegistry.onUpgrade();
+                            eventRegistry.onUpgrade(function() {
+                                /**
+                                 * resolve our instance
+                                 */
+                                defer.resolve(jeliInstance);
+                            });
                         }
                     } else {
                         _activeDBApi
@@ -158,13 +168,21 @@
                         /**
                          * trigger our create and update mode
                          */
-                        eventRegistry.onCreate();
-                        eventRegistry.onUpgrade();
+                        eventRegistry.onCreate(function() {
+                            /**
+                             * register next method to be triggered
+                             */
+                            eventRegistry.onUpgrade(function() {
+                                /**
+                                 * resolve our instance
+                                 */
+                                defer.resolve(jeliInstance);
+                            });
+                        });
+
                         // Object Store in Db
                         privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
                     }
-
-                    defer.resolve(jeliInstance);
                 }
 
                 /**
@@ -300,9 +318,9 @@
                         /**
                          * register the event
                          */
-                        eventRegistry[state] = function() {
+                        eventRegistry[state] = function(next) {
                             if (jeliInstance && $inArray(jeliInstance.type, triggerState)) {
-                                fn.call(fn, jeliInstance);
+                                fn.call(fn, jeliInstance, next);
                             }
                         }
                     }

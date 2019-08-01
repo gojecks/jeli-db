@@ -1,13 +1,13 @@
 var db;
 jdb.JDB_STORAGE_SYSTEM('indexeddb', jIDBAdapter);
 jdb.JDB_STORAGE_SYSTEM('sql', jSQLAdapter);
-jdb('TestBed', 3)
+jdb('TestBed', 1)
     .open({
-        storage: 'localStorage',
+        storage: 'sql',
         organisation: 'Test',
         ignoreSync: true
     })
-    .onCreate((res) => {
+    .onCreate((res, next) => {
         console.log('onCreateMode');
         res.result.api.localTransport('assets/schema.json', (schema) => {
             Object.keys(schema).forEach(tbl => {
@@ -37,11 +37,12 @@ jdb('TestBed', 3)
                         .dataProcessing(false)
                         .insert(customer)
                         .execute()
+                        .onSuccess(next)
                         .onError(console.log);
                 });
         });
     })
-    .onUpgrade(tx => {
+    .onUpgrade((tx, next) => {
         console.log('onUpgrade');
         // do something
         /**
@@ -117,6 +118,8 @@ jdb('TestBed', 3)
          * single insert call with version
          */
         insertData(arr);
+
+        next();
     })
     .then((res) => {
         console.log('successfull opening')
