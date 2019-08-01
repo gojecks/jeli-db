@@ -347,7 +347,7 @@ function transactionSelect(selectFields, definition) {
                 throw new TypeError("join DEFINITION should be an object");
             }
 
-            if (queryDefinition.join) {
+            if (!queryDefinition.join) {
                 queryDefinition.join = [definition];
             } else {
                 queryDefinition.join.push(definition);
@@ -373,7 +373,7 @@ function transactionSelect(selectFields, definition) {
         }
     });
 
-    publicApi.whereClause = function(where) {
+    publicApi.where = function(where) {
         //store where query
         queryDefinition.where = where;
         return this;

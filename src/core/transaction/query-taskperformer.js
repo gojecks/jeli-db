@@ -221,7 +221,7 @@ $query.matcher = function($query, fieldValue, item) {
                 _fnd = $inArray(userDefinedCondition, fieldValue);
                 break;
             case ('$lk'):
-                _fnd = ((fieldValue || "").toLowerCase()).search(userDefinedCondition.toLowerCase()) > -1;
+                _fnd = (String(fieldValue || "").toLowerCase()).search((userDefinedCondition || '').toLowerCase()) > -1;
                 break;
             case ('$notInClause'):
                 _fnd = !$inArray(fieldValue, userDefinedCondition);
