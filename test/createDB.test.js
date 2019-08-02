@@ -52,7 +52,6 @@ jdb('TestBed', 1)
             i = 0;
         while (i < arr.length) {
             arr[i] = ({
-                Id: 10 * i,
                 "ProductNo": "AA00001",
                 "Name": "Bed Alarm - Stand-Up Bed Alarm with Pressure Mat",
                 "Description": "444B",

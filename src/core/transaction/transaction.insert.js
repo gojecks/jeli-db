@@ -36,7 +36,7 @@ function transactionInsert(data, hardInsert, tableName) {
         Object.keys(pdata).forEach(function(key) {
             //check auto_increment
             var column = columns[key];
-            if (!pdata[key] && column.hasOwnProperty('AUTO_INCREMENT') && $inArray(columns.type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
+            if (!pdata[key] && column.hasOwnProperty('AUTO_INCREMENT') && $inArray(column.type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
                 pdata[key] = tableInfo.lastInsertId;
             }
         });

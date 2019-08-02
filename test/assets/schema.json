@@ -46,7 +46,8 @@
     }],
     "mfs_products": [{
         "Id": {
-            "type": "int"
+            "type": "int",
+            "AUTO_INCREMENT": true
         },
         "ProductNo": {
             "type": "text"
