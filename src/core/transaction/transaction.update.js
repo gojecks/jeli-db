@@ -50,7 +50,7 @@ function transactionUpdate(updateData, query, tableName, replace) {
      */
     function updateAndValidateData(data, idx) {
         Object.keys(columns).forEach(function(column) {
-            if (columns[column].hasOwnProperty('ON_UPDATE')) {
+            if (columns[column].hasOwnProperty('ON_UPDATE') && $isString(columns[column].ON_UPDATE)) {
                 if (!data.hasOwnProperty(column)) {
                     var col = {};
                     col[column] = columns[column];

@@ -76,6 +76,11 @@ function _privateApi() {
     this.$getTable = function(dbName, tableName, extendable) {
         var db = this.openedDB.$get(dbName).$get('_storage_'),
             ret = null;
+
+        if (!db.isExists(tableName)) {
+            return ret;
+        }
+
         if (extendable) {
             ret = extend(true, db.getItem(tableName));
         } else {

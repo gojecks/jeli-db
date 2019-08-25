@@ -13,7 +13,7 @@ _privateApi.prototype.setStorage = function(dbName, config, callback) {
      * default storage to memory
      * when invalid storage property
      */
-    var storageInit = customStorage.$get(config.storage || 'memory'),
+    var storageInit = customStorage.get(config.storage || 'memory'),
         _activeDBInstance = this.$getActiveDB(dbName);
 
     if ($isFunction(storageInit)) {

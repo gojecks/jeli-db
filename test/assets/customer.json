@@ -5,7 +5,7 @@
     "Country": "Germany",
     "Address": "Obere Str. 57",
     "City": "Berlin",
-    "PostalCode": 12209
+    "PostalCode": "12209"
 }, {
     "CustomerID": 2,
     "CustomerName": "Ana Trujillo Emparedados y helados",

@@ -1,46 +1,14 @@
 var db;
 jdb.JDB_STORAGE_SYSTEM('indexeddb', jIDBAdapter);
 jdb.JDB_STORAGE_SYSTEM('sql', jSQLAdapter);
-jdb('TestBed', 1)
+jdb('TestBed', 6)
     .open({
         storage: 'sql',
-        organisation: 'Test',
-        ignoreSync: true
+        schemaPath: 'assets/schemas/'
     })
     .onCreate((res, next) => {
         console.log('onCreateMode');
-        res.result.api.localTransport('assets/schema.json', (schema) => {
-            Object.keys(schema).forEach(tbl => {
-                res.result.createTbl(tbl, schema[tbl]);
-            });
-        })
-
-
-        // load the bundled files
-        res.result.api.localTransport('assets/order.json', (order) => {
-            res.result.transaction('Orders', 'write')
-                .onSuccess((orderTbl) => {
-                    orderTbl.result
-                        .dataProcessing(false)
-                        .insert(order)
-                        .execute()
-                        .onSuccess(console.log)
-                        .onError(console.log);
-                })
-                .onError(console.log);
-        });
-
-        res.result.api.localTransport('assets/customer.json', (customer) => {
-            res.result.transaction('Customers', 'write')
-                .onSuccess((customerTbl) => {
-                    customerTbl.result
-                        .dataProcessing(false)
-                        .insert(customer)
-                        .execute()
-                        .onSuccess(next)
-                        .onError(console.log);
-                });
-        });
+        next();
     })
     .onUpgrade((tx, next) => {
         console.log('onUpgrade');
@@ -116,46 +84,15 @@ jdb('TestBed', 1)
         /**
          * single insert call with version
          */
-        insertData(arr);
+        // insertData(arr);
 
         next();
     })
     .then((res) => {
         console.log('successfull opening')
         db = res.result;
-        // db.jQl('delete -Orders', {
-        //     onSuccess: function() {
-        //         db.jQl('insert -[{"OrderID":10311},{"OrderID":10312},{"OrderID":10313},{"OrderID":10314}] -Orders', {
-        //             onSuccess: function() {
-        //                 db.jQl('select -* -Orders', {
-        //                     onSuccess: res => {
-        //                         console.log(res.getResult());
-        //                         console.log(performance.now() - startTime);
-        //                     },
-        //                     onError: console.log
-        //                 })
-        //             },
-        //             onError: console.log
-        //         })
-        //     },
-        //     onError: console.log
-        // })
-
         // insert -[{"OrderID":10311}, {"OrderID":10308,"CustomerID":3, "ShipperID":5}, {"OrderID":10309,"CustomerID":5, "OrderDate":"1996-24-24"}] -Orders -replace -OrderID
 
-        db.jQl('select -COUNT() -mfs_products -where(%query%)', {
-            onSuccess: res => {
-                console.log(res.getResult())
-            },
-            onError: err => console.log(err)
-        }, {
-            query: [{
-                Name: {
-                    type: "$lk",
-                    value: "alarm - s"
-                }
-            }]
-        })
     });
 
 function tryit() {

@@ -1,0 +1,50 @@
+{
+    "Orders": {
+        "type": "alter",
+        "columns": [{
+            "type": "column",
+            "name": "lastModified",
+            "definition": {
+                "type": "DATE_TIME",
+                "defaultValue": "CURRENT_TIMESTAMP"
+            }
+        }]
+    },
+    "Customers": {
+        "type": "alter",
+        "columns": [{
+            "type": "column",
+            "name": "lastModified",
+            "definition": {
+                "type": "DATE_TIME",
+                "defaultValue": "CURRENT_TIMESTAMP"
+            }
+        }]
+    },
+    "mfs_products": {
+        "type": "drop"
+    },
+    "users": {
+        "type": "create",
+        "definition": [{
+            "username": {
+                "type": "varchar"
+            },
+            "password": {
+                "type": "varchar"
+            }
+        }],
+        "crud": {
+            "transactions": [{
+                "type": "insert",
+                "data": [{
+                    "username": "test1",
+                    "password": "test1"
+                }, {
+                    "username": "test2",
+                    "password": "test2"
+                }]
+            }]
+        }
+    }
+}

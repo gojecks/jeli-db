@@ -236,6 +236,18 @@
        * @param {*} state 
        */
       var finishQueue = (function() {
+          /**
+           * 
+           * @param {*} state 
+           */
+          function finalize(state) {
+              if (state && $isFunction(syncHelper[state])) {
+                  syncHelper[state](appName);
+              }
+              //remove deleteRecords
+              privateApi.$taskPerformer.del(privateApi.storeMapping.delRecordName);
+          }
+
           var states = ({
               push: function(response) {
                   if (syncState.postSync.length) {
@@ -250,14 +262,6 @@
                       return;
                   }
                   finalize($isEqual(response.state.toLowerCase(), 'error') ? 'killState' : 'finalizeProcess');
-
-                  function finalize(state) {
-                      if (state && $isFunction(syncHelper[state])) {
-                          syncHelper[state](appName);
-                      }
-                      //remove deleteRecords
-                      privateApi.$taskPerformer.del(privateApi.storeMapping.delRecordName);
-                  }
               },
               pull: function(response) {
                   if ($isEqual(response.state.toLowerCase(), 'error')) {
@@ -306,6 +310,7 @@
               processQueue(queue, 'push');
           } else {
               finishQueue('push', { state: 'success' });
+              privateApi.$taskPerformer.updateDB(appName, null, null, +new Date);
           }
       }
 

@@ -201,7 +201,9 @@ function jEliDBTBL(tableInfo) {
             var nColumn = columnName;
             if ($isString(nColumn)) {
                 nColumn = {};
-                nColumn[columnName] = config ? config : {};
+                nColumn[columnName] = config ? config : {
+                    type: 'any'
+                };
             }
 
             //reconstruct the table

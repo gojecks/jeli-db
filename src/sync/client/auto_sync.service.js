@@ -1,8 +1,6 @@
 /**
  * 
- * @param {*} tbl 
- * @param {*} dbName
- * @return {FUNCTION} 
+ * @param {*} appName 
  */
 function liveProcessor(appName) {
     var ignoreSync = privateApi.getNetworkResolver('ignoreSync', appName);
@@ -19,7 +17,7 @@ function liveProcessor(appName) {
             //process the request
             //Synchronize PUT STATE
             var dataToSync = recordResolver.$get(tbl, null, 'data');
-            if ($inArray(type, ['update', 'insert', 'delete']) && Object.keys(dataToSync.data[type]).length) {
+            if (Object.keys(dataToSync.data[type]).length) {
                 syncHelper
                     .autoSync(appName, tbl, dataToSync)
                     .then(cbSuccess, cbError);

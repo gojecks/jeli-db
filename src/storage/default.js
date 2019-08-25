@@ -137,17 +137,17 @@ function DefaultStorage(config, callback) {
     };
 
     publicApi.removeItem = function(name) {
-        window[config.type].removeItem(getStoreName(name));
         delete _privateStore[name];
+        window[config.type] && window[config.type].removeItem(getStoreName(name));
     };
 
     publicApi.clear = function() {
-        window[config.type].clear();
+        window[config.type] && window[config.type].clear();
         storage = {};
     };
 
     publicApi.usage = function(name) {
-        return (window[config.type][getStoreName(name)] || '').length;
+        return JSON.stringify(storage[getStoreName(name)] || '').length;
     };
 
     publicApi.isExists = function(name) {
@@ -164,6 +164,4 @@ function DefaultStorage(config, callback) {
 /**
  * register Storage
  */
-Storage('memory', DefaultStorage);
-Storage('localStorage', DefaultStorage);
-Storage('sessionStorage', DefaultStorage);
+Storage(['memory', 'localStorage', 'sessionStorage'], DefaultStorage);

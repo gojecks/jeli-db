@@ -18,6 +18,9 @@ ApplicationInstance.prototype.synchronize = function() {
                         }
                     }
                 }
+            },
+            schemaManager: function() {
+                return {};
             }
         }
     }

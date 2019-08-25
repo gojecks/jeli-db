@@ -78,12 +78,13 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
 
         this.updateOfflineCache = function(type, data, tableName) {
             var ignoreSync = privateApi.getNetworkResolver('ignoreSync', dbName);
-            if (true !== ignoreSync && !$inArray(tableName, ignoreSync) && data.length) {
+            if ((!ignoreSync || ($isArray(ignoreSync) && !$inArray(tableName, ignoreSync)) && data.length)) {
                 _recordResolvers
                     .$set(tableName)
                     .data(type, data);
             }
         };
+
         this.validator = TransactionDataAndColumnValidator;
         this.insert = transactionInsert;
         this.insertReplace = TransactionInsertReplace;
@@ -163,7 +164,8 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
             $self = this,
             executeLen = this.executeState.length,
             total = executeLen,
-            results = [];
+            results = [],
+            autoSync = [];
         while (executeLen--) {
             var ex = this.executeState.shift();
             var res = { state: ex[0] };
@@ -184,28 +186,31 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                      */
                     $self._autoSync(res.table, ex[0], function(ajaxResponse) {
                         if (ajaxResponse) {
-                            ret.$ajax = ajaxResponse;
+                            res.$ajax = ajaxResponse;
                         }
 
-                        results.push(res);
-                        complete('resolve');
+                        complete('resolve', res);
                     }, function() {
-                        results.push(res);
-                        complete('reject');
+                        complete('reject', res);
                     });
 
                 } else {
-                    results.push(res);
-                    complete(error ? 'reject' : 'resolve');
+                    complete(error ? 'reject' : 'resolve', res);
                 }
             }
         };
 
-        function complete(type) {
+        /**
+         * 
+         * @param {*} type 
+         * @param {*} res 
+         */
+        function complete(type, res) {
+            results.push(res);
             /**
              * cleanUp
              */
-            if (!executeLen) {
+            if (!$self.executeState.length) {
                 defer[type]((total > 1) ? results : results.pop());
                 $self.cleanup();
             }

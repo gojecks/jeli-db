@@ -1,0 +1,11 @@
+{
+    "Orders": [{
+        "type": "alter",
+        "columns": [{
+            "name": "lastModified",
+            "type": "drop"
+        }]
+    }, {
+        "type": "truncate"
+    }]
+}

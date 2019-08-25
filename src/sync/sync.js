@@ -3,7 +3,8 @@
  * @param {*} appName 
  */
 function jEliDBSynchronization(appName) {
-    var resolver = privateApi.$getActiveDB(appName).$get('resolvers'),
+    var activeDB = privateApi.$getActiveDB(appName),
+        resolver = activeDB.$get('resolvers'),
         networkResolver = resolver.networkResolver,
         $process = syncHelper.process.startSyncProcess(appName);
 

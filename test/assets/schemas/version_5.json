@@ -1,0 +1,33 @@
+{
+    "Orders": {
+        "type": "alter",
+        "columns": [{
+            "type": "column",
+            "name": "last_updated",
+            "definition": {
+                "type": "DATE_TIME",
+                "defaultValue": "CURRENT_TIMESTAMP"
+            }
+        }]
+    },
+    "Customers": {
+        "type": "alter",
+        "columns": [{
+            "type": "column",
+            "name": "last_updated",
+            "definition": {
+                "type": "DATE_TIME",
+                "defaultValue": "CURRENT_TIMESTAMP"
+            }
+        }]
+    },
+    "users": {
+        "type": "crud",
+        "transactions": [{
+            "type": "delete",
+            "query": {
+                "username": "test1"
+            }
+        }]
+    }
+}

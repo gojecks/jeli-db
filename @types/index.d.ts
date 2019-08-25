@@ -33,7 +33,9 @@ declare namespace jdb {
         folderPath?: string;
         ajax?: Function;
         interceptor?: (options: IDBHTTPRequest, requestState: IDBRequestState) => any;
-        organisation: string;
+        organisation?: string;
+        schemaPath?: string;
+        useFrontendOnlySchema?: boolean;
     }
 
     type eventResponse = (event: IDBCoreEvent<IDBApplicationInstance|any>) => any;

@@ -1,20 +1,17 @@
 /**
- * Request Mapping
+ * 
+ * @param {*} disableAdminApi 
+ * @param {*} appName 
  */
 function RequestMapping(disableAdminApi, appName) {
     var CUSTOM_API = [],
-        JDB_REQUEST_API = require("./api.json"),
         isResolvedCustom = false;
     /**
      * 
      * @param {*} stateName 
      */
     function getPublicApi(url) {
-        var proc = function(api) {
-            return $isEqual(api.URL, url) || $isEqual(api.ref && api.ref, url);
-        };
-
-        return (JDB_REQUEST_API.filter(proc)[0] || CUSTOM_API.filter(proc)[0]);
+        return (jEliDB.API.find(url) || jEliDB.API.find(url, CUSTOM_API));
     }
 
     /**
@@ -43,7 +40,7 @@ function RequestMapping(disableAdminApi, appName) {
     };
 
     this.getAllClientApis = function() {
-        return jEliDeepCopy(JDB_REQUEST_API);
+        return jEliDeepCopy(jEliDB.API.get());
     };
 
     this.getAllCustomApis = function() {
@@ -70,3 +67,40 @@ function RequestMapping(disableAdminApi, appName) {
         return this;
     };
 }
+/**
+ * register static method to Core
+ */
+jEliDB.API = new(function() {
+    var coreApiList = [];
+    this.set = function(apiList) {
+        if ($isArray(apiList)) {
+            coreApiList.push.apply(coreApiList, apiList);
+        } else if ($isObject(apiList)) {
+            coreApiList.push(apiList);
+        }
+    };
+
+    this.get = function(url) {
+        if (url) {
+            return this.find(url);
+        }
+
+        return coreApiList;
+    };
+
+    this.remove = function(url) {
+        coreApiList = coreApiList.filter(function(api) {
+            return !$isEqual(api.URL, url);
+        });
+    };
+
+    this.clear = function() {
+        coreApiList.length = 0;
+    };
+
+    this.find = function(key, data) {
+        return (data || coreApiList).filter(function(api) {
+            return $isEqual(api.URL, key) || $isEqual(api.ref && api.ref, key);
+        })[0]
+    }
+})();

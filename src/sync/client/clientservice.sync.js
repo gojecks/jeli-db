@@ -10,7 +10,8 @@ function clientService(appName) {
      * @param {*} tbl 
      */
     function requestFromDB(options, tbl) {
-        var $defer = new _Promise();
+        var $defer = new _Promise(),
+            time = performance.now();
         privateApi.$http(options)
             .then(function(res) {
                 privateApi
@@ -18,7 +19,7 @@ function clientService(appName) {
                     .then(function(_ret) {
                         jdbUpdateStorage(appName, tbl);
                         //resolve promise
-                        $defer.resolve(sqlResultExtender(dbSuccessPromiseObject('select', ""), _ret.insert));
+                        $defer.resolve(new SelectQueryEvent(_ret.insert, (performance.now() - time)));
                     });
 
             }, function(res) {

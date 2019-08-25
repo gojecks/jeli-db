@@ -52,8 +52,6 @@ function columnObjFn(columns) {
                 return new Date().toLocaleString();
             } else if (def.defaultValue == "DATE") {
                 return new Date().toLocaleDateString();
-            } else if (def.defaultValue == "user_defined") {
-                return def.userDefinedValue;
             } else {
                 return def.defaultValue;
             }
