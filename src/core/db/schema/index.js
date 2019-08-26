@@ -38,12 +38,6 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
     };
 
     this.upgrade = function(cb) {
-        if (currentVersion > previousVersion) {
-            performUpgrade();
-        } else {
-            cb();
-        }
-
         function performUpgrade() {
             previousVersion++;
             loadSchema(previousVersion)
@@ -59,6 +53,8 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
                 crudProcess.process(cb);
             }
         }
+
+        next();
     };
 
 
