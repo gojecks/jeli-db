@@ -100,6 +100,7 @@ SchemaCrudProcess.prototype.process = function(next) {
         }
 
         function nextCRUD(res) {
+            console.log(res);
             processCRUD(tableName, current);
         }
     }

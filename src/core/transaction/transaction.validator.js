@@ -28,7 +28,13 @@ function TransactionDataAndColumnValidator(tableName, columns) {
                 var type = typeof cData[key],
                     requiredType = (columns[key].type || 'string').toUpperCase();
                 if (!_typeValidator.validate(cData[key], requiredType)) {
-                    _this.setDBError(key + " Field requires " + requiredType + ", but got " + type + "- ref #" + dataRef);
+                    /**
+                     * Allow null value when NOT_NULL is not configured 
+                     */
+                    if ($isNull(cData[key]) && !columns[key].NOT_NULL) {
+                        return;
+                    }
+                    _this.setDBError(key + " Field requires " + requiredType.toUpperCase() + ", but got " + type.toUpperCase() + "(" + cData[key] + ")- ref #" + dataRef);
                     passed = !1;
                 }
             });

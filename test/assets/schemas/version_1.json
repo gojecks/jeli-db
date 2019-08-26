@@ -66,8 +66,7 @@
         "type": "create",
         "definition": [{
             "Id": {
-                "type": "int",
-                "AUTO_INCREMENT": true
+                "type": "int"
             },
             "ProductNo": {
                 "type": "text"
@@ -106,7 +105,7 @@
                 "type": "text"
             },
             "DvaRecommendationOrLimit": {
-                "type": "any"
+                "type": "text"
             },
             "SupplyLimitAndDuration": {
                 "type": "text"
@@ -138,6 +137,24 @@
             "CategoryIds": {
                 "type": "array"
             },
+            "AuthorisedPrescribers": {
+                "type": "text"
+            },
+            "ItemWeightRestrct": {
+                "type": "int"
+            },
+            "GroupLimitDesc": {
+                "type": "text"
+            },
+            "ItemColour": {
+                "type": "text"
+            },
+            "GroupComments": {
+                "type": "text"
+            },
+            "ItemUnit": {
+                "type": "text"
+            },
             "ProductToCategory": {
                 "type": "text"
             },
@@ -147,6 +164,12 @@
             "ProductToProductOrder": {
                 "type": "text"
             }
-        }]
+        }],
+        "crud": {
+            "transactions": [{
+                "type": "insert",
+                "filePath": "assets/products.json"
+            }]
+        }
     }
 }
