@@ -42,11 +42,32 @@ SchemaCrudProcess.prototype.process = function(next) {
 
         if (conf.filePath) {
             privateApi.$http(conf.filePath)
-                .then(performCrud, nextCRUD);
+                .then(performCrud, function(res) {
+                    nextCRUD({
+                        message: "Failed for (" + tableName + ") table: unable to retrieve data from: " + conf.filePath,
+                        status: res.status
+                    });
+                });
         } else if (conf.data || conf.query) {
             performCrud(conf.data || conf.query);
+        } else if (conf.replicate && conf.replicate.table) {
+            var query = "select -* -%table%";
+            if (conf.replicate.query) {
+                query += " -where(%query%)";
+            }
+            /**
+             * query the DB and insert the records
+             */
+            _this.db.jQl(query, {
+                onSuccess: function(res) {
+                    performCrud(res.getResult());
+                },
+                onError: nextCRUD
+            }, conf.replicate);
         } else {
-            nextCRUD();
+            nextCRUD({
+                message: "No task to perform"
+            });
         }
 
         /**
@@ -65,6 +86,9 @@ SchemaCrudProcess.prototype.process = function(next) {
              */
             if ($isEqual(conf.type, 'insert')) {
                 query = 'insert -%data% -%table%';
+                if (conf.skipDataProcessing) {
+                    query += " -skip";
+                }
             }
             /**
              * update transactions
@@ -90,6 +114,10 @@ SchemaCrudProcess.prototype.process = function(next) {
              */
             else if ($isEqual(conf.type, 'insertreplace')) {
                 query = 'insert -%data% -%table% -replace -%column%';
+                if (conf.skipDataProcessing) {
+                    query += " -skip";
+                }
+
                 mapper.column = conf.column;
             }
 
@@ -100,7 +128,9 @@ SchemaCrudProcess.prototype.process = function(next) {
         }
 
         function nextCRUD(res) {
+            console.group("JDB CRUD");
             console.log(res);
+            console.groupEnd();
             processCRUD(tableName, current);
         }
     }

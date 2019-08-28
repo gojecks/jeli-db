@@ -2,10 +2,37 @@
     "Orders": [{
         "type": "alter",
         "columns": [{
+            "type": "column",
             "name": "lastModified",
-            "type": "drop"
+            "definition": {
+                "type": "DATE_TIME"
+            }
         }]
-    }, {
-        "type": "truncate"
-    }]
+    }],
+    "Order_copy": {
+        "type": "clone",
+        "from": "Orders",
+        "definition": {},
+        "crud": {
+            "transactions": [{
+                "type": "insert",
+                "replicate": {
+                    "table": "Orders"
+                },
+                "skipDataProcessing": true
+            }]
+        }
+    },
+    "users": {
+        "type": "alter",
+        "columns": [{
+            "type": "column",
+            "name": "email",
+            "definition": {
+                "type": "varchar",
+                "NOT_NULL": true,
+                "defaultValue": ""
+            }
+        }]
+    }
 }

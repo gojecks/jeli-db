@@ -12,9 +12,17 @@ function jEliDBTBL(tableInfo) {
     this.info = info;
     this.Alter = {};
     this.Alter.drop = function(columnName) {
+        /**
+         * check if columnName already exists
+         */
+        if (!tableInfo.columns[0].hasOwnProperty(columnName)) {
+            return 0;
+        }
+
         if ($isString(columnName) && tableInfo.columns[0][columnName]) {
             delete tableInfo.columns[0][columnName];
         }
+
         //reconstruct the table
         constructTable(function(row) {
             if (row._data.hasOwnProperty(columnName)) {
@@ -33,6 +41,49 @@ function jEliDBTBL(tableInfo) {
         privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onAlterTable'), [tableInfo.TBL_NAME, columnName, 0]);
     };
 
+    this.Alter.rename = function(oldName, newName) {
+        /**
+         * check if columnName already exists
+         */
+        if (!tableInfo.columns[0].hasOwnProperty(oldName)) {
+            console.log('[JDB TABLE ALTER]: Column(' + oldName + ') doesn\'t exists');
+            return 0;
+        }
+
+        if (tableInfo.columns[0].hasOwnProperty(newName)) {
+            console.log('[JDB TABLE ALTER]: Column(' + newName + ') already exists');
+            return 0;
+        }
+
+        if ($isEqual(newName.toLowerCase(), oldName.toLowerCase())) {
+            console.log('[JDB TABLE ALTER]: Duplicate columnName (' + newName + ')');
+            return 0;
+        }
+
+        // start process
+        tableInfo.columns[0][newName] = tableInfo.columns[0][oldName];
+        // remve the existing data
+        delete tableInfo.columns[0][oldName];
+
+        //update the DB
+        jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
+            table.columns = tableInfo.columns
+        });
+
+        //reconstruct the table data
+        constructTable(function(row) {
+            if (row._data.hasOwnProperty(oldName)) {
+                row._data[newName] = row._data[oldName];
+                delete row._data[oldName];
+            }
+        });
+
+        /**
+         * broadcast event
+         **/
+        privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onAlterTable'), [tableInfo.TBL_NAME, [oldName, newName], 0]);
+    }
+
     this.Alter.add = ({
         primary: primaryAction,
         unique: indexAction,
@@ -44,7 +95,7 @@ function jEliDBTBL(tableInfo) {
     /**
      * Rename Table
      */
-    this.Alter.rename = function(newTableName) {
+    this.rename = function(newTableName) {
         if (newTableName && !$isEqual(newTableName, tableInfo.TBL_NAME)) {
             var db = privateApi.$getActiveDB(tableInfo.DB_NAME);
             // rename the tableInfo
@@ -198,7 +249,9 @@ function jEliDBTBL(tableInfo) {
      */
     function columnAction(columnName, config) {
         if (columnName && ($isObject(columnName) || $isString(columnName))) {
-            var nColumn = columnName;
+            var nColumn = columnName,
+                columnExists = tableInfo.columns[0].hasOwnProperty(columnName);
+
             if ($isString(nColumn)) {
                 nColumn = {};
                 nColumn[columnName] = config ? config : {
@@ -208,13 +261,18 @@ function jEliDBTBL(tableInfo) {
 
             //reconstruct the table
             tableInfo.columns[0] = extend(true, tableInfo.columns[0], nColumn);
-            constructTable();
+            /**
+             * broadcast event to subscribers
+             * only When column is new
+             */
+            if (!columnExists) {
+                constructTable();
+                privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onAlterTable'), [tableInfo.TBL_NAME, columnName, 1]);
+            }
 
             /**
-             * broadcast event
+             * update our database schema
              */
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onAlterTable'), [tableInfo.TBL_NAME, columnName, 1]);
-            //update the DB
             jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
                 table.columns = tableInfo.columns;
             });

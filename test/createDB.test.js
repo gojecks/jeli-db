@@ -1,16 +1,16 @@
 var db;
 jdb.JDB_STORAGE_SYSTEM('indexeddb', jIDBAdapter);
 jdb.JDB_STORAGE_SYSTEM('sql', jSQLAdapter);
-jdb('TestBed', 1)
+jdb('TestBed', 2)
     .open({
         storage: 'sql',
         schemaPath: 'assets/schemas/'
     })
-    .onCreate((res, next) => {
+    .onCreate(function(res, next) {
         console.log('onCreateMode');
         next();
     })
-    .onUpgrade((tx, next) => {
+    .onUpgrade(function(tx, next) {
         console.log('onUpgrade');
         // do something
         /**
@@ -55,7 +55,7 @@ jdb('TestBed', 1)
              * transaction pattern
              */
             tx.result.transaction("mfs_products", "write")
-                .onSuccess(res => {
+                .onSuccess(function(res) {
                     res.result
                         .insertReplace(data, 'ProductNo')
                         .execute()
@@ -88,7 +88,7 @@ jdb('TestBed', 1)
 
         next();
     })
-    .then((res) => {
+    .then(function(res) {
         console.log('successfull opening')
         db = res.result;
         // insert -[{"OrderID":10311}, {"OrderID":10308,"CustomerID":3, "ShipperID":5}, {"OrderID":10309,"CustomerID":5, "OrderDate":"1996-24-24"}] -Orders -replace -OrderID
@@ -99,7 +99,7 @@ function tryit() {
     var textarea = document.querySelector('textarea').value;
     if (textarea) {
         db.jQl(textarea, {
-            onSuccess: res => {
+            onSuccess: function(res) {
                 console.log(res);
                 var ret = document.getElementById('result');
                 if (res.state === "select") {

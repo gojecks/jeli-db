@@ -1,0 +1,9 @@
+{
+    "Orders": [{
+        "type": "alter",
+        "columns": [{
+            "type": "drop",
+            "name": "EmployeeID"
+        }]
+    }]
+}

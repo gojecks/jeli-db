@@ -44,7 +44,7 @@ function alterPluginFn(query, handler) {
                             break;
                         case ('rename'):
                         case ('r'):
-                            msg = alt.result.Alter.rename(query[3]);
+                            msg = alt.result.rename(query[3]);
                             break;
                         default:
                             msg = "unable to find command(" + query[2] + ")";

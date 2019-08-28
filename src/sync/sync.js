@@ -9,7 +9,9 @@ function jEliDBSynchronization(appName) {
         $process = syncHelper.process.startSyncProcess(appName);
 
     function printLog() {
+        console.group("JDB SYNC");
         networkResolver.logger.forEach(console.log);
+        console.groupEnd();
     }
 
     /**

@@ -62,7 +62,7 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
      * process schema
      * {
      *  TBL_NAME: {
-     *  "type: "DROP | RENAME | ALTER | TRUNCATE | CREATE | CRUD",
+     *  "type: "DROP | RENAME | ALTER | TRUNCATE | CREATE | CRUD | CLONE",
      *  "colums: [
      *   {
      *      "type":"",
@@ -94,10 +94,20 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
                  * check for crud definition in create query
                  */
                 pushCrudTask(config.crud, tableName);
+            }
+            /**
+             * Clone a table
+             */
+            else if ($isEqual(config.type, 'clone')) {
+                OtherProcess(config.from);
             } else if ($isEqual(config.type, 'crud')) {
                 pushCrudTask(config, tableName);
             } else {
-                core.table(tableName)
+                OtherProcess(tableName);
+            }
+
+            function OtherProcess(tbl) {
+                core.table(tbl)
                     .then(function(tx) {
                         var tableInstance = tx.result;
                         if ($isArray(config)) {
@@ -110,7 +120,6 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
                         processNext();
                     }, processNext);
             }
-
             /**
              * 
              * @param {*} tableInstance 
@@ -120,7 +129,7 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
                 if ($isEqual(conf.type, 'drop')) {
                     tableInstance.drop(tableName);
                 } else if ($isEqual(conf.type, 'rename')) {
-                    tableInstance.Alter.rename(conf.name);
+                    tableInstance.rename(conf.name);
                 } else if ($isEqual(conf.type, 'truncate')) {
                     tableInstance.truncate(true);
                 } else if ($isEqual(conf.type, 'alter')) {
@@ -135,6 +144,16 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
                             tableInstance.Alter[type](column.name, column.definition);
                         }
                     });
+                } else if ($isEqual(conf.type, 'clone')) {
+                    var definition = extend(true, tableInstance.columns(), conf.definition || {});
+                    /**
+                     * create the table
+                     */
+                    core.createTbl(tableName, definition)
+                        .then(function(tx) {
+                            pushCrudTask(config.crud, tableName);
+                        }, processNext);
+
                 }
             }
         }
