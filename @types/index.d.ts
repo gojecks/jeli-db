@@ -182,12 +182,13 @@ declare namespace jdb {
         onUpdate?: IDBApplicationRealtime;
         truncate(flag?: boolean): IDBCoreEvent<any>;
         drop(flag?: boolean): IDBCoreEvent<any>;
+        rename(newName: string): void;
     }
 
     interface IDBTableAlter {
         add: IDBTableAlterAdd;
         drop(columnName: string): void;
-        rename(newName: string): void;
+        rename(oldName: string, newName: string): void;
     }
 
     interface IDBCoreWriteTransactionsEvents {
