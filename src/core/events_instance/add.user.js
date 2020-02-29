@@ -7,8 +7,11 @@ function AddUserEventInstance(res, userInfo) {
     this.state = 'createUser';
     this.message = "User Created successfully";
     this.getUserInfo = function() {
-        userInfo.__uid = this.getLastInsertId();
-        return userInfo;
+        return userInfo._data;
+    };
+
+    this.getRef = function() {
+        return userInfo._ref;
     };
 
     this.getLastInsertId = function() {

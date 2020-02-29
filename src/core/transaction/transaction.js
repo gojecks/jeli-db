@@ -193,7 +193,6 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                     }, function() {
                         complete('reject', res);
                     });
-
                 } else {
                     complete(error ? 'reject' : 'resolve', res);
                 }

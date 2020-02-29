@@ -9,6 +9,7 @@ function ApplicationInstance(name, version, required) {
     this.name = name;
     this.version = version;
     this.storeProc = new StoreProcedure(this);
+    this.schema = new PublicSchema(this);
     this.env = {
         usage: function() {
             if (name && privateApi.openedDB.$hasOwnProperty(name)) {

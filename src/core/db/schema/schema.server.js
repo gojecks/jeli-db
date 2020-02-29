@@ -5,37 +5,38 @@
  */
 function SeverSchemaLoader(appName, version) {
     var activeDB = privateApi.$getActiveDB(appName),
-        resolver = activeDB.$get('resolvers'),
-        networkResolver = resolver.networkResolver,
-        promise = new _Promise();
+        promise = new _Promise(),
+        _this = this;
 
     function initializeDBSuccess() {
         syncHelper
             .pullResource(appName)
             .then(function(syncResponse) {
                 if (syncResponse.resource) {
+                    /**
+                     * JELIDB BE return the exists flag set to false
+                     * if the database is not yet created
+                     * 
+                     */
                     var tableNames = activeDB.$get('resourceManager')
                         .setResource(syncResponse.resource)
                         .getTableNames();
                     //Get the DB schema 
                     //for each Table
                     loadSchema(tableNames, syncResponse.resource.resourceManager);
-
                 } else {
-                    if (networkResolver.inProduction) {
-                        errorBuilder("Unable to initialize DB please contact the Admin");
-                    }
                     //no resource found on the server
-                    handleFailedSync();
+                    handleFailedSync(syncResponse);
                 }
             }, handleNetworkError('resource', "Failed to initialize DB", initializeDBSuccess));
     }
 
-    function handleFailedSync() {
-        activeDB
-            .$get('resourceManager')
-            .setResource(getDBSetUp(appName));
-        promise.resolve();
+    function handleFailedSync(response) {
+        promise.reject({
+            mode: "createMode",
+            message: "Unable to initialize DB please contact the Admin",
+            netData: response
+        });
     }
 
     /**
@@ -47,15 +48,15 @@ function SeverSchemaLoader(appName, version) {
         syncHelper
             .getSchema(appName, _loadServerData)
             .then(function(mergeResponse) {
-                //Create a new version of the DB
+                // Create a new version of the DB
                 var dbTables = {};
                 for (var tbl in mergeResponse.schemas) {
-                    //set an empty data 
+                    // set an empty data 
                     if (mergeResponse.schemas[tbl]) {
                         dbTables[tbl] = extend(mergeResponse.schemas[tbl], dbResource[tbl]);
                     }
                 }
-                //register DB to QueryDB
+                // register DB to QueryDB
                 privateApi.storageEventHandler.broadcast(eventNamingIndex(appName, 'onResolveSchema'), [version, dbTables]);
                 promise.resolve();
             }, handleNetworkError('schema', "Unable to load schema, please try again.", function() {

@@ -1,5 +1,12 @@
 //get table column
 function transactionSelectColumn(data, definition) {
+    /**
+     * empyt or invalid dataSet
+     */
+    if (!data || !data.length) {
+        return data;
+    }
+
     //set the data to get column info from
     var fields = (definition.fields || definition.select || ""),
         columns = fields.split(','),
@@ -111,7 +118,7 @@ function transactionSelectColumn(data, definition) {
     function getNumberOnlyValues(field) {
         var values = [];
         data.forEach(function(item) {
-            if (item.hasOwnProperty(field) && typeof item[field] === 'number') {
+            if (item && item.hasOwnProperty(field) && $isNumber(item[field])) {
                 values.push(item[field]);
             }
         });
@@ -334,9 +341,9 @@ function transactionSelectColumn(data, definition) {
      * COUNT, MIN, MAX
      */
     function hasSingleResultQuery() {
-        return ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].filter(function(key) {
+        return ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].some(function(key) {
             return $inArray(key, fields);
-        }).length > 0;
+        });
     }
 
     function resolveData() {

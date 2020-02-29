@@ -21,6 +21,9 @@ function _privateTaskPerfomer() {
             if (table) {
                 var ret = {};
                 ret.lastModified = +new Date;
+                ret._hash = table._hash;
+                ret._previousHash = table._previousHash;
+
                 if (updateFn && $isFunction(updateFn)) {
                     updateFn.apply(updateFn, [ret]);
                 }

@@ -1,3 +1,7 @@
+/**
+ * 
+ * @param {*} core 
+ */
 function SchemaCrudProcess(core) {
     this.task = {};
     this.db = core;

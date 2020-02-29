@@ -111,7 +111,7 @@ function transactionSelect(selectFields, definition) {
      * @param {*} clause 
      * @param {*} joinType 
      */
-    function setJoinTypeFn(isMatch, idx, resolver, clause, joinType) {
+    function assignToObject(isMatch, idx, resolver, clause, joinType) {
         //INNER JOIN FN
         //@argument resolver {OBJECT}
         switch (joinType.toLowerCase()) {
@@ -177,27 +177,44 @@ function transactionSelect(selectFields, definition) {
      */
     function matchTableFn(joinObj, clause) {
         var joinOn = joinObj.on.split("="),
-            startLogic = joinOn[0].split("."),
-            innerLogic = joinOn[1].split("."),
-            queryMatchIsLeft = $isEqual(joinObj.table, startLogic[0]),
+            leftLogic = joinOn[0].split("."),
+            rightLogic = joinOn[1].split("."),
+            queryMatchIsLeft = $isEqual(joinObj.table, leftLogic[0]),
             isRightClause = $isEqual('right', clause);
+
         /**
+         * should incase of wrong matching with ON clause
          * compare the matching tables
+         * switch the matcher 
          */
-        if (isRightClause && !queryMatchIsLeft) {
-            var stash = startLogic;
-            startLogic = innerLogic;
-            innerLogic = stash;
+        if (isRightClause && queryMatchIsLeft) {
+            var stash = leftLogic;
+            leftLogic = rightLogic;
+            rightLogic = stash;
             stash = null;
         }
 
-        var leftTable = getTableData(startLogic[0]),
-            rightTable = getTableData(innerLogic[0]),
-            leftCol = startLogic[1],
-            rightCol = innerLogic[1],
-            leftTableMappingName = startLogic[0],
-            rightTableMappingName = innerLogic[0],
+
+        var leftTable = getTableData(leftLogic[0], true),
+            rightTable = getTableData(rightLogic[0], true),
+            leftCol = leftLogic[1],
+            rightCol = rightLogic[1],
+            leftTableMappingName = leftLogic[0],
+            rightTableMappingName = rightLogic[0],
             counter = 0;
+
+        /**
+         * perform where query on joinClause
+         */
+        if (joinObj.where) {
+            rightTable = new $query(rightTable)._(joinObj.where);
+        }
+
+        if (joinObj.fields) {
+            rightTable = $self.getColumn(rightTable, joinObj);
+        }
+
+
         /**
          * check if clause is inner 
          * check length of each table
@@ -205,13 +222,21 @@ function transactionSelect(selectFields, definition) {
          * t1 = t2
          * t2 = t1
          */
-        if (clause == "inner" && leftTable.length > rightTable.length) {
+        if (($isEqual(clause, "inner") && leftTable.length > rightTable.length) ||
+            $isEqual(clause, "right")) {
             var stash = leftTable;
             leftTable = rightTable;
-            rightTable = leftTable;
+            rightTable = stash;
+            stash = leftCol;
+            leftCol = rightCol;
+            rightCol = stash;
+            stash = leftTableMappingName;
+            leftTableMappingName = rightTableMappingName;
+            rightTableMappingName = stash;
         }
 
-        var _right_table_map_ = rightTable.map(function(item) { return item._data[rightCol]; });
+
+        var _right_table_map_ = rightTable.map(function(item) { return item[rightCol]; });
         //start process
         //query the leftTable Data
         leftTable.forEach(filterRightTable);
@@ -222,15 +247,15 @@ function transactionSelect(selectFields, definition) {
          */
         function filterRightTable(lItem, _index) {
             var resObject = {},
-                _idx_ = _right_table_map_.indexOf(lItem._data[leftCol]),
+                _idx_ = _right_table_map_.indexOf(lItem[leftCol]),
                 $isFound = _idx_ > -1;
-            resObject[leftTableMappingName] = lItem._data;
+            resObject[leftTableMappingName] = lItem;
             resObject[rightTableMappingName] = {};
 
             if ($isFound) {
-                resObject[rightTableMappingName] = rightTable[_idx_]._data;
+                resObject[rightTableMappingName] = rightTable[_idx_];
             }
-            setJoinTypeFn($isFound, _index, resObject, clause, joinObj.clause);
+            assignToObject($isFound, _index, resObject, clause, joinObj.clause);
         }
 
         return ({
@@ -253,8 +278,18 @@ function transactionSelect(selectFields, definition) {
         return _newChunk
     }
 
-    function getTableData(tableName) {
-        return $self.getTableInfo(tableName).data;
+    /**
+     * 
+     * @param {*} tableName 
+     * @param {*} removeData 
+     */
+    function getTableData(tableName, dataOnly) {
+        var data = $self.getTableInfo(tableName).data;
+        if (dataOnly) {
+            return data.map(function(item) { return item._data });
+        }
+
+        return data;
     }
 
     function performInClauseQuery() {
@@ -326,13 +361,13 @@ function transactionSelect(selectFields, definition) {
             });
 
             if (queryDefinition.where) {
-                resultSet = $self.getColumn(new $query(_sData)._(queryDefinition.where), queryDefinition);
-            } else {
-                resultSet = $self.getColumn(_sData, queryDefinition);
+                _sData = new $query(_sData)._(queryDefinition.where);
             }
         } else {
-            resultSet = $self.getColumn(new $query(getTableData($self.tables._[0]))._(queryDefinition.where), queryDefinition);
+            _sData = new $query(getTableData($self.tables._[0]))._(queryDefinition.where);
         }
+
+        resultSet = $self.getColumn(_sData, queryDefinition);
 
         //return the processed Data
         return new SelectQueryEvent(resultSet, (performance.now() - time));

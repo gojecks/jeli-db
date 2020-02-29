@@ -6,8 +6,9 @@ function syncHelperPublicApi() {
     this.process = {
         currentProcess: "",
         $process: {},
-        startSyncProcess: function(appName) {
+        startSyncProcess: function(appName, version) {
             this.$process[appName] = Object.create({
+                version: version,
                 syncLog: {},
                 forceSync: false,
                 getSet: function(name, value) {
@@ -26,7 +27,7 @@ function syncHelperPublicApi() {
                     }
 
                     this.getSet('postSyncTables', tables);
-                },
+                }
             });
             this.currentProcess = appName;
             return this.$process[appName];
@@ -35,7 +36,7 @@ function syncHelperPublicApi() {
             this.$process[appName] = null;
         },
         getProcess: function(appName) {
-            return this.$process[appName] || null;
+            return this.$process[appName || this.process.currentProcess] || null;
         },
         getApplicationApiKey: function(appName) {
             var _appProcess = this.getProcess(appName),
@@ -188,17 +189,8 @@ syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
  * @param {*} requiredData 
  */
 syncHelperPublicApi.prototype.getSchema = function(appName, requiredTable) {
-    var _options = this.setRequestData(appName, '/database/schema', false, requiredTable || []),
-        $defer = new _Promise();
-
-    privateApi.$http(_options)
-        .then(function(res) {
-            $defer.resolve(res);
-        }, function(res) {
-            $defer.reject(res);;
-        });
-
-    return $defer;
+    var _options = this.setRequestData(appName, '/database/schema', false, requiredTable || [])
+    return privateApi.$http(_options);
 };
 
 //@Function pullResource
@@ -278,9 +270,10 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
  * @param {*} appName 
  * @param {*} tbl 
  */
-syncHelperPublicApi.prototype.pullTable = function(appName, tbl) {
+syncHelperPublicApi.prototype.pullTable = function(appName, tbl, requestTableData) {
     this.setMessage('---Retrieving ' + tbl + ' schema---');
-    return privateApi.$http(this.setRequestData(appName, '/database/pull', false, tbl));
+    var options = this.setRequestData(appName, '/database/pull', false, tbl);
+    return privateApi.$http(options);
 };
 
 //@Function Name Pull
@@ -300,23 +293,25 @@ syncHelperPublicApi.prototype.pull = function(appName) {
  * @param {*} appName 
  * @param {*} tables 
  * @param {*} resource 
+ * @param {*} version
  */
-syncHelperPublicApi.prototype.syncDownTables = function(appName, tables, resource) {
+syncHelperPublicApi.prototype.syncDownTables = function(appName, tables, resource, version) {
     var $resource = privateApi.$getActiveDB(appName).$get('resourceManager');
     return this
         .getSchema(appName, tables)
         .then(function(pendingTables) {
+            var _onSchemaTables = {}
             for (var tbl in pendingTables.schemas) {
                 if (resource.resourceManager[tbl]) {
                     $resource.putTableResource(tbl, resource.resourceManager[tbl]);
-                    privateApi.$newTable(appName, tbl, pendingTables.schemas[tbl]);
+                    _onSchemaTables[tbl] = pendingTables.schemas[tbl];
                 }
-
             }
             /**
              * broadcast event
              */
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(appName, 'onResolveSchema'), [tables]);
+            privateApi.storageEventHandler.broadcast(eventNamingIndex(appName, 'onResolveSchema'), [version, _onSchemaTables]);
+            _onSchemaTables = null;
         });
 };
 
@@ -327,11 +322,9 @@ syncHelperPublicApi.prototype.syncDownTables = function(appName, tables, resourc
  * @param {*} appName 
  */
 syncHelperPublicApi.prototype.processRequest = function(_options, resolvedTable, appName) {
-    var $defer = new _Promise();
     //perform JSON Task
-    privateApi.$http(_options)
+    return privateApi.$http(_options)
         .then(function(res) {
-            $defer.resolve(res);
             if (resolvedTable) {
                 //empty our local recordResolver
                 privateApi
@@ -340,11 +333,7 @@ syncHelperPublicApi.prototype.processRequest = function(_options, resolvedTable,
                     .$isResolved(resolvedTable)
                     .updateTableHash(res._hash);
             }
-        }, function(res) {
-            $defer.reject(res);
         });
-
-    return $defer;
 }
 
 syncHelperPublicApi.prototype.autoSync = function(appName, tbl, data) {
@@ -352,6 +341,6 @@ syncHelperPublicApi.prototype.autoSync = function(appName, tbl, data) {
     _options.data.postData = data;
     _options.data.action = "update";
     return this.processRequest(_options, tbl, appName);
-}
+};
 
 var syncHelper = new syncHelperPublicApi();

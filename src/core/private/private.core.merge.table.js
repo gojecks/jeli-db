@@ -14,7 +14,6 @@ _privateApi.prototype.$mergeTable = function(dbName, records, tbl) {
                 records.data = $dDB.tables[tbl].data;
             }
 
-            this.$newTable(dbName, tbl, records);
             _promise.resolve({ status: 'success', message: 'Table(' + tbl + ') updated successfully', code: 200 });
         } else {
             _promise.reject({ status: 'error', message: 'Unable to merge Table(' + tbl + ')', code: 403 });

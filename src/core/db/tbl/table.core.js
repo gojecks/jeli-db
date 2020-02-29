@@ -250,7 +250,7 @@ function jEliDBTBL(tableInfo) {
     function columnAction(columnName, config) {
         if (columnName && ($isObject(columnName) || $isString(columnName))) {
             var nColumn = columnName,
-                columnExists = tableInfo.columns[0].hasOwnProperty(columnName);
+                columnExists = (tableInfo.columns[0] || {}).hasOwnProperty(columnName);
 
             if ($isString(nColumn)) {
                 nColumn = {};
@@ -260,7 +260,7 @@ function jEliDBTBL(tableInfo) {
             }
 
             //reconstruct the table
-            tableInfo.columns[0] = extend(true, tableInfo.columns[0], nColumn);
+            tableInfo.columns[0] = extend(true, tableInfo.columns[0] || {}, nColumn);
             /**
              * broadcast event to subscribers
              * only When column is new

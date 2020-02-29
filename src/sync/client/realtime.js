@@ -38,15 +38,7 @@ function ApplicationRealtime(type, dbName, tbl, $hash) {
         }
     });
 
-    var onupdateEvent = new OnupdateEventHandler(tbl);
-    /**
-     * Attach types property to the event
-     */
-    Object.defineProperty(onupdateEvent, 'types', {
-        get: function() {
-            return _this.types;
-        }
-    });
+    var onupdateEvent = new OnupdateEventHandler(tbl, this.types);
 
     function getSleepTimer() {
         return (_this.timer * _this.trial++);

@@ -12,7 +12,11 @@
           pullRecordList = {},
           $defer = new _Promise();
 
-      //processQueue()
+      /**
+       * 
+       * @param {*} inc 
+       * @param {*} state 
+       */
       function processQueue(inc, state) {
           var currentProcessTbl = syncState.tables.pop();
           //set message status
@@ -45,7 +49,6 @@
                   syncHelper.setMessage(fai.message);
                   nextQueue({ state: 'Success' }, 'push');
               });
-
       }
 
       //UpdateHash Fn
@@ -109,6 +112,15 @@
        */
 
       function synchronizeTable(currentProcessTbl) {
+          function failedConflictResolver() {
+              if ($process.getSet('forceSync')) {
+                  syncHelper.setMessage('sync was called with -force:yes');
+                  allowPushState(false);
+                  return;
+              }
+              syncHelper.setMessage('skipped merging process for this process');
+              nextQueue({ state: 'Error' }, 'push');
+          }
 
           this.push = function() {
               function pushErrorState() {
@@ -137,7 +149,6 @@
                   syncHelper.push(appName, currentProcessTbl, data, state)
                       .then(function(pushResponse) {
                           var okay = pushResponse.ok;
-
                           if (okay) {
                               pushSuccessState(pushResponse._hash);
                           } else {
@@ -181,12 +192,12 @@
                       allowPushState(false);
                   }
               } else {
-                  syncConflictChecker({
+                  SyncConflictChecker({
                       tbl: currentProcessTbl,
                       appName: appName,
                       clientTbl: privateApi.$getTable(appName, currentProcessTbl),
                       resourceChecker: resource
-                  }, function(response) {
+                  }).then(function(response) {
                       //if columns was updated
                       //Push all records to the server
                       if (!response.pushRecord || response.pushRecord.columns.diff) {
@@ -196,7 +207,6 @@
                           //check pushRecord Status
                           allowPushState(response.pushRecord);
                       }
-
                   }, function(response) {
                       if ($isFunction(networkResolver.conflictResolver)) {
                           networkResolver.conflictResolver.apply(networkResolver, [response, currentProcessTbl, mergeTbl, failedConflictResolver]);
@@ -204,16 +214,6 @@
                   });
               }
           };
-
-          function failedConflictResolver() {
-              if ($process.getSet('forceSync')) {
-                  syncHelper.setMessage('sync was called with -force:yes');
-                  allowPushState(false);
-                  return;
-              }
-              syncHelper.setMessage('skipped merging process for this process');
-              nextQueue({ state: 'Error' }, 'push');
-          }
 
           //Pull State
           this.pull = function() {
@@ -253,7 +253,7 @@
                   if (syncState.postSync.length) {
                       syncHelper.setMessage('Synching down --' + JSON.stringify(syncState.postSync) + '--');
                       syncHelper
-                          .syncDownTables(appName, syncState.postSync, resource)
+                          .syncDownTables(appName, syncState.postSync, resource, $process.version)
                           .then(finalize, function(err) {
                               syncHelper.setMessage('Error synching down, please try again later');
                               finalize('killState');

@@ -1,12 +1,13 @@
 /**
  * 
  * @param {*} appName 
+ * @param {*} version
  */
-function jEliDBSynchronization(appName) {
+function jEliDBSynchronization(appName, version) {
     var activeDB = privateApi.$getActiveDB(appName),
         resolver = activeDB.$get('resolvers'),
         networkResolver = resolver.networkResolver,
-        $process = syncHelper.process.startSyncProcess(appName);
+        $process = syncHelper.process.startSyncProcess(appName, version);
 
     function printLog() {
         console.group("JDB SYNC");
@@ -30,7 +31,7 @@ function jEliDBSynchronization(appName) {
                     .then(function(response) {
                         var resourceChecker = response,
                             $deleteManager = resolver.deleteManager(appName);
-                        if (resourceChecker && !resourceChecker.resource && !$deleteManager.isDeletedDataBase()) {
+                        if (resourceChecker && !resourceChecker.resource.lastSyncedDate && !$deleteManager.isDeletedDataBase()) {
                             /**
                              * Database synced but removed by some other users
                              * killState and return false

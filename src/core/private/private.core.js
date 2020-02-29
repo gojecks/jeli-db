@@ -111,7 +111,7 @@ function _privateApi() {
         })[0];
     };
 
-    this.storageEventHandler = new $eventStacks();
+    this.storageEventHandler = new $EventEmitters();
 
     this.generateStruct = function(cache) {
         var ret = { tables: {}, version: cache.version };
@@ -181,8 +181,7 @@ _privateApi.prototype.getTableCheckSum = function(db, tbl) {
  * @param {*} name 
  */
 _privateApi.prototype.isOpen = function(name) {
-    var _openedDB = this.openedDB.$get(name),
-        self = this;
+    var _openedDB = this.openedDB.$get(name);
     if (_openedDB.$get('open')) {
         return true
     }
@@ -200,7 +199,7 @@ _privateApi.prototype.isOpen = function(name) {
         .$set('dataTypes', new DataTypeHandler())
         .$new('resolvers', new openedDBResolvers())
         .$new('resourceManager', new ResourceManager(name))
-        .$new('recordResolvers', new DBRecordResolvers(name));
+        .$new('recordResolvers', new CoreDataResolver(name));
 
     _openedDB = null;
 

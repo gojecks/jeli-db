@@ -2,8 +2,9 @@
  * 
  * @param {*} name 
  * @param {*} columns 
+ * @param {*} additionalConfig
  */
-ApplicationInstance.prototype.createTbl = function(name, columns) {
+ApplicationInstance.prototype.createTbl = function(name, columns, additionalConfig) {
     var defer = new _Promise(),
         result = { state: "create" },
         _opendedDBInstance = privateApi.$getActiveDB(this.name);
@@ -20,7 +21,7 @@ ApplicationInstance.prototype.createTbl = function(name, columns) {
 
         var DB_NAME = this.name,
             curTime = +new Date,
-            definition = ({
+            definition = extend({
                 columns: columns || [{}],
                 DB_NAME: DB_NAME,
                 TBL_NAME: name,
@@ -33,7 +34,7 @@ ApplicationInstance.prototype.createTbl = function(name, columns) {
                 lastModified: curTime,
                 _hash: GUID(),
                 _previousHash: ""
-            });
+            }, additionalConfig || {});
 
         /**
          * add table to resource

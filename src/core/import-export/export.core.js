@@ -144,9 +144,12 @@ function exportGenerator(doc, fileType) {
         return fileName + "." + fileType;
     }
 
-
     return ({
         download: function(fileName) {
+            if ($isObject(doc)) {
+                doc = JSON.stringify(doc, null, 3);
+            }
+
             var uri = encodeURI('data:text/' + fileType + ';charset=utf-8,' + doc),
                 anchor = document.createElement('a');
             anchor.setAttribute('href', uri);
@@ -162,7 +165,7 @@ function exportGenerator(doc, fileType) {
         },
         print: function() {
             if (typeof doc === 'object') {
-                doc = JSON.stringify(doc);
+                doc = JSON.stringify(doc, null, 3);
             }
             return doc;
         }

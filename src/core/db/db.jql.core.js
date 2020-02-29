@@ -11,8 +11,7 @@
           .map(function(key) {
               return _this.jQl.parser(key, parser || {});
           })
-          .map(function(q) { return q.trim(); })
-          .map(function(a) { try { return JSON.parse(a); } catch (e) {}; return a; }),
+          .map(function(a) { a = a.trim(); return $isJsonString(a) ? JSON.parse(a) : a; }),
           taskPerformerObj = customPlugins.$getAll(),
           task = taskType[0].toLowerCase();
       /**

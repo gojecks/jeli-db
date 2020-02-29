@@ -164,12 +164,6 @@
             "ProductToProductOrder": {
                 "type": "text"
             }
-        }],
-        "crud": {
-            "transactions": [{
-                "type": "insert",
-                "filePath": "assets/products.json"
-            }]
-        }
+        }]
     }
 }

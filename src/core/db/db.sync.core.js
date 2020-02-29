@@ -3,7 +3,7 @@
  */
 ApplicationInstance.prototype.synchronize = function() {
     if (privateApi.openedDB.$hasOwnProperty(this.name)) {
-        return new jEliDBSynchronization(this.name);
+        return new jEliDBSynchronization(this.name, this.version);
     }
 
     function mockSync() {

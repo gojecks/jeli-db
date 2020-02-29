@@ -146,7 +146,7 @@ function transactionInsert(data, hardInsert, tableName) {
                 var ref = GUID();
                 checkTableIndex(item, ref);
                 checkAndSetAutoIncrements(item);
-                var pData = extend(true, columnObj, item);
+                var pData = extend({}, columnObj, item);
                 return ({
                     _ref: ref,
                     _data: pData

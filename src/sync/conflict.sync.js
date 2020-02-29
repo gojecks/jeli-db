@@ -6,10 +6,10 @@
   @param: tableName
 **/
 
-function syncConflictChecker(conflictChecker, success, error) {
-    var serverTbl = [],
-        $process = syncHelper.process.getProcess(conflictChecker.appName),
-        networkResolver = $process.getSet('networkResolver');
+function SyncConflictChecker(conflictChecker, success, error) {
+    var $process = syncHelper.process.getProcess(conflictChecker.appName),
+        networkResolver = $process.getSet('networkResolver'),
+        $promise = new _Promise();
 
     //getLatest from server
     if (!syncHelper.entity) {
@@ -17,16 +17,15 @@ function syncConflictChecker(conflictChecker, success, error) {
     }
     //Perform Merge
     //client table was found
-    syncHelper.pullTable(conflictChecker.appName, conflictChecker.tbl)
+    syncHelper.getSchema(conflictChecker.appName, [conflictChecker.tbl])
         .then(function(tblResult) {
-            serverTbl = (tblResult || {})._data;
+            var serverTbl = tblResult.schemas[conflictChecker.tbl];
             if (serverTbl) {
                 var $diff = syncDataComparism(serverTbl, conflictChecker.clientTbl, networkResolver);
                 if ($diff.hashChanged) {
                     syncHelper.setMessage('Latest Update found on the Server');
-
                     //reject the promise
-                    error({ status: "error", conflictRecord: serverTbl, code: 402 });
+                    $promise.reject({ status: "error", conflictRecord: serverTbl, code: 402 });
                     return;
                 }
 
@@ -34,15 +33,17 @@ function syncConflictChecker(conflictChecker, success, error) {
                 //data have changed after last pull
                 syncHelper.printSyncLog(networkResolver, conflictChecker.appName);
                 //update
-                success({ status: "success", pushRecord: $process.getSet('syncLog')[conflictChecker.tbl], code: 200 });
+                $promise.resolve({ status: "success", pushRecord: $process.getSet('syncLog')[conflictChecker.tbl], code: 200 });
             } else {
                 //data have changed after last pull
                 syncHelper.setMessage('Table schema was not found on the SERVER');
                 //update
-                success({ status: "success", pushRecord: false, code: 200 });
+                $promise.resolve({ status: "success", pushRecord: false, code: 200 });
             }
         }, function(mergeResponse) {
             syncHelper.setMessage('unable to check for conflict, please check your internet setting');
             syncHelper.killState(conflictChecker.appName);
         });
+
+    return $promise;
 }

@@ -30,7 +30,8 @@
                 schemaPath: null,
                 useFrontendOnlySchema: false,
                 ignoreSync: false,
-                organisation: "_"
+                organisation: "_",
+                version: version
             });
         /**
          * 
@@ -138,6 +139,19 @@
                 jeliInstance.result = new ApplicationInstance(name, version);
                 var schemaManager = new SchemaManager(jeliInstance.result, version, dbChecker.version || 1, config.schemaPath);
                 /**
+                 * DB Setup
+                 */
+                schemaManager.setupDB = function() {
+                    _activeDBApi
+                        .$get('resourceManager')
+                        .setResource(getDBSetUp(name));
+                    // store the DB version
+                    privateApi
+                        .storageEventHandler
+                        .broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
+                };
+
+                /**
                  * dataBase exists
                  */
                 if (dbChecker && dbChecker.version) {
@@ -174,9 +188,6 @@
                         });
                     }
                 } else {
-                    _activeDBApi
-                        .$get('resourceManager')
-                        .setResource(getDBSetUp(name));
                     /**
                      * create our database instance
                      */
@@ -206,9 +217,6 @@
                     } else {
                         schemaManager.create(next);
                     }
-
-                    // Object Store in Db
-                    privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
                 }
             }
 

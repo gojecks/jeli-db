@@ -2,18 +2,22 @@
  * 
  * @param {*} tbl 
  */
-function OnupdateEventHandler(tbl) {
+function OnupdateEventHandler(tbl, types) {
     var promiseData = {};
     this.eventName = "db.update";
     this.time = +new Date;
     this.getData = function(key, tblName) {
-        if (!key || !tblName) {
+        if (!key) {
             return null;
         }
 
         tblName = tblName || tbl;
 
-        return (key && promiseData[tblName][key]) ? promiseData[tblName][key] : [];
+        if (key && promiseData.hasOwnProperty(tblName)) {
+            return promiseData[tblName][key] ? promiseData[tblName][key] : [];
+        }
+
+        return [];
     };
 
     this.setData = function(tblName, data) {
@@ -32,12 +36,23 @@ function OnupdateEventHandler(tbl) {
         return promiseData[tblName || tbl];
     };
 
-    this.count = function(tblName) {
-        var total = 0;
-        this.types.forEach(function(type) {
-            total += promiseData[tblName || tbl][type].length;
-        });
+    this.count = function(tblName, type) {
+        if (type) {
+            return _count(type);
+        }
 
-        return total;
-    }
+
+        return types.reduce(function(accum, type) {
+            accum += _count(type);
+            return accum;
+        }, 0);
+
+        function _count(_type) {
+            if (promiseData.hasOwnProperty(tblName) && promiseData[tblName][_type]) {
+                return promiseData[tblName][_type].length;
+            }
+
+            return 0;
+        }
+    };
 }

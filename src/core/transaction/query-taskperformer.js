@@ -68,7 +68,7 @@ function $query(data) {
          * return data when logic is undefined
          */
         if (!logic) {
-            return data.map(function(item) { return item._data; });
+            return data.map(function(item) { return item._data || item; });
         }
 
         var _search = [],
@@ -271,7 +271,7 @@ function convertValueToArray(value) {
  */
 
 $query.convertExpressionStringToObject = function(expression, replacer, params) {
-    var exp = expression.split(/([|()\[\]=~<>!*+//&-])/ig),
+    var exp = expression.split(/([|()\[\]=~<>!*&])/ig),
         start = exp.shift(),
         end = exp.pop(),
         operand = exp.join(''),

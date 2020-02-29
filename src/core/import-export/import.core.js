@@ -4,7 +4,7 @@
  */
 function importModules(type) {
     var okeys;
-    this.fileData = { columns: [], data: [], skippedData: [], _type: type };
+    this.fileData = { columns: [], data: [], skippedData: [], _type: type, schema: {} };
     /**
      * 
      * @param {*} cdata 
@@ -34,8 +34,15 @@ function importModules(type) {
 }
 
 importModules.prototype.json = function(content) {
-    this.fileData.data = JSON.parse(content || '[]');
-    this.fileData.columns = Object.keys(this.fileData.data[0]);
+    if (content) {
+        var parsedContent = JSON.parse(content);
+        if ($isArray(parsedContent)) {
+            this.fileData.data = parsedContent
+            this.fileData.columns = Object.keys(this.fileData.data[0]);
+        } else {
+            this.fileData.schema = parsedContent;
+        }
+    }
     return this.fileData;
 };
 

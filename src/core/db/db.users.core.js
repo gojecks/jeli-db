@@ -88,7 +88,9 @@ ApplicationInstance.prototype._users = function() {
         db.api('/user/exists', queryData)
             .then(function(res) {
                 _promise.resolve(res.result);
-            }, _promise.reject);
+            }, function() {
+                _promise.reject(dbErrorPromiseObject('please try again.'));
+            });
 
         return $defer;
     }

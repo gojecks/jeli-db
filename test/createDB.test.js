@@ -92,7 +92,6 @@ jdb('TestBed', 1)
         console.log('successfull opening')
         db = res.result;
         // insert -[{"OrderID":10311}, {"OrderID":10308,"CustomerID":3, "ShipperID":5}, {"OrderID":10309,"CustomerID":5, "OrderDate":"1996-24-24"}] -Orders -replace -OrderID
-
     });
 
 function tryit() {
