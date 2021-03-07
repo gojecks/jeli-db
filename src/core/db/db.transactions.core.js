@@ -18,19 +18,23 @@ var transactionManager = {
     }
 };
 
-
-ApplicationInstance.prototype.transaction = function(table, mode) {
+/**
+ * 
+ * @param {*} table 
+ * @param {*} mode 
+ */
+function ApplicationInstanceTransaction(table, mode) {
     var dbName = this.name,
         defer = new _Promise(),
         promise = new DBPromise(defer);
     //getRequired Table Fn
     function getRequiredTable(cTable) {
-        if (!privateApi.$getActiveDB(dbName).$get('$tableExist')(cTable)) {
+        if (!privateApi.getActiveDB(dbName).get('$tableExist')(cTable)) {
             err.push("There was an error, Table (" + table + ") was not found on this DB (" + dbName + ")");
             return;
         }
 
-        return privateApi.$getTable(dbName, cTable);
+        return privateApi.getTable(dbName, cTable);
     }
 
     function validateTableSchema(tableData, table) {

@@ -1,12 +1,12 @@
 //prototype for jEli Plugin
-var customPlugins = new watchBinding(); //used to hold customPlugins
+var customPlugins = new Map(); //used to hold customPlugins
 /**
  * core custom pluginFn
  */
 jEliDB.JDB_PLUGINS = Object.create({
     jQl: function(name, plugin) {
-        if (name && $isObject(plugin) && !customPlugins.hasProp(name)) {
-            customPlugins.$new(name, plugin);
+        if (name && $isObject(plugin) && !customPlugins.has(name)) {
+            customPlugins.set(name, plugin);
         } else {
             errorBuilder('Failed to register plugin, either it already exists or invalid definition');
         }
@@ -19,8 +19,8 @@ jEliDB.JDB_PLUGINS = Object.create({
         disable(list);
 
         function disable(_plugin) {
-            if (customPlugins.hasProp(_plugin)) {
-                customPlugins.$get(_plugin).disabled = true;
+            if (customPlugins.has(_plugin)) {
+                customPlugins.get(_plugin).disabled = true;
             }
         }
     },
@@ -33,8 +33,8 @@ jEliDB.JDB_PLUGINS = Object.create({
         enable(list);
 
         function enable(_plugin) {
-            if (customPlugins.hasProp(_plugin)) {
-                customPlugins.$get(_plugin).disabled = false;
+            if (customPlugins.has(_plugin)) {
+                customPlugins.get(_plugin).disabled = false;
             }
         }
     }

@@ -16,5 +16,3 @@ function jCMDHelpers() {
         }
     };
 }
-
-ApplicationInstance.prototype.helpers = new jCMDHelpers();

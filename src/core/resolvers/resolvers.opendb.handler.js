@@ -17,7 +17,7 @@ function openedDBHandler(definition) {
      * @param {*} name 
      * @param {*} value 
      */
-    this.$new = function(name, value) {
+    this.new = function(name, value) {
         if (!_holder[name]) {
             _holder[name] = value;
         }
@@ -29,7 +29,7 @@ function openedDBHandler(definition) {
      * 
      * @param {*} name 
      */
-    this.$get = function(name) {
+    this.get = function(name) {
         return _holder[name];
     };
 
@@ -38,7 +38,7 @@ function openedDBHandler(definition) {
      * @param {*} name 
      * @param {*} value 
      */
-    this.$set = function(name, value) {
+    this.set = function(name, value) {
         _holder[name] = value;
         return this;
     };
@@ -47,25 +47,25 @@ function openedDBHandler(definition) {
      * 
      * @param {*} name 
      */
-    this.$hasOwnProperty = function(name) {
+    this.has = function(name) {
         return _holder.hasOwnProperty(name);
     };
     /**
      * 
      * @param {*} name 
      */
-    this.$destroy = function(name) {
+    this.destroy = function(name) {
         _holder[name] = null;
         delete _holder[name];
         return this;
     };
 
-    this.$incrementInstance = function() {
+    this.incrementInstance = function() {
         _holder.instance++;
         return this;
     };
 
-    this.$decrementInstance = function() {
+    this.decrementInstance = function() {
         _holder.instance--;
         return this;
     };

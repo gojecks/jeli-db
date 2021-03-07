@@ -10,12 +10,14 @@
       //process server tables
       var comparism = new snapShot(server, local),
           tbl = server.TBL_NAME;
+      var log = {};
+      log[tbl] = {
+          data: comparism.data(),
+          columns: comparism.columns()
+      };
       syncHelper.process
           .getProcess(server.DB_NAME)
-          .getSet('syncLog')[server.TBL_NAME] = {
-              data: comparism.data(),
-              columns: comparism.columns()
-          };
+          .getSet('syncLog', log);
       //@Local Table was found     
       if (local) {
           if (comparism.$hashChanges() || comparism.$noLocalData()) {
@@ -29,7 +31,7 @@
 
       } else {
           //ignore deleted tables
-          var checkDeletedTables = networkResolver.deletedRecords.table[server.TBL_NAME];
+          var checkDeletedTables = networkResolver.deletedRecords.table[tbl];
           if (checkDeletedTables) {
               if (checkDeletedTables !== server._hash) {
                   syncHelper.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server');

@@ -2,7 +2,7 @@
  * Batch Transaction
  * perform many transaction in one command
  */
-ApplicationInstance.prototype.batchTransaction = function(transactions) {
+function ApplicationInstanceBatchTransaction(transactions) {
     var defer = new _Promise(),
         promise = new DBPromise(defer);
     if (!transactions || !$isArray(transactions)) {

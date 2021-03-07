@@ -3,10 +3,9 @@
  * @param {*} appName 
  * @param {*} version 
  */
-function SeverSchemaLoader(appName, version) {
-    var activeDB = privateApi.$getActiveDB(appName),
-        promise = new _Promise(),
-        _this = this;
+function ServerSchemaLoader(appName, version) {
+    var activeDB = privateApi.getActiveDB(appName);
+    var promise = new _Promise();
 
     function initializeDBSuccess() {
         syncHelper
@@ -18,17 +17,14 @@ function SeverSchemaLoader(appName, version) {
                      * if the database is not yet created
                      * 
                      */
-                    var tableNames = activeDB.$get('resourceManager')
-                        .setResource(syncResponse.resource)
-                        .getTableNames();
-                    //Get the DB schema 
-                    //for each Table
-                    loadSchema(tableNames, syncResponse.resource.resourceManager);
+                    saveAndSyncDownTables(syncResponse.resource)
                 } else {
                     //no resource found on the server
                     handleFailedSync(syncResponse);
                 }
             }, handleNetworkError('resource', "Failed to initialize DB", initializeDBSuccess));
+
+        return promise;
     }
 
     function handleFailedSync(response) {
@@ -43,8 +39,13 @@ function SeverSchemaLoader(appName, version) {
      * 
      * @param {*} _loadServerData 
      * @param {*} dbResource 
+     * @param {*} onlyLatest 
      */
     function loadSchema(_loadServerData, dbResource) {
+        if (!_loadServerData.length) {
+            return promise.resolve();
+        }
+
         syncHelper
             .getSchema(appName, _loadServerData)
             .then(function(mergeResponse) {
@@ -63,6 +64,25 @@ function SeverSchemaLoader(appName, version) {
                 // reload the schema when network is stable
                 loadSchema(_loadServerData, dbResource);
             }));
+    }
+
+    /**
+     * 
+     * @param {*} resource 
+     * @param {*} onlyLatest 
+     */
+    function saveAndSyncDownTables(resource) {
+        var localResource = activeDB.get('resourceManager').getResource();
+        var tableNames = activeDB.get('resourceManager')
+            .setResource(resource)
+            .getTableNames();
+        //Get the DB schema 
+        //for each Table
+        if (localResource) {
+            tableNames = activeDB.get('resourceManager').getTableDifferences(localResource);
+        }
+
+        loadSchema(tableNames, resource.resourceManager);
     }
 
     /**
@@ -90,7 +110,5 @@ function SeverSchemaLoader(appName, version) {
         };
     }
 
-    initializeDBSuccess();
-
-    return promise;
+    this.get = initializeDBSuccess;
 };

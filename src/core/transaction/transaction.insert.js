@@ -115,7 +115,9 @@ function transactionInsert(data, hardInsert, tableName) {
          */
         else if (this.processData) {
             var columnNames = Object.keys(columnObj);
-            data.forEach(function(item, idx) {
+            var len = data.length;
+            while (len--) {
+                var item = data[len];
                 var cdata = {};
                 //switch type
                 if ($isObject(item)) {
@@ -124,11 +126,11 @@ function transactionInsert(data, hardInsert, tableName) {
                     cdata = copyDataByIndex(columnNames, item);
                 }
 
-                if (_validator(cdata, idx)) {
+                if (_validator(cdata, len)) {
                     var pData = extend(true, columnObj, cdata);
                     // check indexing
-                    var _ref = GUID(),
-                        _dataExists = checkTableIndex(pData, _ref);
+                    var _ref = GUID();
+                    var _dataExists = checkTableIndex(pData, _ref);
                     //push data to processData array
                     //set obj ref GUID
                     if (!_dataExists) {
@@ -139,7 +141,7 @@ function transactionInsert(data, hardInsert, tableName) {
                         });
                     }
                 }
-            });
+            }
         } else {
             // generate a new mapping dataset to be store
             processedData = data.map(function(item) {

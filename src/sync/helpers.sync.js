@@ -2,54 +2,7 @@
  * Synchronization Helper
  */
 function syncHelperPublicApi() {
-    var self = this;
-    this.process = {
-        currentProcess: "",
-        $process: {},
-        startSyncProcess: function(appName, version) {
-            this.$process[appName] = Object.create({
-                version: version,
-                syncLog: {},
-                forceSync: false,
-                getSet: function(name, value) {
-                    if (arguments.length > 1) {
-                        this[name] = value;
-                    }
-
-                    return this[name];
-                },
-                preparePostSync: function(resource, resourceRecords) {
-                    var tables = [];
-                    if (resource && resource.resourceManager && !resourceRecords.database[appName]) {
-                        tables = Object.keys(resource.resourceManager).filter(function(tbl) {
-                            return (!resourceRecords.rename[tbl] && !resourceRecords.table[tbl]);
-                        });
-                    }
-
-                    this.getSet('postSyncTables', tables);
-                }
-            });
-            this.currentProcess = appName;
-            return this.$process[appName];
-        },
-        destroyProcess: function(appName) {
-            this.$process[appName] = null;
-        },
-        getProcess: function(appName) {
-            return this.$process[appName || this.process.currentProcess] || null;
-        },
-        getApplicationApiKey: function(appName) {
-            var _appProcess = this.getProcess(appName),
-                options = self.setRequestData(appName, '/application/key', true);
-            options.data.key = "api_key";
-            self.setMessage('Retrieving API key....');
-            return privateApi.$http(options).then(function(res) {
-                self.setMessage('Retrieved API key');
-                _appProcess.getSet('applicationKey', res);
-                _appProcess = null;
-            });
-        }
-    };
+    this.process = new SyncProcess(this);
 }
 
 /**
@@ -136,11 +89,11 @@ syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, 
         switch (state.toLowerCase()) {
             case ('/database/push'):
             case ('/database/sync'):
-                options.data.postData = privateApi.$getTable(appName, tbl, true);
+                options.data.postData = privateApi.getTable(appName, tbl, true);
                 options.data.action = "overwrite";
                 break;
             case ('/database/resource/add'):
-                var resource = privateApi.$getActiveDB(appName).$get('resourceManager').getResource();
+                var resource = privateApi.getActiveDB(appName).get('resourceManager').getResource();
                 if (!resource.lastSyncedDate) {
                     resource.lastSyncedDate = +new Date;
                 }
@@ -172,7 +125,7 @@ syncHelperPublicApi.prototype.prepareSyncState = function(appName, resource) {
     if ($isArray(entities)) {
         tbls = tbls.concat(entities);
     } else {
-        tbls = privateApi.$getActiveDB(appName).$get('resourceManager').getTableNames() || [];
+        tbls = privateApi.getActiveDB(appName).get('resourceManager').getTableNames() || [];
     }
 
     var postSyncTables = (this.process
@@ -229,10 +182,14 @@ syncHelperPublicApi.prototype.killState = function(appName) {
  * @param {*} appName 
  */
 syncHelperPublicApi.prototype.finalizeProcess = function(appName) {
-    this.process.getProcess(appName)
-        .getSet('networkResolver')
-        .handler.onSuccess(dbSuccessPromiseObject("sync", 'Synchronization Complete without errors'));
-    this.process.destroyProcess(appName);
+    var _this = this;
+    this.syncResourceToServer(appName)
+        .then(function(resourceResponse) {
+            _this.process.getProcess(appName)
+                .getSet('networkResolver')
+                .handler.onSuccess(dbSuccessPromiseObject("sync", 'Synchronization Complete without errors'));
+            _this.process.destroyProcess(appName);
+        });
 };
 
 //@Function Name Push
@@ -245,7 +202,7 @@ syncHelperPublicApi.prototype.finalizeProcess = function(appName) {
  * @param {*} state 
  */
 syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
-    var _activeDB = privateApi.$getActiveDB(appName);
+    var _activeDB = privateApi.getActiveDB(appName);
     this.setMessage('Initializing Push State for table(' + tbl + ')');
     //check state
     state = state || 'push';
@@ -254,7 +211,7 @@ syncHelperPublicApi.prototype.push = function(appName, tbl, data, state) {
     if (data) {
         if (!data.columns.diff) {
             data._hash = _options.data.postData._hash; //update the postData hash before posting
-            _options.data.postData = _activeDB.$get('recordResolvers').$get(tbl);
+            _options.data.postData = _activeDB.get('recordResolvers').get(tbl);
             _options.data.action = "update";
         }
     }
@@ -285,7 +242,7 @@ syncHelperPublicApi.prototype.pullTable = function(appName, tbl, requestTableDat
  */
 syncHelperPublicApi.prototype.pull = function(appName) {
     this.setMessage('Pull  State Started');
-    return new startSyncState(appName).getDBRecords();
+    return startSyncState(appName, null, false, true);
 };
 
 /**
@@ -296,7 +253,7 @@ syncHelperPublicApi.prototype.pull = function(appName) {
  * @param {*} version
  */
 syncHelperPublicApi.prototype.syncDownTables = function(appName, tables, resource, version) {
-    var $resource = privateApi.$getActiveDB(appName).$get('resourceManager');
+    var $resource = privateApi.getActiveDB(appName).get('resourceManager');
     return this
         .getSchema(appName, tables)
         .then(function(pendingTables) {
@@ -328,8 +285,8 @@ syncHelperPublicApi.prototype.processRequest = function(_options, resolvedTable,
             if (resolvedTable) {
                 //empty our local recordResolver
                 privateApi
-                    .$getActiveDB(appName)
-                    .$get('recordResolvers')
+                    .getActiveDB(appName)
+                    .get('recordResolvers')
                     .$isResolved(resolvedTable)
                     .updateTableHash(res._hash);
             }

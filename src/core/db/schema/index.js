@@ -15,7 +15,7 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
         return privateApi.$http(path);
     }
 
-    this.create = function(next) {
+    this.create = function(next, preEvent) {
         /**
          * check if schemaFilePath is Defined
          * 
@@ -24,7 +24,7 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
             return next();
         }
 
-        this.setupDB();
+        preEvent();
         var _this = this;
         loadSchema(1)
             .then(function(schema) {
@@ -58,8 +58,3 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
         next();
     };
 }
-
-/**
- * Load resource from frontendonly
- */
-SchemaManager.prototype.loadFromServer = SeverSchemaLoader;

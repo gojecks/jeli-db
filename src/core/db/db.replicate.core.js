@@ -6,7 +6,7 @@
  *  - create
  *  - type
  */
-ApplicationInstance.prototype.replicate = function(definition) {
+function ApplicationInstanceReplicate(definition) {
     var $defer = new _Promise();
     definition.current = this.name;
     if (!definition.name) {

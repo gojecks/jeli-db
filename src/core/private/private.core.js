@@ -18,10 +18,10 @@ function _privateApi() {
      * 
      * @param {*} name 
      */
-    this.$setActiveDB = function(name) {
+    this.setActiveDB = function(name) {
         // open the DB
-        if (!this.openedDB.$hasOwnProperty(name)) {
-            this.openedDB.$new(name, new openedDBHandler());
+        if (!this.openedDB.has(name)) {
+            this.openedDB.new(name, new openedDBHandler());
             this.$activeDB = name;
         } else if (!$isEqual(this.$activeDB, name)) {
             this.$activeDB = name;
@@ -35,9 +35,9 @@ function _privateApi() {
      * @param {*} name 
      * @param {*} data 
      */
-    this.$set = function(name, data) {
-        // this.openedDB.$get(name).$set('_db_', data);
-        this.openedDB.$get(name).$get('_storage_').setItem(name, data);
+    this.set = function(name, data) {
+        // this.openedDB.get(name).set('_db_', data);
+        this.openedDB.get(name).get('_storage_').setItem(name, data);
         return this;
     };
 
@@ -46,12 +46,12 @@ function _privateApi() {
      * @param {*} name 
      * @param {*} properties 
      */
-    this.$get = function(name, properties) {
-        if (!this.openedDB.$hasOwnProperty(name)) {
+    this.get = function(name, properties) {
+        if (!this.openedDB.has(name)) {
             return null;
         }
 
-        var _db = this.openedDB.$get(name).$get('_storage_').getItem();
+        var _db = this.openedDB.get(name).get('_storage_').getItem();
         if (properties) {
             if ($isArray(properties)) {
                 var _ret = {};
@@ -73,8 +73,8 @@ function _privateApi() {
      * @param {*} dbName 
      * @param {*} tableName 
      */
-    this.$getTable = function(dbName, tableName, extendable) {
-        var db = this.openedDB.$get(dbName).$get('_storage_'),
+    this.getTable = function(dbName, tableName, extendable) {
+        var db = this.openedDB.get(dbName).get('_storage_'),
             ret = null;
 
         if (!db.isExists(tableName)) {
@@ -96,8 +96,8 @@ function _privateApi() {
      * @param {*} tableName 
      * @param {*} option 
      */
-    this.$getTableOptions = function(dbName, tableName, option) {
-        return (this.$getTable(dbName, tableName) || {})[option];
+    this.getTableOptions = function(dbName, tableName, option) {
+        return (this.getTable(dbName, tableName) || {})[option];
     };
 
     /**
@@ -105,7 +105,7 @@ function _privateApi() {
      * @param {*} data 
      * @param {*} ref 
      */
-    this.$getDataByRef = function(data, ref) {
+    this.getDataByRef = function(data, ref) {
         return [].filter.call(data, function(item) {
             return item._ref === ref;
         })[0];
@@ -146,7 +146,7 @@ function _privateApi() {
  * @param {*} db 
  */
 _privateApi.prototype.getDbTablesNames = function(db) {
-    return Object.keys(this.$get(db || this.$activeDB, 'tables'));
+    return Object.keys(this.get(db || this.$activeDB, 'tables'));
 };
 
 /**
@@ -155,9 +155,9 @@ _privateApi.prototype.getDbTablesNames = function(db) {
  * @param {*} newName 
  */
 _privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
-    var oldInstance = this.$getActiveDB(oldName),
+    var oldInstance = this.getActiveDB(oldName),
         self = this;
-    oldInstance.$get('_storage_').rename(oldName, newName, function() {
+    oldInstance.get('_storage_').rename(oldName, newName, function() {
         cb();
         self.closeDB(oldName, true);
     });
@@ -169,7 +169,7 @@ _privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
  * @param {*} tbl 
  */
 _privateApi.prototype.getTableCheckSum = function(db, tbl) {
-    var table = this.$getTable(db, tbl);
+    var table = this.getTable(db, tbl);
     return ({
         current: table._hash,
         previous: table._previousHash
@@ -181,25 +181,25 @@ _privateApi.prototype.getTableCheckSum = function(db, tbl) {
  * @param {*} name 
  */
 _privateApi.prototype.isOpen = function(name) {
-    var _openedDB = this.openedDB.$get(name);
-    if (_openedDB.$get('open')) {
+    var _openedDB = this.openedDB.get(name);
+    if (_openedDB.get('open')) {
         return true
     }
 
-    if (_openedDB.$hasOwnProperty('closed')) {
+    if (_openedDB.has('closed')) {
         _openedDB
-            .$set('open', true)
-            .$incrementInstance()
-            .$destroy('closed');
+            .set('open', true)
+            .incrementInstance()
+            .destroy('closed');
         return;
     }
 
     _openedDB
-        .$set('open', true)
-        .$set('dataTypes', new DataTypeHandler())
-        .$new('resolvers', new openedDBResolvers())
-        .$new('resourceManager', new ResourceManager(name))
-        .$new('recordResolvers', new CoreDataResolver(name));
+        .set('open', true)
+        .set('dataTypes', new DataTypeHandler())
+        .new('resolvers', new openedDBResolvers())
+        .new('resourceManager', new ResourceManager(name))
+        .new('recordResolvers', new CoreDataResolver(name));
 
     _openedDB = null;
 
@@ -211,24 +211,24 @@ _privateApi.prototype.isOpen = function(name) {
  * @param {*} removeFromStorage 
  */
 _privateApi.prototype.closeDB = function(name, removeFromStorage) {
-    var openedDb = this.openedDB.$get(name);
+    var openedDb = this.openedDB.get(name);
     if (!openedDb) {
         return;
     }
 
-    openedDb.$decrementInstance();
-    if (openedDb.$get('instance') < 1) {
+    openedDb.decrementInstance();
+    if (openedDb.get('instance') < 1) {
         openedDb
-            .$set('open', false)
-            .$set('closed', true);
+            .set('open', false)
+            .set('closed', true);
 
         if (removeFromStorage) {
             openedDb
-                .$get('resourceManager')
+                .get('resourceManager')
                 .removeResource();
             // destroy the DB instance
             delStorageItem(name);
-            this.openedDB.$destroy(name);
+            this.openedDB.destroy(name);
         }
     }
 
@@ -238,8 +238,8 @@ _privateApi.prototype.closeDB = function(name, removeFromStorage) {
  * 
  * @param {*} req 
  */
-_privateApi.prototype.$getActiveDB = function(requestDB) {
-    return this.openedDB.$get(requestDB || this.$activeDB);
+_privateApi.prototype.getActiveDB = function(requestDB) {
+    return this.openedDB.get(requestDB || this.$activeDB);
 };
 
 /**
@@ -248,7 +248,7 @@ _privateApi.prototype.$getActiveDB = function(requestDB) {
  * @param {*} db 
  */
 _privateApi.prototype.getNetworkResolver = function(prop, db) {
-    return this.$getActiveDB(db).$get('resolvers').getResolvers(prop) || '';
+    return this.getActiveDB(db).get('resolvers').getResolvers(prop) || '';
 };
 // create a new privateApi Instance
 var privateApi = new _privateApi();

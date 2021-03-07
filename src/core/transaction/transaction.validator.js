@@ -6,7 +6,7 @@
  */
 function TransactionDataAndColumnValidator(tableName, columns) {
     var _this = this,
-        _typeValidator = privateApi.$getActiveDB(this.DB_NAME).$get('dataTypes');
+        _typeValidator = privateApi.getActiveDB(this.DB_NAME).get('dataTypes');
     /**
      * 
      * @param {*} cData 
@@ -66,9 +66,9 @@ function columnObjFn(columns) {
         return def.NOT_NULL ? "" : null;
     };
 
-    findInList.call(columns, function(prop, value) {
-        obj[prop] = _dbDefaultValueMatcher(value);
-    });
+    for (var prop in columns) {
+        obj[prop] = _dbDefaultValueMatcher(columns[prop]);
+    }
 
     return obj;
 }

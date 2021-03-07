@@ -12,18 +12,18 @@ function ApplicationInstance(name, version, required) {
     this.schema = new PublicSchema(this);
     this.env = {
         usage: function() {
-            if (name && privateApi.openedDB.$hasOwnProperty(name)) {
-                return (((privateApi.$getActiveDB(name).$get('_storage_').usage(name)) * 2) / 1024).toFixed(2) + " KB";
+            if (name && privateApi.openedDB.has(name)) {
+                return (((privateApi.getActiveDB(name).get('_storage_').usage(name)) * 2) / 1024).toFixed(2) + " KB";
             }
 
             return "unknown usuage";
         },
         logger: function() {
-            return privateApi.$getActiveDB(name).$get('resolvers').getResolvers('logger');
+            return privateApi.getActiveDB(name).get('resolvers').getResolvers('logger');
         },
-        dataTypes: privateApi.$getActiveDB(name).$get('dataTypes'),
+        dataTypes: privateApi.getActiveDB(name).get('dataTypes'),
         resource: function() {
-            return privateApi.$getActiveDB(name).$get('resourceManager').getResource();
+            return privateApi.getActiveDB(name).get('resourceManager').getResource();
         }
     };
 
@@ -67,3 +67,19 @@ function ApplicationInstance(name, version, required) {
         return ret;
     }
 }
+
+ApplicationInstance.prototype._users = ApplicationInstanceUsers;
+ApplicationInstance.prototype.transaction = ApplicationInstanceTransaction;
+ApplicationInstance.prototype.batchTransaction = ApplicationInstanceBatchTransaction;
+ApplicationInstance.prototype.table = ApplicationInstanceTable;
+ApplicationInstance.prototype.synchronize = ApplicationInstanceCore;
+ApplicationInstance.prototype.replicate = ApplicationInstanceReplicate;
+ApplicationInstance.prototype.rename = ApplicationInstanceRename;
+ApplicationInstance.prototype.jQl = ApplicationInstanceJQL;
+ApplicationInstance.prototype.info = ApplicationInstanceInfo;
+ApplicationInstance.prototype.import = ApplicationInstanceImport;
+ApplicationInstance.prototype.helpers = new jCMDHelpers();
+ApplicationInstance.prototype.export = ApplicationInstanceExport;
+ApplicationInstance.prototype.drop = ApplicationInstanceDrop;
+ApplicationInstance.prototype.createTbl = ApplicationInstanceCreateTable;
+ApplicationInstance.prototype.api = ApplicationInstanceApi;

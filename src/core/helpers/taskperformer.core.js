@@ -13,16 +13,17 @@ function _privateTaskPerfomer() {
      * @param {*} lastSynced 
      */
     _publicApi.updateDB = function(name, tblName, updateFn, lastSynced) {
-        var openedDb = privateApi.$getActiveDB(name);
+        var openedDb = privateApi.getActiveDB(name);
         //put the data to DB
         if (openedDb) {
             //update the table lastModified
-            var table = privateApi.$getTable(name, tblName);
+            var table = privateApi.getTable(name, tblName);
             if (table) {
-                var ret = {};
-                ret.lastModified = +new Date;
-                ret._hash = table._hash;
-                ret._previousHash = table._previousHash;
+                var ret = {
+                    lastModified: +new Date,
+                    _hash: table._hash,
+                    _previousHash: table._previousHash
+                };
 
                 if (updateFn && $isFunction(updateFn)) {
                     updateFn.apply(updateFn, [ret]);
@@ -34,8 +35,8 @@ function _privateTaskPerfomer() {
             /**
              * update Database resource
              */
-            var resourceManager = openedDb.$get('resourceManager'),
-                dbRef = resourceManager.getResource();
+            var resourceManager = openedDb.get('resourceManager');
+            var dbRef = resourceManager.getResource();
             if (dbRef) {
                 if (table) {
                     // new synced table

@@ -25,7 +25,7 @@ function CoreDataResolver(name) {
     }
 }
 
-CoreDataResolver.prototype.$set = function(tbl) {
+CoreDataResolver.prototype.set = function(tbl) {
     if (!this._records.hasOwnProperty(tbl)) {
         //set the record
         this._records[tbl] = { data: this.tableRecordHolder(), columns: this.tableRecordHolder() };
@@ -65,7 +65,7 @@ CoreDataResolver.prototype.$set = function(tbl) {
     });
 }
 
-CoreDataResolver.prototype.$get = function(tbl) {
+CoreDataResolver.prototype.get = function(tbl) {
     if (this._records[tbl]) {
         return this.resolveSyncData.apply(this, arguments);
     }
@@ -105,7 +105,7 @@ CoreDataResolver.prototype.$isResolved = function(tbl) {
     }
 };
 
-CoreDataResolver.prototype.$destroy = function() {
+CoreDataResolver.prototype.destroy = function() {
     if ($isEmptyObject(this._records)) {
         this._records = Object.create({});
         delStorageItem(privateApi.storeMapping.pendingSync);
@@ -148,7 +148,7 @@ CoreDataResolver.prototype.resolveSyncData = function(tbl, type, cref) {
             if ($isEqual(cType, "delete")) {
                 _newSyncData.data[cType][ref] = true;
             } else {
-                var data = privateApi.$getDataByRef(privateApi.$getTableOptions(name, tbl, 'data') || [], ref);
+                var data = privateApi.getDataByRef(privateApi.getTableOptions(name, tbl, 'data') || [], ref);
                 if (data) {
                     _newSyncData.data[cType].push(data);
                 }

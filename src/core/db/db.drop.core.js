@@ -1,12 +1,13 @@
 /**
- * Drop Database
+ * 
  * @param {*} flag 
- * @param {*} dbName
+ * @param {*} db 
+ * @param {*} localOnly 
  */
-ApplicationInstance.prototype.drop = function(flag, db) {
+function ApplicationInstanceDrop(flag, db, localOnly) {
     var defer = new _Promise();
     if (flag) {
-        var dbResponse = privateApi.removeDB(db || this.name);
+        var dbResponse = privateApi.removeDB(db || this.name, localOnly);
         defer[$isEqual(dbResponse.code, 'error') ? 'reject' : 'resolve'](dbResponse);
     } else {
         defer.reject({ message: "Unable to drop DB, either invalid flag or no priviledge granted!!", errorCode: 401 });

@@ -4,7 +4,7 @@
  * @param {*} handler
  */
 
-ApplicationInstance.prototype.import = function(table, isSchema, handler) {
+function ApplicationInstanceImport(table, isSchema, handler) {
     var createTable = false,
         db = this,
         _def = ({
@@ -20,7 +20,7 @@ ApplicationInstance.prototype.import = function(table, isSchema, handler) {
     handler = extend(true, _def, handler || {});
     if (!isSchema) {
         if (table && $isString(table)) {
-            if (!privateApi.$getActiveDB(this.name).$get('$tableExist')(table)) {
+            if (!privateApi.getActiveDB(this.name).get('$tableExist')(table)) {
                 createTable = true;
                 handler.logService('Table(' + table + ') was not found!!');
             }

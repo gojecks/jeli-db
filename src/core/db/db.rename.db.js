@@ -2,7 +2,7 @@
  * 
  * @param {*} newName 
  */
-ApplicationInstance.prototype.rename = function(newName) {
+function ApplicationInstanceRename(newName) {
     var defer = new _Promise();
     if ($isEqual(this.name, newName)) {
         defer.reject(dbErrorPromiseObject('new name cannot be same as old'));
@@ -10,7 +10,7 @@ ApplicationInstance.prototype.rename = function(newName) {
         var dbName = this.name,
             _self = this;
         privateApi.renameDataBase(this.name, newName, function() {
-            var newResource = privateApi.$getActiveDB(dbName).$get('resourceManager').getResource();
+            var newResource = privateApi.getActiveDB(dbName).get('resourceManager').getResource();
             if (newResource && newResource.lastSyncedDate) {
                 _self.api('/database/rename', { name: newName })
                     .then(function(result) {

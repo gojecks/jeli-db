@@ -97,14 +97,14 @@ function jEliDBTBL(tableInfo) {
      */
     this.rename = function(newTableName) {
         if (newTableName && !$isEqual(newTableName, tableInfo.TBL_NAME)) {
-            var db = privateApi.$getActiveDB(tableInfo.DB_NAME);
+            var db = privateApi.getActiveDB(tableInfo.DB_NAME);
             // rename the tableInfo
-            if (db.$get('$tableExist')(newTableName)) {
+            if (db.get('$tableExist')(newTableName)) {
                 return "Table already exists";
             }
 
             //update the deletedRecords
-            var $resource = db.$get('resourceManager');
+            var $resource = db.get('resourceManager');
             if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
                 privateApi.$taskPerformer.updateDeletedRecord('rename', {
                     oldName: tableInfo.TBL_NAME,
@@ -167,7 +167,7 @@ function jEliDBTBL(tableInfo) {
         }
 
         //update the deletedRecords
-        var $resource = privateApi.$getActiveDB(tableInfo.DB_NAME).$get('resourceManager');
+        var $resource = privateApi.getActiveDB(tableInfo.DB_NAME).get('resourceManager');
         if ($resource.getTableLastSyncDate(tableInfo.TBL_NAME)) {
             privateApi.$taskPerformer.updateDeletedRecord('table', {
                 name: tableInfo.TBL_NAME,
@@ -228,7 +228,7 @@ function jEliDBTBL(tableInfo) {
      */
     function foreignAction(key, tableName) {
         if (key && tableName && tableInfo.columns[0][key]) {
-            if (privateApi.$getActiveDB(tableInfo.DB_NAME).$get('$tableExist')(tableName)) {
+            if (privateApi.getActiveDB(tableInfo.DB_NAME).get('$tableExist')(tableName)) {
                 //update the DB
                 jdbUpdateStorage(tableInfo.DB_NAME, tableInfo.TBL_NAME, function(table) {
                     table.foreignKey = {

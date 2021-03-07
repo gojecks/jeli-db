@@ -8,7 +8,6 @@ jEliDB.JDB_PLUGINS.jQl('sync', {
 });
 
 function syncPluginFn(query, handler) {
-    var result = { state: query[0], result: { message: null } };
     return function(db) {
         db
             .synchronize()

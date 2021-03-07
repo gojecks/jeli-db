@@ -1,9 +1,10 @@
 /**
  * 
  * @param {*} config 
+ * @param {*} dbInstances 
  * @param {*} callback 
  */
-function DefaultStorage(config, callback) {
+function DefaultStorage(config, dbInstances, callback) {
     var dbName = config.name,
         publicApi = Object.create(null),
         _privateStore = {};
@@ -60,7 +61,7 @@ function DefaultStorage(config, callback) {
             });
             publicApi.setItem(newName, oldData);
             publicApi.setItem(privateApi.getResourceName(newName), publicApi.getItem(privateApi.getResourceName(oldName)));
-            privateApi.$getActiveDB(oldName).$get('recordResolvers').rename(newName);
+            privateApi.getActiveDB(oldName).get('recordResolvers').rename(newName);
             publicApi.removeItem(oldName);
             (cb || noop)();
         });
@@ -106,9 +107,18 @@ function DefaultStorage(config, callback) {
      * @param {*} definition 
      */
     function onCreateTable(tableName, definition) {
-        // create a new store for data
-        publicApi.setItem(tableName + ":data", []);
-        publicApi.setItem(tableName, definition);
+        /**
+         * we only set data property if its a new table and not exists
+         */
+        if (!_privateStore.hasOwnProperty(tableName)) {
+            publicApi.setItem(tableName, definition);
+            publicApi.setItem(tableName + ":data", []);
+        } else {
+            /**
+             * extend the existing with the new
+             */
+            publicApi.setItem(tableName, definition);
+        }
     }
 
     publicApi.setItem = function(name, value) {

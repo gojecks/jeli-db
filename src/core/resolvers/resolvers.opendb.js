@@ -1,21 +1,33 @@
 /**
-    CORE Resolvers
-**/
+ * 
+ * @param {*} response 
+ * @param {*} currentProcessTbl 
+ * @param {*} mergeConflictResolver 
+ * @param {*} failedConflictResolver 
+ */
+function _conflictResolver(response, currentProcessTbl, mergeConflictResolver, failedConflictResolver) {
+    if (confirm('Update your table(' + currentProcessTbl + ') with Server records (yes/no)')) {
+        syncHelper.setMessage('Updating Local(' + currentProcessTbl + ') with Server(' + currentProcessTbl + ')', this);
+        mergeConflictResolver(response.conflictRecord, currentProcessTbl);
+    } else {
+        failedConflictResolver();
+    }
+}
+
+/**
+ * 
+ * @param {*} currentProcessTbl 
+ */
+function _resolveDeletedTable(currentProcessTbl) {
+    return (confirm('Are you sure you want to drop table ' + currentProcessTbl));
+}
+
 function openedDBResolvers() {
     this.networkResolver = ({
         serviceHost: null,
         dirtyCheker: true,
-        conflictResolver: function(response, currentProcessTbl, mergeConflictResolver, failedConflictResolver) {
-            if (confirm('Update your table(' + currentProcessTbl + ') with Server records (yes/no)')) {
-                syncHelper.setMessage('Updating Local(' + currentProcessTbl + ') with Server(' + currentProcessTbl + ')', this);
-                mergeConflictResolver(response.conflictRecord, currentProcessTbl);
-            } else {
-                failedConflictResolver();
-            }
-        },
-        resolveDeletedTable: function(currentProcessTbl) {
-            return (confirm('Are you sure you want to drop table ' + currentProcessTbl));
-        },
+        conflictResolver: _conflictResolver,
+        resolveDeletedTable: _resolveDeletedTable,
         logger: [],
         logService: function() {},
         interceptor: function() {},
@@ -80,39 +92,5 @@ openedDBResolvers.prototype.trigger = function(fn) {
  * @param {*} dbName 
  */
 openedDBResolvers.prototype.deleteManager = function(dbName) {
-    var _self = this;
-    return {
-        init: function() {
-            var $delRecords = getStorageItem(privateApi.storeMapping.delRecordName);
-            if ($delRecords && $delRecords.hasOwnProperty(dbName)) {
-                //update deleted records
-                _self
-                    .register('deletedRecords', $delRecords[dbName]);
-            }
-
-            return this;
-        },
-        isDeletedDataBase: function() {
-            return _self.getResolvers('deletedRecords').database.hasOwnProperty(dbName);
-        },
-        isDeletedTable: function(name) {
-            return _self.getResolvers('deletedRecords').table.hasOwnProperty(name);
-        },
-        reset: function() {
-            _self.register('deletedRecords', {
-                table: {},
-                database: {},
-                rename: {}
-            });
-
-            return this;
-        },
-        isExists: function() {
-            var $delRecords = getStorageItem(privateApi.storeMapping.delRecordName);
-            return $delRecords && $delRecords.hasOwnProperty(dbName);
-        },
-        getRecords: function() {
-            return _self.getResolvers('deletedRecords');
-        }
-    };
+    return new deleteManager(dbName, this);
 };

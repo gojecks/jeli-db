@@ -16,7 +16,7 @@ function PublicSchema(core) {
                     $promise.reject("unable to load schema from server");
                 });
         } else {
-            var localServer = privateApi.$get(core.name, "tables");
+            var localServer = privateApi.get(core.name, "tables");
             $promise.resolve(structure(localServer));
         }
 

@@ -1,5 +1,7 @@
   //Function checks if data is a JSON
   //@return {OBJECT}
+  var inUpdateProgress = 0;
+
   function purifyJSON(data) {
       if ($isJsonString(data)) {
           return JSON.parse(data);
@@ -17,22 +19,22 @@
   //@return OBJECT
   function getStorageItem(item, db) {
       //return FN
-      return privateApi.$getActiveDB(db).$get('_storage_').getItem(item);
+      return privateApi.getActiveDB(db).get('_storage_').getItem(item);
   }
 
   //Function to Store storage data
   //@return JSON String
   function setStorageItem(key, value, db) {
       if (key && value) {
-          privateApi.$getActiveDB(db)
-              .$get('_storage_')
+          privateApi.getActiveDB(db)
+              .get('_storage_')
               .setItem(key, value);
       }
   }
 
   //@Function Delete Storage Item
   function delStorageItem(name) {
-      privateApi.$getActiveDB().$get('_storage_').removeItem(name);
+      privateApi.getActiveDB().get('_storage_').removeItem(name);
       return true;
   }
 
@@ -52,8 +54,8 @@
    */
 
   function updateDeletedRecord(ref, obj) {
-      var checker = getStorageItem(privateApi.storeMapping.delRecordName),
-          _resolvers = privateApi.$getActiveDB(obj.db).$get('resolvers');
+      var checker = getStorageItem(privateApi.storeMapping.delRecordName);
+      var _resolvers = privateApi.getActiveDB(obj.db).get('resolvers');
       if (checker && checker[obj.db]) {
           _resolvers.register('deletedRecords', checker[obj.db]);
       } else {
@@ -81,7 +83,10 @@
               _delRecords[ref][obj.oldName] = obj.newName;
               break;
           case ('database'):
-              _delRecords[ref][obj.db] = obj._hash || GUID();
+              _delRecords[ref][obj.db] = {
+                  hash: obj._hash || GUID(),
+                  time: +new Date
+              };
               break;
       }
 
@@ -108,8 +113,6 @@
           value: callBack
       });
   }
-
-  var inUpdateProgress = 0;
   /**
    * 
    * @param {*} fn 
@@ -131,17 +134,13 @@
   //xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
   function GUID() {
       var rand = function() { return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1); }
-
-      function recur(loop, seperator) {
+      return [2, 1, 1, 3].map(function(loop) {
           var h = "";
           for (var i = 0; i < loop; i++) {
               h += rand();
           }
-
-          return h + (seperator || '');
-      }
-
-      return recur(2, "-") + recur(1, "-") + recur(1, "-") + recur(1, "-") + recur(3);
+          return h;
+      }).join('-');
   }
 
   /**

@@ -16,7 +16,8 @@
  * }
  */
 var CacheMechanism = new Map();
-ApplicationInstance.prototype.api = function(URL, postData, tbl) {
+
+function ApplicationInstanceApi(URL, postData, tbl) {
     var options = privateApi.buildOptions(this.name, tbl, URL),
         $defer = new _Promise();
     if (options.cache && CacheMechanism.has(URL)) {
@@ -62,7 +63,7 @@ ApplicationInstance.prototype.api = function(URL, postData, tbl) {
  * Add a localTransport using iframe
  * used only for loading local data
  */
-ApplicationInstance.prototype.api.localTransport = function(url, success, error) {
+ApplicationInstanceApi.localTransport = function(url, success, error) {
     if (!window) {
         errorBuilder('LocalTransport can only be used on a Browser instance');
     }

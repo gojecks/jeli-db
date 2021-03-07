@@ -4,8 +4,8 @@
  * @param {*} version
  */
 function jEliDBSynchronization(appName, version) {
-    var activeDB = privateApi.$getActiveDB(appName),
-        resolver = activeDB.$get('resolvers'),
+    var activeDB = privateApi.getActiveDB(appName),
+        resolver = activeDB.get('resolvers'),
         networkResolver = resolver.networkResolver,
         $process = syncHelper.process.startSyncProcess(appName, version);
 
@@ -36,7 +36,7 @@ function jEliDBSynchronization(appName, version) {
                              * Database synced but removed by some other users
                              * killState and return false
                              */
-                            if (privateApi.$getActiveDB(appName).$get('resourceManager').getDataBaseLastSyncDate()) {
+                            if (privateApi.getActiveDB(appName).get('resourceManager').getDataBaseLastSyncDate()) {
                                 syncHelper.setMessage("Database doesn't exists on the server");
                                 syncHelper.killState(appName);
                                 return privateApi.removeDB(appName, true);
@@ -51,7 +51,7 @@ function jEliDBSynchronization(appName, version) {
                                     if (resState) {
                                         //start sync state
                                         syncHelper.setMessage('Resource synchronized successfully');
-                                        new startSyncState(appName, false).process();
+                                        startSyncState(appName, false);
                                     } else {
                                         //failed to set resource
                                         syncHelper.setMessage('Resource synchronization failed');
@@ -72,10 +72,10 @@ function jEliDBSynchronization(appName, version) {
 
                         if ($deleteManager.isExists()) {
                             //start deleted Sync State
-                            new deleteSyncState(appName, $deleteManager.getRecords(), resourceChecker.resource).process();
+                            deleteSyncState(appName, $deleteManager.getRecords(), resourceChecker.resource);
                         } else {
                             //start sync state
-                            new startSyncState(appName, resourceChecker.resource).process();
+                            startSyncState(appName, resourceChecker.resource);
                         };
 
                     }, function(err) {
@@ -87,7 +87,7 @@ function jEliDBSynchronization(appName, version) {
                     });
             }
         } else {
-            syncHelper.setMessage('Error processing commit state, either serviceHost was not defined');
+            syncHelper.setMessage('Error processing commit state, serviceHost was not defined');
             printLog();
         }
     }
@@ -111,6 +111,7 @@ function jEliDBSynchronization(appName, version) {
     }
 
     this.Entity = function(syncTables) {
+        syncTables = syncTables || [];
         $process.getSet('entity', ($isArray(syncTables) ? syncTables : maskedEval(syncTables)));
         //set Message for Entity
         return ({

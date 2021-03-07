@@ -88,6 +88,21 @@ ResourceManager.prototype.renameTableResource = function(oldName, newName) {
         this.setResource(resourceControl);
     }
 };
+
+ResourceManager.prototype.getTableDifferences = function(resource) {
+    var tables = this.getTableNames();
+    var resourceControl = this.getResource();
+    return tables.reduce(function(accum, tbl) {
+        if (resource.resourceManager.hasOwnProperty(tbl)) {
+            if (resourceControl.resourceManager[tbl]._hash !== resource.resourceManager[tbl]._hash)
+                accum.push(tbl);
+        } else {
+            accum.push(tbl);
+        }
+
+        return accum;
+    }, []);
+};
 /**
  * set the static name
  */

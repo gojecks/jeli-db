@@ -22,7 +22,7 @@ function insertPluginFn(query, handler) {
                  * check for insert or replace call
                  */
                 if (replaceCall) {
-                    instance = instance.insertOrReplace(data, options[1]);
+                    instance = instance.insertReplace(data, options[1]);
                 } else {
                     instance = instance.insert(data, hardInsert);
                 }

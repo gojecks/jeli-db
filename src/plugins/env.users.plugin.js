@@ -6,7 +6,6 @@ jEliDB.JDB_PLUGINS.jQl('_users', {
 });
 
 function jUsersPluginFn(query, handler) {
-    var result = { state: query[0], result: { message: null } };
     return function(db) {
         var _dbUsers = db._users();
 

@@ -25,4 +25,10 @@ function AddUserEventInstance(res, userInfo) {
     this.getResponseData = function() {
         return res.result;
     };
+
+    Object.defineProperty(this, 'postData', {
+        get: function() {
+            return copy(userInfo, true);
+        }
+    });
 }

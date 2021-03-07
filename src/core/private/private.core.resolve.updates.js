@@ -8,7 +8,7 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
     var _promise = new _Promise(),
         self = this;
     if (db && tbl && data) {
-        var tbl = this.$getTable(db, tbl),
+        var tbl = this.getTable(db, tbl),
             exisitingRefs = tbl.data.map(function(item) { return item._ref; }),
             types = ["insert", "delete", "update"],
             _task = {},
@@ -54,8 +54,8 @@ _privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
                     self.storageEventHandler.broadcast(eventNamingIndex(db, type), [tbl.TBL_NAME, eventValue, false]);
                 }
             });
-
-            _promise.resolve(copy(_ret, true));
+            var deepCloneRet = copy(_ret, true);
+            _promise.resolve(deepCloneRet);
         }
     } else {
         _promise.reject();

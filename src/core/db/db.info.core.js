@@ -4,9 +4,9 @@
  * generate a new table Object containing the information of each tables
  */
 
-ApplicationInstance.prototype.info = function() {
+function ApplicationInstanceInfo() {
     var tableSet = [],
-        tables = privateApi.$get(this.name, 'tables');
+        tables = privateApi.get(this.name, 'tables');
     if (tables) {
         findInList.call(tables, function(tblName, tbl) {
             tableSet.push(copy({

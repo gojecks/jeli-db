@@ -8,7 +8,7 @@
  */
 function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
     var tblMode = mode || 'read',
-        _recordResolvers = privateApi.$getActiveDB(dbName).$get('recordResolvers');
+        _recordResolvers = privateApi.getActiveDB(dbName).get('recordResolvers');
     this.executeState = [];
     this.tables = tables;
     this.errLog = [];
@@ -80,7 +80,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
             var ignoreSync = privateApi.getNetworkResolver('ignoreSync', dbName);
             if ((!ignoreSync || ($isArray(ignoreSync) && !$inArray(tableName, ignoreSync)) && data.length)) {
                 _recordResolvers
-                    .$set(tableName)
+                    .set(tableName)
                     .data(type, data);
             }
         };
@@ -190,8 +190,12 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                         }
 
                         complete('resolve', res);
-                    }, function() {
-                        complete('reject', res);
+                    }, function(error) {
+                        complete('reject', {
+                            state: ex[0],
+                            message: 'transaction complate but failed to sync to server',
+                            $ajax: error
+                        });
                     });
                 } else {
                     complete(error ? 'reject' : 'resolve', res);

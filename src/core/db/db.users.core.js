@@ -2,9 +2,8 @@
  * Method: _users
  * @return {*} OBJECT
  */
-ApplicationInstance.prototype._users = function() {
-    var _secure = '',
-        db = this;
+function ApplicationInstanceUsers() {
+    var db = this;
     /**
      * 
      * @param {*} uInfo 

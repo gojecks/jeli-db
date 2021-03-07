@@ -12,27 +12,55 @@
      * @return instance
      */
     function jEliDB(name, version) {
-        var defer = new _Promise(),
-            jeliInstance = {},
-            eventRegistry = {
-                onCreate: function(a, next) {
-                    next();
-                },
-                onUpgrade: function(a, next) {
-                    next();
-                }
+        var defer = new _Promise();
+        var jeliInstance = {};
+        var eventRegistry = {
+            onCreate: function(a, next) {
+                next();
             },
-            version = parseInt(version || "1"),
-            _defaultConfig = ({
-                storage: 'memory',
-                isClientMode: false,
-                isLoginRequired: false,
-                schemaPath: null,
-                useFrontendOnlySchema: false,
-                ignoreSync: false,
-                organisation: "_",
-                version: version
-            });
+            onUpgrade: function(a, next) {
+                next();
+            }
+        };
+        var version = parseInt(version || "1");
+        var _defaultConfig = ({
+            storage: 'memory',
+            isClientMode: false,
+            isLoginRequired: false,
+            schemaPath: null,
+            useFrontendOnlySchema: false,
+            ignoreSync: false,
+            organisation: "_",
+            version: version,
+            /**
+             * introduced in version 2.0.0
+             * it is advised to only use this in dev env and not in prod
+             * versions should always be upgraded when schema changes to keep everything in sync
+             */
+            alwaysCheckSchema: false
+        });
+
+        /**
+         * Upgrade and onCreate Registery
+         * @param {*} state 
+         * @param {*} triggerState 
+         */
+        function onEventRegistry(state) {
+            return function(fn) {
+                /**
+                 * register the event
+                 */
+                if ($isFunction(fn)) {
+                    /**
+                     * register the event
+                     */
+                    eventRegistry[state] = fn;
+                }
+
+                return promise;
+            };
+        }
+
         /**
          * 
          * @param {*} config 
@@ -53,30 +81,28 @@
 
             if (name) {
                 //set the current active DB
-                privateApi.$setActiveDB(name)
-                    // set the storage type
+                privateApi.setActiveDB(name)
                     .setStorage(name, config, onStorageOpen);
-
 
                 function onStorageOpen() {
                     /**
                      * set isOpened flag to true
                      * so that debugging is not posible when in production
                      **/
-                    _activeDBApi = privateApi.$getActiveDB(name);
+                    _activeDBApi = privateApi.getActiveDB(name);
                     if (privateApi.isOpen(name)) {
                         if (!config.isLoginRequired) {
                             errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
                         }
                         // increment our instance
                         // usefull when closing DB
-                        _activeDBApi.$incrementInstance();
-                    } else if (!_activeDBApi.$get('instance')) {
+                        _activeDBApi.incrementInstance();
+                    } else if (!_activeDBApi.get('instance')) {
                         //set production flag
                         //register our configuration
                         _activeDBApi
-                            .$set('instance', 1)
-                            .$get('resolvers')
+                            .set('instance', 1)
+                            .get('resolvers')
                             .register(config)
                             .register('inProduction', inProduction)
                             .register('requestMapping', new RequestMapping(false, name))
@@ -86,21 +112,17 @@
                                 }
                             });
                     }
-
-                    var isDeletedDB = _activeDBApi.$get('resolvers')
-                        /**
-                         * initialize the deleteManager
-                         * check if DB exists in the delete storage
-                         * @return {boolean} 
-                         */
-                        .deleteManager(name)
-                        .init()
-                        .isDeletedDataBase();
+                    /**
+                     * initialize the deleteManager
+                     * check if DB exists in the delete storage
+                     * @return {boolean} 
+                     */
+                    var deleteManagerInstance = _activeDBApi.get('resolvers').deleteManager(name).init();
                     /**
                      * Database is deleted
                      * initializeDeleteMode
                      */
-                    if (isDeletedDB) {
+                    if (deleteManagerInstance.isDeletedDataBase()) {
                         initializeDeleteMode();
                         return promise;
                     }
@@ -117,11 +139,9 @@
                     startDB();
                 }
             } else {
-                jeliInstance.message = "There was an error creating your DB,";
-                jeliInstance.message += " either DB name or version number is missing";
+                jeliInstance.message = "There was an error creating your DB, either DB name or version number is missing";
                 jeliInstance.mode = "errorMode";
                 jeliInstance.errorCode = 101;
-
                 //reject the request
                 defer.reject(jeliInstance);
             }
@@ -134,89 +154,18 @@
                  * Only if onUpgrade Function is initilaized
                  * set upgrade mode
                  **/
-                var dbChecker = privateApi.$get(name) || false,
-                    isSameVersion = dbChecker && $isEqual(dbChecker.version, version);
+                var dbChecker = privateApi.get(name) || false;
                 jeliInstance.result = new ApplicationInstance(name, version);
                 var schemaManager = new SchemaManager(jeliInstance.result, version, dbChecker.version || 1, config.schemaPath);
-                /**
-                 * DB Setup
-                 */
-                schemaManager.setupDB = function() {
-                    _activeDBApi
-                        .$get('resourceManager')
-                        .setResource(getDBSetUp(name));
-                    // store the DB version
-                    privateApi
-                        .storageEventHandler
-                        .broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
-                };
+                var serverSchemaLoader = new ServerSchemaLoader(name, version);
 
                 /**
                  * dataBase exists
                  */
                 if (dbChecker && dbChecker.version) {
-                    if (isSameVersion) {
-                        //set exists mode
-                        // validate versions
-                        jeliInstance.message = name + " DB already exists with version no:(" + dbChecker.version;
-                        jeliInstance.message += "), having " + Object.keys(dbChecker.tables).length + " tables";
-                        jeliInstance.type = "existMode";
-                        defer.resolve(jeliInstance);
-                    } else {
-                        //set Message
-                        // DB is already created but versioning is different
-                        jeliInstance.message = name + " DB was successfully upgraded to version(" + version + ")";
-                        jeliInstance.type = "upgradeMode";
-                        // update the version
-                        dbChecker.version = version;
-                        // save the version
-                        _activeDBApi.$get('_storage_').setItem('version', version);
-
-                        /**
-                         * trigger schema upgrade check
-                         */
-                        schemaManager.upgrade(function() {
-                            /**
-                             * trigger our create and update mode
-                             */
-                            eventRegistry.onUpgrade(jeliInstance, function() {
-                                /**
-                                 * resolve our instance
-                                 */
-                                defer.resolve(jeliInstance);
-                            });
-                        });
-                    }
+                    initializeExistMode(dbChecker, serverSchemaLoader, schemaManager);
                 } else {
-                    /**
-                     * create our database instance
-                     */
-                    jeliInstance.type = "createMode";
-                    //set Message
-                    jeliInstance.message = name + " DB was successfully created!!";
-
-                    function next() {
-                        eventRegistry.onCreate(jeliInstance, function() {
-                            /**
-                             * register next method to be triggered
-                             */
-                            defer.resolve(jeliInstance);
-                        });
-                    }
-
-                    /**
-                     * start schema loading
-                     * trigger our create and update mode
-                     */
-                    if (config.useFrontendOnlySchema) {
-                        schemaManager
-                            .loadFromServer(name, version)
-                            .then(next, function(response) {
-                                defer.reject(response);
-                            });
-                    } else {
-                        schemaManager.create(next);
-                    }
+                    initializeCreateNewMode(serverSchemaLoader, schemaManager);
                 }
             }
 
@@ -231,6 +180,98 @@
             }
 
             /**
+             * 
+             * @param {*} dbChecker 
+             * @param {*} serverSchemaLoader 
+             * @param {*} schemaManager 
+             */
+            function initializeExistMode(dbChecker, serverSchemaLoader, schemaManager) {
+                if (dbChecker && $isEqual(dbChecker.version, version)) {
+                    //set exists mode
+                    // validate versions
+                    jeliInstance.message = name + " DB already exists with version no:(" + dbChecker.version;
+                    jeliInstance.message += "), having " + Object.keys(dbChecker.tables).length + " tables";
+                    jeliInstance.type = "existMode";
+
+                    /**
+                     * check for updated schema from FO service
+                     */
+                    if (config.useFrontendOnlySchema && config.alwaysCheckSchema) {
+                        serverSchemaLoader.get()
+                            .then(function() {
+                                defer.resolve(jeliInstance);
+                            });
+                    } else {
+                        defer.resolve(jeliInstance);
+                    }
+                } else {
+                    //set Message
+                    // DB is already created but versioning is different
+                    jeliInstance.message = name + " DB was successfully upgraded to version(" + version + ")";
+                    jeliInstance.type = "upgradeMode";
+                    // update the version
+                    dbChecker.version = version;
+                    // save the version
+                    _activeDBApi.get('_storage_').setItem('version', version);
+
+                    /**
+                     * trigger schema upgrade check
+                     */
+                    schemaManager.upgrade(function() {
+                        /**
+                         * trigger our create and update mode
+                         */
+                        eventRegistry.onUpgrade(jeliInstance, function() {
+                            /**
+                             * resolve our instance
+                             */
+                            defer.resolve(jeliInstance);
+                        });
+                    });
+                }
+            }
+
+            /**
+             * 
+             * @param {*} serverSchemaLoader 
+             * @param {*} schemaManager 
+             */
+            function initializeCreateNewMode(serverSchemaLoader, schemaManager) {
+                /**
+                 * create our database instance
+                 */
+                jeliInstance.type = "createMode";
+                //set Message
+                jeliInstance.message = name + " DB was successfully created!!";
+
+                function next() {
+                    /**
+                     * register next method to be triggered
+                     */
+                    eventRegistry.onCreate(jeliInstance, function() {
+                        defer.resolve(jeliInstance);
+                    });
+                }
+
+                /**
+                 * start schema loading
+                 * trigger our create and update mode
+                 */
+                if (config.useFrontendOnlySchema) {
+                    serverSchemaLoader.get()
+                        .then(next, function(response) {
+                            defer.reject(response);
+                        });
+                } else {
+                    schemaManager.create(next, function() {
+                        _activeDBApi.get('resourceManager').setResource(getDBSetUp(name));
+                        // store the DB version
+                        privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
+                    });
+                }
+            }
+
+            /**
              * @method startLoginMode
              * During this phase limited method are availabe to the Database instance
              * methods: _users(), close(), api()
@@ -241,27 +282,6 @@
                 jeliInstance.type = "loginMode";
                 jeliInstance.message = "DB Authentication Mode!!";
                 defer.resolve(jeliInstance);
-            }
-
-            /**
-             * Upgrade and onCreate Registery
-             * @param {*} state 
-             * @param {*} triggerState 
-             */
-            function onEventRegistry(state) {
-                return function(fn) {
-                    /**
-                     * register the event
-                     */
-                    if ($isFunction(fn)) {
-                        /**
-                         * register the event
-                         */
-                        eventRegistry[state] = fn;
-                    }
-
-                    return promise;
-                };
             }
 
             //set upgradeneed to the promise Fn

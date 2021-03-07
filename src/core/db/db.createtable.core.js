@@ -4,11 +4,11 @@
  * @param {*} columns 
  * @param {*} additionalConfig
  */
-ApplicationInstance.prototype.createTbl = function(name, columns, additionalConfig) {
+function ApplicationInstanceCreateTable(name, columns, additionalConfig) {
     var defer = new _Promise(),
         result = { state: "create" },
-        _opendedDBInstance = privateApi.$getActiveDB(this.name);
-    if (name && _opendedDBInstance && !_opendedDBInstance.$get('$tableExist')(name)) {
+        _opendedDBInstance = privateApi.getActiveDB(this.name);
+    if (name && _opendedDBInstance && !_opendedDBInstance.get('$tableExist')(name)) {
         //pardon wrong columns format
         if ($isObject(columns)) {
             var nColumn = [];
@@ -39,7 +39,7 @@ ApplicationInstance.prototype.createTbl = function(name, columns, additionalConf
         /**
          * add table to resource
          */
-        _opendedDBInstance.$get('resourceManager').addTableToResource(name, {
+        _opendedDBInstance.get('resourceManager').addTableToResource(name, {
             _hash: definition._hash,
             lastModified: definition.lastModified,
             created: definition.created
@@ -51,7 +51,7 @@ ApplicationInstance.prototype.createTbl = function(name, columns, additionalConf
         privateApi.$taskPerformer.updateDB(DB_NAME, name);
 
         //set the result
-        result.result = new jEliDBTBL(privateApi.$getTable(DB_NAME, name));
+        result.result = new jEliDBTBL(privateApi.getTable(DB_NAME, name));
         result.result.message = 'Table(' + name + ') created successfully';
 
         defer.resolve(result);

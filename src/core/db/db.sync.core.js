@@ -1,8 +1,8 @@
 /**
  * Sync ApplicationInstance METHOD
  */
-ApplicationInstance.prototype.synchronize = function() {
-    if (privateApi.openedDB.$hasOwnProperty(this.name)) {
+function ApplicationInstanceCore() {
+    if (privateApi.openedDB.has(this.name)) {
         return new jEliDBSynchronization(this.name, this.version);
     }
 

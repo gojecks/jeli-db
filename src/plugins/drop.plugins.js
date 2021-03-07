@@ -1,5 +1,5 @@
 jEliDB.JDB_PLUGINS.jQl('drop', {
-    help: ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ]'],
+    help: ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ] -localOnly'],
     requiresParam: true,
     fn: dropPluginFn
 });
@@ -17,9 +17,7 @@ function dropPluginFn(query, handler) {
 
         if (query.length > 2) {
             var flag = query[3] || false;
-            switch (query[1].toLowerCase()) {
-                case ("table"):
-                case ('tbl'):
+            switch (query[1].charAt(0)) {
                 case ("t"):
                     db
                         .table(query[2])
@@ -34,11 +32,8 @@ function dropPluginFn(query, handler) {
                         })
                         .onError(handler.onError)
                     break;
-                case ('database'):
-                case ('db'):
                 case ('d'):
-                    db
-                        .drop(flag, query[2])
+                    db.drop(flag, query[2], query[4])
                         .onSuccess(function(state) {
                             state.type = query[1];
                             if ($isEqual(state.status, 'success')) {
