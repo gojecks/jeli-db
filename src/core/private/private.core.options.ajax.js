@@ -6,10 +6,10 @@
  * requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
  */
 _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
-    var options = {},
-        cToken = $cookie('X-CSRF-TOKEN'),
-        base64 = new Base64Fn(),
-        networkResolver = this.getActiveDB(dbName).get('resolvers').networkResolver;
+    var options = {};
+    var cToken = $cookie('X-CSRF-TOKEN');
+    var base64 = new Base64Fn();
+    var networkResolver = this.getActiveDB(dbName).get('resolvers').networkResolver;
     options.url = networkResolver.serviceHost || "";
     options.__appName__ = dbName;
     options.data = {};
@@ -64,7 +64,8 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
  * @param {*} options 
  */
 _privateApi.prototype.$http = function() {
-    var $ajax = AjaxSetup(null);
+    var interceptor = new JDBAjaxInterceptor();
+    var $ajax = AjaxSetup(interceptor);
     return function(options) {
         var userDefinedAjax = this.getNetworkResolver('$ajax', options.__appName__);
         if (userDefinedAjax) {
@@ -74,3 +75,29 @@ _privateApi.prototype.$http = function() {
         return $ajax(options);
     };
 }();
+
+/**
+ * @internal
+ */
+var _globalInterceptors = new Map()
+
+function JDBAjaxInterceptor() {
+    this.resolveInterceptor = function(type, options) {
+        if (_globalInterceptors.has(type)) {
+            _globalInterceptors.get(type).forEach(function(interceptor) {
+                interceptor(options);
+            });
+        }
+    };
+}
+
+/**
+ * register global AJAX interceptor to JDB plugins
+ */
+jEliDB.registerGlobalInterceptor = function(type, fn) {
+    if (!_globalInterceptors.has(type)) {
+        _globalInterceptors.set(type, []);
+    }
+
+    _globalInterceptors.get(type).push(fn);
+};
