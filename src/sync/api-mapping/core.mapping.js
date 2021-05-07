@@ -1,37 +1,42 @@
 /**
  * register static method to Core
  */
-jEliDB.API = new(function() {
-    var coreApiList = [];
-    this.set = function(apiList) {
-        if ($isArray(apiList)) {
-            coreApiList.push.apply(coreApiList, apiList);
-        } else if ($isObject(apiList)) {
-            coreApiList.push(apiList);
-        }
-    };
 
+function ApiMapper() {
+    this._coreApiList = [];
     this.get = function(url) {
         if (url) {
             return this.find(url);
         }
 
-        return coreApiList;
+        return this._coreApiList;
     };
+}
 
-    this.remove = function(url) {
-        coreApiList = coreApiList.filter(function(api) {
-            return !$isEqual(api.URL, url);
-        });
-    };
+ApiMapper.prototype.set = function(apiList) {
+    if ($isArray(apiList)) {
+        this._coreApiList.push.apply(this._coreApiList, apiList);
+    } else if ($isObject(apiList)) {
+        this._coreApiList.push(apiList);
+    }
+};
+ApiMapper.prototype.remove = function(url) {
+    this._coreApiList = this._coreApiList.filter(function(api) {
+        return !$isEqual(api.URL, url);
+    });
+};
 
-    this.clear = function() {
-        coreApiList.length = 0;
-    };
+ApiMapper.prototype.clear = function() {
+    this._coreApiList.length = 0;
+};
 
-    this.find = function(key, data) {
-        return (data || coreApiList).filter(function(api) {
-            return $isEqual(api.URL, key) || $isEqual(api.ref && api.ref, key);
-        })[0]
-    };
-})();
+ApiMapper.prototype.find = function(key, data) {
+    return (data || this._coreApiList).filter(function(api) {
+        return $isEqual(api.URL, key) || $isEqual(api.ref && api.ref, key);
+    })[0]
+};
+
+/**
+ * register instance of ApiMapper
+ */
+jEliDB.API = (new ApiMapper);

@@ -4,22 +4,14 @@
  * @param {*} appName 
  */
 function RequestMapping(disableAdminApi, appName) {
-    var CUSTOM_API = [],
-        isResolvedCustom = false;
-    /**
-     * 
-     * @param {*} stateName 
-     */
-    function getPublicApi(url) {
-        return (jEliDB.API.find(url) || jEliDB.API.find(url, CUSTOM_API));
-    }
-
+    var dbCustomApis = [];
+    var isResolvedCustom = false;
     /**
      * 
      * @param {*} stateName 
      */
     this.get = function(url) {
-        return getPublicApi(url);
+        return (jEliDB.API.find(url) || jEliDB.API.find(url, dbCustomApis));;
     };
 
     /**
@@ -30,40 +22,81 @@ function RequestMapping(disableAdminApi, appName) {
     this.set = function(config) {
         if (config) {
             if ($isArray(config)) {
-                CUSTOM_API = CUSTOM_API.concat(config);
-            } else if (!CUSTOM_API.some(function(api) { return api.URL == config.URL; })) {
-                CUSTOM_API.push(config);
+                dbCustomApis = dbCustomApis.concat(config);
+            } else if (!dbCustomApis.some(function(api) { return api.URL == config.URL; })) {
+                dbCustomApis.push(config);
             }
         }
 
         return this;
     };
 
-    this.getAllClientApis = function() {
-        return copy(jEliDB.API.get(), true);
-    };
-
-    this.getAllCustomApis = function() {
-        return copy(CUSTOM_API, true);
-    };
-
-    /**
-     * load CUSTOM_APIS
-     * loaded APIS is only for dev purpose
-     */
-    this.resolveCustomApis = function() {
-        if (disableAdminApi || isResolvedCustom) {
-            return this;
+    Object.defineProperties(this, {
+        disableAdminApi: {
+            get: function() {
+                return disableAdminApi;
+            }
+        },
+        appName: {
+            get: function() {
+                return appName;
+            }
+        },
+        isResolvedCustom: {
+            get: function() {
+                isResolvedCustom = false;
+            },
+            set: function() {
+                if (isResolvedCustom) return;
+                isResolvedCustom = true;
+            }
+        },
+        dbCustomApis: {
+            get: function() {
+                return dbCustomApis;
+            },
+            set: function(value) {
+                dbCustomApis = extend(true, dbCustomApis, value);
+            }
         }
-
-        isResolvedCustom = true;
-        privateApi.$http(privateApi.buildOptions(appName, '', '/application/api'))
-            .then(function(res) {
-                if ($isArray(res)) {
-                    CUSTOM_API = extend(true, CUSTOM_API, res);
-                }
-            });
-
-        return this;
-    };
+    });
 }
+
+RequestMapping.prototype.getAllClientApis = function() {
+    return copy(jEliDB.API.get(), true);
+};
+
+RequestMapping.prototype.getAllCustomApis = function() {
+    return copy(this.dbCustomApis, true);
+};
+
+/**
+ * load dbCustomApisS
+ * loaded APIS is only for dev purpose
+ */
+RequestMapping.prototype.resolveCustomApis = function() {
+    if (this.disableAdminApi || this.isResolvedCustom) {
+        return this;
+    }
+
+    this.isResolvedCustom = true;
+    var self = this;
+    privateApi.$http(privateApi.buildOptions(this.appName, '', '/application/api'))
+        .then(function(res) {
+            if ($isArray(res)) {
+                self.dbCustomApis = res;
+            }
+        });
+
+    return this;
+};
+
+/**
+ * remove api from list
+ * @param {*} obj 
+ */
+RequestMapping.prototype.removeApi = function(obj) {
+    self.dbCustomApis = self.dbCustomApis.filter(function(api) {
+        return (obj !== api);
+    });
+};

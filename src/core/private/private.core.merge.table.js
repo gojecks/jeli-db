@@ -4,7 +4,7 @@
  * @param {*} records 
  * @param {*} tbl 
  */
-_privateApi.prototype.mergeTable = function(dbName, records, tbl) {
+CoreInstance.prototype.mergeTable = function(dbName, records, tbl) {
     var _promise = new _Promise();
     if ($isObject(records) && tbl) {
         var $dDB = this.get(dbName);

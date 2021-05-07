@@ -5,20 +5,12 @@
  * @param {*} additionalConfig
  */
 function ApplicationInstanceCreateTable(name, columns, additionalConfig) {
-    var defer = new _Promise(),
-        result = { state: "create" },
-        _opendedDBInstance = privateApi.getActiveDB(this.name);
+    var defer = new _Promise();
+    var result = { state: "create" };
+    var _opendedDBInstance = privateApi.getActiveDB(this.name);
     if (name && _opendedDBInstance && !_opendedDBInstance.get('$tableExist')(name)) {
         //pardon wrong columns format
-        if ($isObject(columns)) {
-            var nColumn = [];
-            nColumn.push(columns);
-
-            columns = nColumn;
-            //empty column
-            nColumn = null;
-        }
-
+        checkColumns();
         var DB_NAME = this.name,
             curTime = +new Date,
             definition = extend({
@@ -51,7 +43,7 @@ function ApplicationInstanceCreateTable(name, columns, additionalConfig) {
         privateApi.$taskPerformer.updateDB(DB_NAME, name);
 
         //set the result
-        result.result = new jEliDBTBL(privateApi.getTable(DB_NAME, name));
+        result.result = TableInstance.factory(DB_NAME, name);
         result.result.message = 'Table(' + name + ') created successfully';
 
         defer.resolve(result);
@@ -60,6 +52,18 @@ function ApplicationInstanceCreateTable(name, columns, additionalConfig) {
         result.errorCode = 402;
         //reject the process
         defer.reject(result);
+    }
+
+
+    function checkColumns() {
+        if ($isObject(columns)) {
+            var nColumn = [];
+            nColumn.push(columns);
+
+            columns = nColumn;
+            //empty column
+            nColumn = null;
+        }
     }
 
     return new DBPromise(defer);

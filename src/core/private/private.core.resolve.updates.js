@@ -4,7 +4,7 @@
  * @param {*} tbl 
  * @param {*} data 
  */
-_privateApi.prototype.$resolveUpdate = function(db, tbl, data) {
+CoreInstance.prototype.$resolveUpdate = function(db, tbl, data) {
     var _promise = new _Promise(),
         self = this;
     if (db && tbl && data) {

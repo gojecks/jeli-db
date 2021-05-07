@@ -3,7 +3,7 @@
  * @param {*} db 
  * @param {*} forceDelete 
  */
-_privateApi.prototype.removeDB = function(db, forceDelete) {
+CoreInstance.prototype.removeDB = function(db, forceDelete) {
     /**
      * check if database exists before proceeding
      */

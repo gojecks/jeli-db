@@ -1,139 +1,21 @@
 /**
  * JELIDB INTERNAL CLASS
  */
-function _privateApi() {
+function CoreInstance() {
     //setup our DBName
     this.accessStorage = 'jEliAccessToken';
     this.stack = [];
     this.$taskPerformer = _privateTaskPerfomer();
     this.$activeDB = null;
     this.openedDB = new openedDBHandler();
+    this.storageEventHandler = new $EventEmitters();
     this.storeMapping = {
         delRecordName: "_d_",
         resourceName: "_r_",
         pendingSync: "_l_"
     };
 
-    /**
-     * 
-     * @param {*} name 
-     */
-    this.setActiveDB = function(name) {
-        // open the DB
-        if (!this.openedDB.has(name)) {
-            this.openedDB.new(name, new openedDBHandler());
-            this.$activeDB = name;
-        } else if (!$isEqual(this.$activeDB, name)) {
-            this.$activeDB = name;
-        }
-
-        return this;
-    };
-
-    /**
-     * 
-     * @param {*} name 
-     * @param {*} data 
-     */
-    this.set = function(name, data) {
-        // this.openedDB.get(name).set('_db_', data);
-        this.openedDB.get(name).get('_storage_').setItem(name, data);
-        return this;
-    };
-
-    /**
-     * 
-     * @param {*} name 
-     * @param {*} properties 
-     */
-    this.get = function(name, properties) {
-        if (!this.openedDB.has(name)) {
-            return null;
-        }
-
-        var _db = this.openedDB.get(name).get('_storage_').getItem();
-        if (properties) {
-            if ($isArray(properties)) {
-                var _ret = {};
-                properties.forEach(function(key) {
-                    _ret[key] = _db[key];
-                });
-
-                return _ret;
-            }
-
-            return _db[properties];
-        }
-
-        return _db;
-    };
-
-    /**
-     * 
-     * @param {*} dbName 
-     * @param {*} tableName 
-     */
-    this.getTable = function(dbName, tableName, extendable) {
-        var db = this.openedDB.get(dbName).get('_storage_'),
-            ret = null;
-
-        if (!db.isExists(tableName)) {
-            return ret;
-        }
-
-        if (extendable) {
-            ret = extend(true, db.getItem(tableName));
-        } else {
-            ret = Object.create(db.getItem(tableName));
-        }
-        ret.data = db.getItem(tableName + ":data");
-        return ret;
-    };
-
-    /**
-     * 
-     * @param {*} dbName 
-     * @param {*} tableName 
-     * @param {*} option 
-     */
-    this.getTableOptions = function(dbName, tableName, option) {
-        return (this.getTable(dbName, tableName) || {})[option];
-    };
-
-    /**
-     * 
-     * @param {*} data 
-     * @param {*} ref 
-     */
-    this.getDataByRef = function(data, ref) {
-        return [].filter.call(data, function(item) {
-            return item._ref === ref;
-        })[0];
-    };
-
-    this.storageEventHandler = new $EventEmitters();
-
-    this.generateStruct = function(cache) {
-        var ret = { tables: {}, version: cache.version };
-        if (cache.hasOwnProperty(this.storeMapping.resourceName)) {
-            Object.keys(cache[this.storeMapping.resourceName].resourceManager).forEach(function(tbl) {
-                if (cache.hasOwnProperty(tbl)) {
-                    ret.tables[tbl] = Object.create(cache[tbl]);
-                    Object.defineProperty(ret.tables[tbl], 'data', {
-                        get: function() {
-                            return cache[this.TBL_NAME + ":data"]
-                        },
-                        set: function(value) {
-                            cache[this.TBL_NAME + ":data"] = value;
-                        }
-                    });
-                }
-            });
-        }
-        return ret;
-    }
-
-    //_privateApi initializer
+    //CoreInstance initializer
     defineProperty(this.stack, "push", function() {
         // assign/raise your event
         fireEvent.apply(null, arguments);
@@ -143,9 +25,126 @@ function _privateApi() {
 
 /**
  * 
+ * @param {*} name 
+ */
+CoreInstance.prototype.setActiveDB = function(name) {
+    // open the DB
+    if (!this.openedDB.has(name)) {
+        this.openedDB.new(name, new openedDBHandler());
+        this.$activeDB = name;
+    } else if (!$isEqual(this.$activeDB, name)) {
+        this.$activeDB = name;
+    }
+
+    return this;
+};
+
+/**
+ * 
+ * @param {*} name 
+ * @param {*} data 
+ */
+CoreInstance.prototype.set = function(name, data) {
+    // this.openedDB.get(name).set('_db_', data);
+    this.openedDB.get(name).get('_storage_').setItem(name, data);
+    return this;
+};
+
+/**
+ * 
+ * @param {*} name 
+ * @param {*} properties 
+ */
+CoreInstance.prototype.get = function(name, properties) {
+    if (!this.openedDB.has(name)) {
+        return null;
+    }
+
+    var _db = this.openedDB.get(name).get('_storage_').getItem();
+    if (properties) {
+        if ($isArray(properties)) {
+            var _ret = {};
+            properties.forEach(function(key) {
+                _ret[key] = _db[key];
+            });
+
+            return _ret;
+        }
+
+        return _db[properties];
+    }
+
+    return _db;
+};
+
+/**
+ * 
+ * @param {*} dbName 
+ * @param {*} tableName 
+ */
+CoreInstance.prototype.getTable = function(dbName, tableName, extendable) {
+    var db = this.openedDB.get(dbName).get('_storage_'),
+        ret = null;
+
+    if (!db.isExists(tableName)) {
+        return ret;
+    }
+
+    if (extendable) {
+        ret = extend(true, db.getItem(tableName));
+    } else {
+        ret = Object.create(db.getItem(tableName));
+    }
+    ret.data = db.getItem(tableName + ":data");
+    return ret;
+};
+
+/**
+ * 
+ * @param {*} dbName 
+ * @param {*} tableName 
+ * @param {*} option 
+ */
+CoreInstance.prototype.getTableOptions = function(dbName, tableName, option) {
+    return (this.getTable(dbName, tableName) || {})[option];
+};
+
+/**
+ * 
+ * @param {*} data 
+ * @param {*} ref 
+ */
+CoreInstance.prototype.getDataByRef = function(data, ref) {
+    return [].filter.call(data, function(item) {
+        return item._ref === ref;
+    })[0];
+};
+
+CoreInstance.prototype.generateStruct = function(cache) {
+    var ret = { tables: {}, version: cache.version };
+    if (cache.hasOwnProperty(this.storeMapping.resourceName)) {
+        Object.keys(cache[this.storeMapping.resourceName].resourceManager).forEach(function(tbl) {
+            if (cache.hasOwnProperty(tbl)) {
+                ret.tables[tbl] = Object.create(cache[tbl]);
+                Object.defineProperty(ret.tables[tbl], 'data', {
+                    get: function() {
+                        return cache[this.TBL_NAME + ":data"]
+                    },
+                    set: function(value) {
+                        cache[this.TBL_NAME + ":data"] = value;
+                    }
+                });
+            }
+        });
+    }
+    return ret;
+}
+
+/**
+ * 
  * @param {*} db 
  */
-_privateApi.prototype.getDbTablesNames = function(db) {
+CoreInstance.prototype.getDbTablesNames = function(db) {
     return Object.keys(this.get(db || this.$activeDB, 'tables'));
 };
 
@@ -154,7 +153,7 @@ _privateApi.prototype.getDbTablesNames = function(db) {
  * @param {*} oldName 
  * @param {*} newName 
  */
-_privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
+CoreInstance.prototype.renameDataBase = function(oldName, newName, cb) {
     var oldInstance = this.getActiveDB(oldName),
         self = this;
     oldInstance.get('_storage_').rename(oldName, newName, function() {
@@ -168,7 +167,7 @@ _privateApi.prototype.renameDataBase = function(oldName, newName, cb) {
  * @param {*} db 
  * @param {*} tbl 
  */
-_privateApi.prototype.getTableCheckSum = function(db, tbl) {
+CoreInstance.prototype.getTableCheckSum = function(db, tbl) {
     var table = this.getTable(db, tbl);
     return ({
         current: table._hash,
@@ -180,7 +179,7 @@ _privateApi.prototype.getTableCheckSum = function(db, tbl) {
  * 
  * @param {*} name 
  */
-_privateApi.prototype.isOpen = function(name) {
+CoreInstance.prototype.isOpen = function(name) {
     var _openedDB = this.openedDB.get(name);
     if (_openedDB.get('open')) {
         return true
@@ -210,7 +209,7 @@ _privateApi.prototype.isOpen = function(name) {
  * @param {*} name 
  * @param {*} removeFromStorage 
  */
-_privateApi.prototype.closeDB = function(name, removeFromStorage) {
+CoreInstance.prototype.closeDB = function(name, removeFromStorage) {
     var openedDb = this.openedDB.get(name);
     if (!openedDb) {
         return;
@@ -238,7 +237,7 @@ _privateApi.prototype.closeDB = function(name, removeFromStorage) {
  * 
  * @param {*} req 
  */
-_privateApi.prototype.getActiveDB = function(requestDB) {
+CoreInstance.prototype.getActiveDB = function(requestDB) {
     return this.openedDB.get(requestDB || this.$activeDB);
 };
 
@@ -247,8 +246,8 @@ _privateApi.prototype.getActiveDB = function(requestDB) {
  * @param {*} name 
  * @param {*} db 
  */
-_privateApi.prototype.getNetworkResolver = function(prop, db) {
+CoreInstance.prototype.getNetworkResolver = function(prop, db) {
     return this.getActiveDB(db).get('resolvers').getResolvers(prop) || '';
 };
 // create a new privateApi Instance
-var privateApi = new _privateApi();
+var privateApi = new CoreInstance();

@@ -3,7 +3,7 @@
  * @param {*} config 
  * @param {*} callback 
  */
-_privateApi.prototype.setStorage = function(dbName, config, callback) {
+CoreInstance.prototype.setStorage = function(dbName, config, callback) {
     if (this.openedDB.get(dbName).has('_storage_')) {
         callback();
         return;

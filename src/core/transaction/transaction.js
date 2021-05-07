@@ -6,9 +6,13 @@
  * @param {*} tables 
  * @param {*} dbName 
  */
-function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
-    var tblMode = mode || 'read',
-        _recordResolvers = privateApi.getActiveDB(dbName).get('recordResolvers');
+function TableTransaction(tableInfo, mode, isMultipleTable, tables, dbName) {
+    //Check if Table Information is available from the DB
+    if (!$isObject(tableInfo)) {
+        errorBuilder('Unable to perform query at the moment, please try again later');
+    }
+    var tblMode = mode || 'read';
+    var _recordResolvers = privateApi.getActiveDB(dbName).get('recordResolvers');
     this.executeState = [];
     this.tables = tables;
     this.errLog = [];
@@ -64,11 +68,6 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
         }, []);
     };
 
-    //Check if Table Information is available from the DB
-    if (!$isObject(tableInfo)) {
-        errorBuilder('Unable to perform query at the moment, please try again later');
-    }
-
     //Check the required Mode
     if ($inArray('write', tblMode)) {
         this.dataProcessing = function(process) {
@@ -79,9 +78,7 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
         this.updateOfflineCache = function(type, data, tableName) {
             var ignoreSync = privateApi.getNetworkResolver('ignoreSync', dbName);
             if ((!ignoreSync || ($isArray(ignoreSync) && !$inArray(tableName, ignoreSync)) && data.length)) {
-                _recordResolvers
-                    .set(tableName)
-                    .data(type, data);
+                _recordResolvers.set(tableName).data(type, data);
             }
         };
 
@@ -89,17 +86,15 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
         this.insert = transactionInsert;
         this.insertReplace = TransactionInsertReplace;
         this.update = transactionUpdate;
+        this['delete'] = transactionDelete;
         this._autoSync = liveProcessor(dbName);
 
         //@Function lastInsertId
         //@parameter null
         //@return INTERGER
-
         this.lastInsertId = function() {
             return tableInfo.lastInsertId;
         };
-
-        this['delete'] = transactionDelete;
     }
 
     if ($inArray('read', tblMode)) {
@@ -109,15 +104,12 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
             this.condition = new $query(tableInfo.data);
         }
 
-
         this.select = transactionSelect;
         this.getColumn = transactionSelectColumn;
-
         /**
          * Quick Search Language
          */
         this.qsl = new generateQuickSearchApi(this);
-
     }
 
     function generateQuickSearchApi(_super) {
@@ -147,17 +139,13 @@ function jTblQuery(tableInfo, mode, isMultipleTable, tables, dbName) {
                  */
                 query[columnName].value = value;
 
-                return _super.select('*', {
-                        where: query
-                    })
-                    .execute();
-
+                return _super.select('*', { where: query }).execute();
             }
         }
     }
 }
 
-jTblQuery.prototype.execute = function(disableOfflineCache) {
+TableTransaction.prototype.execute = function(disableOfflineCache) {
     if (this.executeState.length) {
         var defer = new _Promise(),
             error = !1,
@@ -218,7 +206,6 @@ jTblQuery.prototype.execute = function(disableOfflineCache) {
                 $self.cleanup();
             }
         }
-
 
         return new DBPromise(defer);
     }

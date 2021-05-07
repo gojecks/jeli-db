@@ -5,7 +5,7 @@
  * @param {*} requestState 
  * requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
  */
-_privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
+CoreInstance.prototype.buildOptions = function(dbName, tbl, requestState) {
     var options = {};
     var cToken = $cookie('X-CSRF-TOKEN');
     var base64 = new Base64Fn();
@@ -38,11 +38,15 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
         }
 
         //initialize our network interceptor
-        (networkResolver.interceptor || function() {})(options, requestState);
+        if (networkResolver.interceptor) {
+            networkResolver.interceptor(options, requestState);
+        }
+
         options.data._h = window.location.host;
         options.data._r = base64.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce);
         options.type = requestState.METHOD;
         options.cache = requestState.CACHE || false;
+        options.requestState = requestState;
 
         //options.getRequestHeader
         options.getResponseHeader = function(fn) {
@@ -63,7 +67,7 @@ _privateApi.prototype.buildOptions = function(dbName, tbl, requestState) {
  * 
  * @param {*} options 
  */
-_privateApi.prototype.$http = function() {
+CoreInstance.prototype.$http = function() {
     var interceptor = new JDBAjaxInterceptor();
     var $ajax = AjaxSetup(interceptor);
     return function(options) {
@@ -88,6 +92,8 @@ function JDBAjaxInterceptor() {
                 interceptor(options);
             });
         }
+
+        return options;
     };
 }
 
@@ -100,4 +106,6 @@ jEliDB.registerGlobalInterceptor = function(type, fn) {
     }
 
     _globalInterceptors.get(type).push(fn);
+
+    return this;
 };

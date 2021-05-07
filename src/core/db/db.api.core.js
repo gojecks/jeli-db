@@ -25,7 +25,6 @@ function ApplicationInstanceApi(URL, postData, tbl) {
         $defer.resolve(result);
     } else {
         // set the postData
-        postData = postData;
         if (postData) {
             if (options.type && $isEqual(options.type.toLowerCase(), 'get')) {
                 options.data.query = postData;

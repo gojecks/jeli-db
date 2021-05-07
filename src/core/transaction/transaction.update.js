@@ -3,6 +3,8 @@
  * @param {*} updateData 
  * @param {*} query 
  * @param {*} tableName 
+ * @param {*} replace 
+ * @returns self
  */
 function transactionUpdate(updateData, query, tableName, replace) {
     var $self = this,

@@ -1,6 +1,7 @@
 /**
- * Batch Transaction
  * perform many transaction in one command
+ * @param {*} transactions 
+ * @returns 
  */
 function ApplicationInstanceBatchTransaction(transactions) {
     var defer = new _Promise(),

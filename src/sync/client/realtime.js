@@ -1,199 +1,194 @@
 /**
  * 
- * @param {*} type 
- * @param {*} dbName 
- * @param {*} tbl 
- * @param {*}  
+ * @param {*} options 
  */
-function ApplicationRealtime(type, dbName, tbl, $hash) {
-    var timerId,
-        _this = this;
+function RealtimeAbstract(options) {
+    this.options = {
+        url: "/database/updates",
+        trial: 1,
+        timer: 1000,
+        withRef: false,
+        timerId: null,
+        payload: null,
+        socketTotalRedial: 3,
+        socketPingTime: 30000, // 30 seconds
+        socketReconnectTime: 3000, // 3 seconds,
+        socketSubProtocols: ['json']
+    };
     /**
      * private properties
      */
-    this.callback = function() {};
-    this.timer = 1000;
-    this.payload = null;
     this.types = ["insert", "update", "delete"];
     this.destroyed = false;
-    this.withRef = false;
-    this.trial = 1;
-    this.url = "/database/updates";
+    this.callback = function() {};
+    this.events = new RealtimeEvent();
+    var onupdateEvent = new OnupdateEventHandler(options.tableName, this.types);
 
     Object.defineProperties(this, {
         ref: {
             get: function() {
-                return type;
+                return options.type;
             }
         },
         dbName: {
             get: function() {
-                return dbName;
+                return options.dbName;
             }
         },
         tbl: {
             get: function() {
-                return tbl;
+                return options.tableName;
+            }
+        },
+        onupdateEvent: {
+            get: function() {
+                return onupdateEvent;
             }
         }
     });
-
-    var onupdateEvent = new OnupdateEventHandler(tbl, this.types);
-
-    function getSleepTimer() {
-        return (_this.timer * _this.trial++);
-    }
-
-    /**
-     * 
-     * @param {*} report 
-     */
-    function startChunkState(report) {
-        var totalRecordsToSync = report.total;
-
-        function chunkRequest() {
-            pollRequest(_this.generatePayload(report.syncId))
-                .then(function(res) {
-                    totalRecordsToSync -= report.total_per_request;
-                    updatePromiserHandler(res);
-                    _this.trial = 0;
-                    if (totalRecordsToSync > 0) {
-                        chunkRequest();
-                    } else {
-                        polling(_this.timer);
-                    }
-                }, function() {
-                    setTimeout(chunkRequest, getSleepTimer());
-                });
-        }
-
-        chunkRequest();
-    }
-
-    function updatePromiserHandler(res) {
-        /**
-         * 
-         * @param {*} _tbl 
-         */
-        function resolvePromise(ctbl) {
-            var _data = res[ctbl];
-            privateApi
-                .$resolveUpdate(dbName, ctbl, _data, _this.withRef)
-                .then(function(cdata) {
-                    privateApi
-                        .$taskPerformer
-                        .updateDB(dbName, ctbl, function(table) {
-                            if (_data.checksum) {
-                                table._previousHash = _data.previousHash;
-                                table._hash = _data.checksum;
-                            }
-                        });
-
-                    onupdateEvent.setData(ctbl, cdata);
-                });
-        }
-
-        // get response keys and evaluate the response
-        Object.keys(res).forEach(resolvePromise);
-        _this.callback(onupdateEvent);
-    }
-
-    function pollUpdate() {
-        var timer = _this.timer;
-        /**
-         * 
-         * @param {*} res 
-         */
-        function processResponse(res) {
-            if ($isEqual(res.type, 'report')) {
-                return startChunkState(res);
-            } else if ($isEqual(res.type, 'message')) {
-                return errorPolling();
-            }
-
-            if (res.destroy) {
-                destroyed = true;
-                return;
-            }
-
-            // update promise handler
-            _this.trial = 1;
-            updatePromiserHandler(res);
-            polling(timer);
-        }
-
-        /**
-         * error polling
-         */
-        function errorPolling() {
-            return polling(getSleepTimer());
-        }
-
-        /**
-         * perform request
-         */
-        pollRequest(_this.generatePayload())
-            .then(processResponse, function(res) {
-                if (!$isEqual(res.statusCode, 401)) {
-                    errorPolling();
-                }
-            });
-    }
-
-    /**
-     * 
-     * @param {*} _reqOptions 
-     */
-    function pollRequest(_reqOptions) {
-        return privateApi.$http(_reqOptions);
-    }
-
-    /**
-     * 
-     * @param {*} start 
-     */
-    function polling(start) {
-        if (_this.destroyed) { return; }
-        timerId = setTimeout(pollUpdate, start);
-    }
-
-    this.start = function() {
-        if (privateApi.getNetworkResolver('serviceHost', dbName)) {
-            polling();
-        }
-    };
-
-    this.disconnect = function() {
-        this.destroyed = true;
-        clearTimeout(timerId);
-    };
-
-    this.once = function() {
-        this.start();
-        this.destroyed = true;
-    };
 }
+
+/**
+ * 
+ * @param {*} context 
+ * @param {*} syncId 
+ * @param {*} socketEnabled 
+ * @returns 
+ */
+function getRequestData(context, syncId, socketEnabled) {
+    var requestData = privateApi.buildOptions(context.dbName, null, context.options.url);
+    var requestPayload = generatePayload(context, syncId);
+    requestPayload.socketEnabled = socketEnabled;
+    Object.assign(requestData.data, requestPayload);
+    return requestData;
+}
+
+
+RealtimeAbstract.prototype.once = function() {
+    this.start();
+    this.destroyed = true;
+};
+
+RealtimeAbstract.prototype.disconnect = function() {};
+
+RealtimeAbstract.prototype.extendOptions = function(options) {
+    Object.assign(this.options, options);
+};
 
 /**
  * 
  * @param {*} syncId 
  */
-ApplicationRealtime.prototype.generatePayload = function(syncId) {
-    var payload = ($isFunction(this.payload) ? this.payload() : this.payload);
-    var dbName = this.dbName;
-    var _reqOptions = privateApi.buildOptions(this.dbName, null, this.url),
-        _queryPayload = {};
+RealtimeAbstract.prototype.pollRequest = function(syncId, socketEnabled) {
+    return privateApi.$http(getRequestData(this, syncId, socketEnabled));
+};
+
+/**
+ * 
+ * @param {*} options 
+ * @param {*} socketMode 
+ * @returns RealtimeAbstract
+ */
+RealtimeAbstract.createInstance = function(options, socketMode) {
+    if (socketMode) {
+        return new SocketService(options);
+    }
+
+    return new AjaxPollingService(options);
+};
+
+/**
+ * 
+ * @param {*} res 
+ */
+function updatePromiserHandler(context, res) {
+    /**
+     * 
+     * @param {*} _tbl 
+     */
+    var onupdateEvent = context.onupdateEvent;
+
+    function resolvePromise(ctbl) {
+        var _data = res[ctbl];
+        privateApi
+            .$resolveUpdate(context.dbName, ctbl, _data, context.withRef)
+            .then(function(cdata) {
+                privateApi
+                    .$taskPerformer
+                    .updateDB(context.dbName, ctbl, function(table) {
+                        if (_data.checksum) {
+                            table._previousHash = _data.previousHash;
+                            table._hash = _data.checksum;
+                        }
+                    });
+
+                onupdateEvent.setData(ctbl, cdata);
+            });
+    }
+
+    // get response keys and evaluate the response
+    Object.keys(res).forEach(resolvePromise);
+    context.callback(onupdateEvent);
+};
+
+/**
+ * 
+ * @param {*} context 
+ * @param {*} report 
+ * @param {*} resumeCallback 
+ */
+function startChunkState(context, report, resumeCallback) {
+    var totalRecordsToSync = report.total;
+
+    function chunkRequest() {
+        context.pollRequest(syncId)
+            .then(function(res) {
+                totalRecordsToSync -= report.total_per_request;
+                updatePromiserHandler(context, res);
+                context.options.trial = 0;
+                if (totalRecordsToSync > 0) {
+                    chunkRequest();
+                } else {
+                    resumeCallback();
+                }
+            }, function() {
+                setTimeout(chunkRequest, getSleepTimer(context.options));
+            });
+    }
+
+    chunkRequest();
+};
+
+/**
+ * 
+ * @returns Number
+ */
+function getSleepTimer(options) {
+    return (options.timer * options.trial++);
+};
+
+/**
+ * 
+ * @param {*} context 
+ * @param {*} syncId 
+ * @returns 
+ */
+function generatePayload(context, syncId) {
+    var payload = ($isFunction(context.options.payload) ? context.options.payload() : context.options.payload);
+    var dbName = context.dbName;
+    var _queryPayload = {};
+    var requestData = {};
     // update type is DB
-    if ($isEqual(this.ref, 'db')) {
+    if ($isEqual(context.ref, 'db')) {
         if (!payload) {
-            privateApi.getDbTablesNames(this.dbName).forEach(function(name) {
+            privateApi.getDbTablesNames(dbName).forEach(function(name) {
                 _queryPayload[name] = {};
             });
         } else {
             _queryPayload = payload;
         }
     } else {
-        _queryPayload[this.tbl] = {
+        _queryPayload[context.tbl] = {
             query: payload
         };
     }
@@ -209,9 +204,9 @@ ApplicationRealtime.prototype.generatePayload = function(syncId) {
     }
 
     Object.keys(_queryPayload).forEach(writeCheckSumAndSyncId);
-    _reqOptions.data.payload = _queryPayload;
-    _reqOptions.data.ref = this.ref;
-    _reqOptions.data.type = this.types;
+    requestData.payload = _queryPayload;
+    requestData.ref = context.ref;
+    requestData.type = context.types;
 
-    return _reqOptions;
-}
+    return requestData;
+};

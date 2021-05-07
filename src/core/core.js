@@ -37,7 +37,12 @@
              * it is advised to only use this in dev env and not in prod
              * versions should always be upgraded when schema changes to keep everything in sync
              */
-            alwaysCheckSchema: false
+            alwaysCheckSchema: false,
+            /**
+             * set to true to use socket.io for realtime data
+             * this requires you to compile application with socket.io library
+             */
+            enableSocket: false
         });
 
         /**

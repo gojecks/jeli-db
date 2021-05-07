@@ -30,7 +30,10 @@ function ApplicationInstance(name, version, required) {
     if (privateApi.getNetworkResolver('serviceHost', name)) {
         this.env.requestMapping = privateApi.getNetworkResolver('requestMapping', name);
         //add event listener to db
-        this.onUpdate = new ApplicationRealtime('db', name, null);
+        this.onUpdate = RealtimeAbstract.createInstance({
+            type: 'db',
+            dbName: name
+        }, privateApi.getNetworkResolver('enableSocket', name));
         // clientService
         this.clientService = new clientService(name);
         //@Function Name getApiKey
