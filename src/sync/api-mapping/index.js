@@ -93,10 +93,10 @@ RequestMapping.prototype.resolveCustomApis = function() {
 
 /**
  * remove api from list
- * @param {*} obj 
+ * @param {*} url
  */
-RequestMapping.prototype.removeApi = function(obj) {
+RequestMapping.prototype.removeApi = function(url) {
     self.dbCustomApis = self.dbCustomApis.filter(function(api) {
-        return (obj !== api);
+        return (url !== api.URL);
     });
 };
