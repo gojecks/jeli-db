@@ -3,7 +3,7 @@
  * @param {*} tableInfo 
  */
 function TableInstance(dbName, tableName) {
-    tableInfo = privateApi.getTable(dbName, tableName);
+    var tableInfo = privateApi.getTable(dbName, tableName);
     this.Alter = new TableAlterInstance(tableInfo);
     this.onUpdate = RealtimeAbstract.createInstance({
         type: 'tbl',
