@@ -1,6 +1,6 @@
 //Cutom Plugins
 //Environment Plugin 
-jEliDB.JDB_PLUGINS.jQl('api', {
+Database.plugins.jQl('api', {
     help: ['api -state[STRING || OBJECT] -[optional:data] -table',
         'state: OBJECT SCHEMA : {URL:STRING, METHOD:STRING, AUTH_TYPE:INT, body:ANY}',
         'state: STRING - /api/request/path '
@@ -16,11 +16,7 @@ jEliDB.JDB_PLUGINS.jQl('api', {
 
 function apiPluginFn(query, handler) {
     return function(db) {
-        var postData = query[2],
-            table = query[3] || '';
-
-
-        db[query[0]](query[1], postData, table)
+        db.api(query[1], query[2], query[3] || '')
             .then(function(res) {
                 handler.onSuccess.apply(handler.onSuccess, [res]);
             }, function(err) {

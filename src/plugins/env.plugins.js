@@ -1,6 +1,6 @@
 //Cutom Plugins
 //Environment Plugin 
-jEliDB.JDB_PLUGINS.jQl('env', {
+Database.plugins.jQl('env', {
     help: 'env -[usage|appkey -key]',
     requiresParam: true,
     fn: envPluginFn

@@ -1,9 +1,20 @@
-//prototype for jEli Plugin
-var customStorage = new Map(); //used to hold customPlugins
 /**
- * core custom pluginFn
+ * Storage Adapter class
+ * Used as a static class for registering Database storage Adapters
+ * e.g StorageAdapter.add('SQL', ADAPTER_INSTANCE);
  */
-function Storage(name, Service, replace) {
+function StorageAdapter() {
+    this.storageAdapterContainer = new Map();
+}
+
+/**
+ * 
+ * @param {*} name 
+ * @param {*} adapter 
+ * @param {*} replace 
+ */
+StorageAdapter.prototype.add = function(name, adapter, replace) {
+    var self = this;
     if (name) {
         if ($isArray(name)) {
             name.forEach(store)
@@ -13,12 +24,14 @@ function Storage(name, Service, replace) {
     }
 
     function store(storeName) {
-        if (!customStorage.has(storeName) || replace) {
-            customStorage.set(storeName, Service);
+        if (!self.storageAdapterContainer.has(storeName) || replace) {
+            self.storageAdapterContainer.set(storeName, adapter);
         } else {
-            errorBuilder('Plugin already exists, pass true to overwrite');
+            errorBuilder('Adapter already exists, pass true to overwrite');
         }
     }
 }
 
-jEliDB.JDB_STORAGE_SYSTEM = Storage;
+StorageAdapter.prototype.get = function(adapterName) {
+    return this.storageAdapterContainer.get(adapterName);
+}

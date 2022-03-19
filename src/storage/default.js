@@ -5,66 +5,110 @@
  * @param {*} callback 
  */
 function DefaultStorage(config, dbInstances, callback) {
-    var dbName = config.name,
-        publicApi = Object.create(null),
-        _privateStore = {};
+    var dbName = config.name;
+    var publicApi = Object.create(null);
+    var _privateStore = Object();
+
+    /**
+     * 
+     * @param {*} tableName 
+     * @param {*} data 
+     * @param {*} insertData 
+     */
+    function insertListener(tableName, data, insertData) {
+        if (insertData) {
+            _privateStore[tableName + ":data"].push.apply(_privateStore[tableName + ":data"], data);
+        }
+        _privateStore[tableName].lastInsertId += data.length;
+        saveData(tableName);
+    }
+
+    /**
+     * 
+     * @param {*} tbl 
+     */
+    function onDropTable(tbl) {
+        publicApi.removeItem(tbl);
+        publicApi.removeItem(tbl + ":data");
+    }
+
+    /**
+     * 
+     * @param {*} tbl 
+     * @param {*} updates 
+     */
+    function onUpdateTable(tbl, updates) {
+        // save the data
+        Object.keys(updates).forEach(function(key) {
+            _privateStore[tbl][key] = updates[key];
+        });
+
+        publicApi.setItem(tbl, _privateStore[tbl]);
+    }
+
+    /**
+     * 
+     * @param {*} version 
+     * @param {*} tables 
+     */
+    function onResolveSchema(version, tables) {
+        publicApi.setItem('version', version);
+        Object.keys(tables).forEach(function(tblName) {
+            onCreateTable(tblName, tables[tblName]);
+        });
+    }
+
+    /**
+     * 
+     * @param {*} oldTable 
+     * @param {*} newTable 
+     */
+    function onRenameTable(oldTable, newTable) {
+        _privateStore[oldTable].TBL_NAME = newTable;
+        publicApi.setItem(newTable, _privateStore[oldTable]);
+        publicApi.setItem(newTable + ":data", _privateStore[oldTable + ":data"]);
+        publicApi.removeItem(oldTable);
+        publicApi.removeItem(oldTable + ":data");
+    }
+
+    /**
+     * 
+     * @param {*} oldName 
+     * @param {*} newName 
+     * @param {*} cb 
+     */
+    function onRenameDataBase(oldName, newName, cb) {
+        var oldData = publicApi.getItem(oldName);
+        Object.keys(oldData.tables).forEach(function(tbl) {
+            oldData.tables[tbl].DB_NAME = newName;
+            oldData.tables[tbl].lastModified = +new Date
+        });
+        publicApi.setItem(newName, oldData);
+        publicApi.setItem(privateApi.getResourceName(newName), publicApi.getItem(privateApi.getResourceName(oldName)));
+        privateApi.getActiveDB(oldName).get(constants.RECORDRESOLVERS).rename(newName);
+        publicApi.removeItem(oldName);
+        (cb || noop)();
+    }
+
     /**
      * Event listener
      */
     privateApi
         .storageEventHandler
-        .subscribe(eventNamingIndex(dbName, 'insert'), function(tableName, data, insertData) {
-            if (insertData) {
-                _privateStore[tableName + ":data"].push.apply(_privateStore[tableName + ":data"], data);
-            }
-            _privateStore[tableName].lastInsertId += data.length;
-            saveData(tableName);
-        })
+        .subscribe(eventNamingIndex(dbName, 'insert'), insertListener)
         .subscribe(eventNamingIndex(dbName, 'update'), saveData)
         .subscribe(eventNamingIndex(dbName, 'delete'), function(tableName, delItem) {
             // remove the data
             saveData(tableName);
         })
         .subscribe(eventNamingIndex(dbName, 'onCreateTable'), onCreateTable)
-        .subscribe(eventNamingIndex(dbName, 'onDropTable'), function(tbl) {
-            publicApi.removeItem(tbl);
-            publicApi.removeItem(tbl + ":data");
-        })
-        .subscribe(eventNamingIndex(dbName, 'onUpdateTable'), function(tbl, updates) {
-            // save the data
-            Object.keys(updates).forEach(function(key) {
-                _privateStore[tbl][key] = updates[key];
-            });
-
-            publicApi.setItem(tbl, _privateStore[tbl]);
-        })
+        .subscribe(eventNamingIndex(dbName, 'onDropTable'), onDropTable)
+        .subscribe(eventNamingIndex(dbName, 'onUpdateTable'), onUpdateTable)
         .subscribe(eventNamingIndex(dbName, 'onTruncateTable'), saveData)
-        .subscribe(eventNamingIndex(dbName, 'onResolveSchema'), function(version, tables) {
-            publicApi.setItem('version', version);
-            Object.keys(tables).forEach(function(tblName) {
-                onCreateTable(tblName, tables[tblName]);
-            });
-        })
-        .subscribe(eventNamingIndex(dbName, 'onRenameTable'), function(oldTable, newTable) {
-            _privateStore[oldTable].TBL_NAME = newTable;
-            publicApi.setItem(newTable, _privateStore[oldTable]);
-            publicApi.setItem(newTable + ":data", _privateStore[oldTable + ":data"]);
-            publicApi.removeItem(oldTable);
-            publicApi.removeItem(oldTable + ":data");
-        })
+        .subscribe(eventNamingIndex(dbName, 'onResolveSchema'), onResolveSchema)
+        .subscribe(eventNamingIndex(dbName, 'onRenameTable'), onRenameTable)
         .subscribe(eventNamingIndex(dbName, 'onAlterTable'), saveData)
-        .subscribe(eventNamingIndex(dbName, 'onRenameDataBase'), function(oldName, newName, cb) {
-            var oldData = publicApi.getItem(oldName);
-            Object.keys(oldData.tables).forEach(function(tbl) {
-                oldData.tables[tbl].DB_NAME = newName;
-                oldData.tables[tbl].lastModified = +new Date
-            });
-            publicApi.setItem(newName, oldData);
-            publicApi.setItem(privateApi.getResourceName(newName), publicApi.getItem(privateApi.getResourceName(oldName)));
-            privateApi.getActiveDB(oldName).get('recordResolvers').rename(newName);
-            publicApi.removeItem(oldName);
-            (cb || noop)();
-        });
+        .subscribe(eventNamingIndex(dbName, 'onRenameDataBase'), onRenameDataBase);
 
     /**
      * 
@@ -75,20 +119,20 @@ function DefaultStorage(config, dbInstances, callback) {
     }
 
     function loadData() {
-        var resource = getStorageItem(privateApi.storeMapping.resourceName);
+        var resource = getItem(privateApi.storeMapping.resourceName);
         if (resource) {
             _privateStore[privateApi.storeMapping.resourceName] = resource;
-            _privateStore[privateApi.storeMapping.delRecordName] = getStorageItem(privateApi.storeMapping.delRecordName);
-            _privateStore[privateApi.storeMapping.pendingSync] = getStorageItem(privateApi.storeMapping.pendingSync);
-            _privateStore['version'] = getStorageItem('version');
+            _privateStore[privateApi.storeMapping.delRecordName] = getItem(privateApi.storeMapping.delRecordName);
+            _privateStore[privateApi.storeMapping.pendingSync] = getItem(privateApi.storeMapping.pendingSync);
+            _privateStore['version'] = getItem('version');
             Object.keys(resource.resourceManager).forEach(function(tbl) {
-                _privateStore[tbl] = getStorageItem(tbl);
-                _privateStore[tbl + ":data"] = getStorageItem(tbl + ":data");
+                _privateStore[tbl] = getItem(tbl);
+                _privateStore[tbl + ":data"] = getItem(tbl + ":data");
             });
         }
     }
 
-    function getStorageItem(name) {
+    function getItem(name) {
         name = getStoreName(name);
         if (!!window[config.type]) {
             return (window[config.type][name] && JSON.parse(window[config.type][name]) || false);
@@ -170,8 +214,7 @@ function DefaultStorage(config, dbInstances, callback) {
     setTimeout(callback);
     return publicApi;
 }
-
 /**
- * register Storage
+ * register default storage adapters
  */
-Storage(['memory', 'localStorage', 'sessionStorage'], DefaultStorage);
+Database.storageAdapter.add(['memory', 'localStorage', 'sessionStorage'], DefaultStorage);

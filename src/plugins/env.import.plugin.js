@@ -2,7 +2,7 @@
 //Called in env
 //-env -import -tableName
 
-jEliDB.JDB_PLUGINS.jQl('import', {
+Database.plugins.jQl('import', {
     help: ['import -[table name] -[fileType] -isSchema[true|false]'],
     requiresParam: true,
     fn: jImportPluginFn
