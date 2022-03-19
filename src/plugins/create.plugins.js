@@ -1,4 +1,4 @@
-jEliDB.JDB_PLUGINS.jQl('create', {
+Database.plugins.jQl('create', {
     help: ['-create -[tbl_name] [columns]'],
     requiresParam: true,
     fn: createPluginFn
@@ -6,14 +6,10 @@ jEliDB.JDB_PLUGINS.jQl('create', {
 
 //create -tablename -columns
 function createPluginFn(query, handler) {
-    var tblName = query[1],
-        columns = query[2] || [],
-        result = false;
-
     return function(db) { //create the table
-        if (tblName && columns) {
+        if (query[1]) {
             db
-                .createTbl(tblName, columns)
+                .createTbl(query[1], query[2] || [], null, true)
                 .onSuccess(handler.onSuccess)
                 .onError(handler.onError);
         }

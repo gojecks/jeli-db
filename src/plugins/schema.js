@@ -1,4 +1,4 @@
-jEliDB.JDB_PLUGINS.jQl('schema', {
+Database.plugins.jQl('schema', {
     help: ['schema -export -loadfromserver[true|false]', 'schema -add -data'],
     requiresParam: true,
     fn: SchemaPluginFn

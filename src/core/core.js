@@ -1,92 +1,72 @@
-    /**
-     * @method jEliDB
-     * @param {*} name 
-     * @param {*} version 
-     * 
-     * This is the core Method that create the database instance
-     * private methods includes
-     * requiresLogin()
-     * isClientMode()
-     * open() : promise
-     * 
-     * @return instance
-     */
-    function jEliDB(name, version) {
-        var defer = new _Promise();
-        var jeliInstance = {};
-        var eventRegistry = {
-            onCreate: function(a, next) {
-                next();
-            },
-            onUpgrade: function(a, next) {
-                next();
-            }
-        };
-        var version = parseInt(version || "1");
-        var _defaultConfig = ({
-            storage: 'memory',
-            isClientMode: false,
-            isLoginRequired: false,
-            schemaPath: null,
-            useFrontendOnlySchema: false,
-            ignoreSync: false,
-            organisation: "_",
-            version: version,
-            /**
-             * introduced in version 2.0.0
-             * it is advised to only use this in dev env and not in prod
-             * versions should always be upgraded when schema changes to keep everything in sync
-             */
-            alwaysCheckSchema: false,
-            /**
-             * set to true to use socket.io for realtime data
-             * this requires you to compile application with socket.io library
-             */
-            enableSocket: false
-        });
+/**
+ * @method Database
+ * @param {*} name 
+ * @param {*} version 
+ * 
+ * This is the core Method that create the database instance
+ * private methods includes
+ * requiresLogin()
+ * isClientMode()
+ * open() : promise
+ * 
+ * @return instance
+ */
+function Database(name, version) {
+    var jeliInstance = {};
+    var version = parseInt(version || "1");
+    var _defaultConfig = Object({
+        storage: 'memory',
+        isClientMode: false,
+        isLoginRequired: false,
+        schemaPath: null,
+        useFrontendOnlySchema: false,
+        ignoreSync: false,
+        organisation: "_",
+        version: version,
+        /**
+         * introduced in version 2.0.0
+         * it is advised to only use this in dev env and not in prod
+         * versions should always be upgraded when schema changes to keep everything in sync
+         */
+        alwaysCheckSchema: false,
+        /**
+         * set to true to use socket.io for realtime data
+         * this requires you to compile application with socket.io library
+         */
+        enableSocket: false
+    });
 
+    var dbPromiseExtension = new DBPromise.extension(
         /**
          * Upgrade and onCreate Registery
          * @param {*} state 
          * @param {*} triggerState 
          */
-        function onEventRegistry(state) {
-            return function(fn) {
-                /**
-                 * register the event
-                 */
-                if ($isFunction(fn)) {
-                    /**
-                     * register the event
-                     */
-                    eventRegistry[state] = fn;
-                }
+        function(_, next) {
+            next();
+        }, ['onUpgrade', 'onCreate']);
 
-                return promise;
-            };
-        }
-
-        /**
-         * 
-         * @param {*} config 
-         * {
-         *  disableApiLoading: false
-         *  isClientMode: false,
-         *  isLoginRequired: false
-         *  serviceHost: ""
-         *  live: false
-         *  
-         * }
-         */
-        function open(config) {
-            var promise = new DBPromise(defer),
-                config = extend(true, _defaultConfig, config),
-                inProduction = config.isClientMode || false,
-                _activeDBApi;
-
+    /**
+     * 
+     * @param {*} config 
+     * {
+     *  disableApiLoading: false
+     *  isClientMode: false,
+     *  isLoginRequired: false
+     *  serviceHost: ""
+     *  live: false
+     *  
+     * }
+     */
+    function open(config) {
+        var config = extend(true, _defaultConfig, config);
+        var inProduction = config.isClientMode || false;
+        var _activeDBApi;
+        return new DBPromise(function(resolve, reject) {
             if (name) {
                 //set the current active DB
-                privateApi.setActiveDB(name)
+                privateApi
+                    .setActiveDB(name)
                     .setStorage(name, config, onStorageOpen);
 
                 function onStorageOpen() {
@@ -102,18 +82,19 @@
                         // increment our instance
                         // usefull when closing DB
                         _activeDBApi.incrementInstance();
-                    } else if (!_activeDBApi.get('instance')) {
+                    } else if (!_activeDBApi.instance) {
                         //set production flag
                         //register our configuration
+                        var requestMapping = new RequestMapping(false, name);
                         _activeDBApi
-                            .set('instance', 1)
-                            .get('resolvers')
+                            .incrementInstance()
+                            .get(constants.RESOLVERS)
                             .register(config)
                             .register('inProduction', inProduction)
-                            .register('requestMapping', new RequestMapping(false, name))
+                            .register('requestMapping', requestMapping)
                             .trigger(function() {
                                 if (!config.disableApiLoading && config.serviceHost) {
-                                    this.getResolvers('requestMapping').resolveCustomApis();
+                                    requestMapping.resolveCustomApis();
                                 }
                             });
                     }
@@ -122,14 +103,16 @@
                      * check if DB exists in the delete storage
                      * @return {boolean} 
                      */
-                    var deleteManagerInstance = _activeDBApi.get('resolvers').deleteManager(name).init();
+                    var deleteManagerInstance = _activeDBApi.get(constants.RESOLVERS).deleteManager(name).init();
                     /**
                      * Database is deleted
                      * initializeDeleteMode
                      */
                     if (deleteManagerInstance.isDeletedDataBase()) {
-                        initializeDeleteMode();
-                        return promise;
+                        jeliInstance.message = name + " database is deleted and pending sync, to re-initialize this Database please clean-up storage.";
+                        jeliInstance.mode = "deleteMode";
+                        jeliInstance.result = new ApplicationInstance(name, version, ["name", "version", "jQl", "synchronize", "info", "close"]);
+                        return reject(jeliInstance);
                     }
 
                     /**
@@ -137,60 +120,55 @@
                      * 
                      * */
                     if (config.isLoginRequired) {
-                        startLoginMode();
-                        return promise;
+                        /**
+                         * @method startLoginMode
+                         * During this phase limited method are availabe to the Database instance
+                         * methods: _users(), close(), api()
+                         */
+                        jeliInstance.result = new ApplicationInstance(name, version, ["_users", "name", "version", "close", "api"]);
+                        //set Login Mode
+                        jeliInstance.type = "loginMode";
+                        jeliInstance.message = "DB Authentication Mode!!";
+                        return resolve(jeliInstance);
                     }
 
-                    startDB();
+                    startDB(resolve, reject);
                 }
             } else {
                 jeliInstance.message = "There was an error creating your DB, either DB name or version number is missing";
                 jeliInstance.mode = "errorMode";
                 jeliInstance.errorCode = 101;
                 //reject the request
-                defer.reject(jeliInstance);
+                reject(jeliInstance);
             }
+        }, dbPromiseExtension.handlers);
 
-            // Start DB
-            function startDB() {
-                /**
-                 * Create a new DB Event 
-                 * DB will be updated with data
-                 * Only if onUpgrade Function is initilaized
-                 * set upgrade mode
-                 **/
-                var dbChecker = privateApi.get(name) || false;
-                jeliInstance.result = new ApplicationInstance(name, version);
-                var schemaManager = new SchemaManager(jeliInstance.result, version, dbChecker.version || 1, config.schemaPath);
-                var serverSchemaLoader = new ServerSchemaLoader(name, version);
 
-                /**
-                 * dataBase exists
-                 */
-                if (dbChecker && dbChecker.version) {
-                    initializeExistMode(dbChecker, serverSchemaLoader, schemaManager);
-                } else {
-                    initializeCreateNewMode(serverSchemaLoader, schemaManager);
-                }
-            }
+
+        // Start DB
+        function startDB(resolve, reject) {
+            /**
+             * Create a new DB Event 
+             * DB will be updated with data
+             * Only if onUpgrade Function is initilaized
+             * set upgrade mode
+             **/
+            var dbChecker = privateApi.get(name) || false;
+            jeliInstance.result = new ApplicationInstance(name, version);
+            var schemaManager = new SchemaManager(jeliInstance.result, version, dbChecker.version || 1, config.schemaPath);
+            var serverSchemaLoader = new ServerSchemaLoader(name, version);
 
             /**
-             * Function to handle deleted Database
+             * dataBase exists
              */
-            function initializeDeleteMode() {
-                jeliInstance.message = name + " database is deleted and pending sync, to re-initialize this Database please clean-up storage.";
-                jeliInstance.mode = "deleteMode";
-                jeliInstance.result = new ApplicationInstance(name, version, ["name", "version", "jQl", "synchronize", "info", "close"]);
-                defer.reject(jeliInstance);
+            if (dbChecker && dbChecker.version) {
+                initializeExistMode();
+            } else {
+                initializeCreateNewMode();
             }
 
-            /**
-             * 
-             * @param {*} dbChecker 
-             * @param {*} serverSchemaLoader 
-             * @param {*} schemaManager 
-             */
-            function initializeExistMode(dbChecker, serverSchemaLoader, schemaManager) {
+
+            function initializeExistMode() {
                 if (dbChecker && $isEqual(dbChecker.version, version)) {
                     //set exists mode
                     // validate versions
@@ -202,12 +180,12 @@
                      * check for updated schema from FO service
                      */
                     if (config.useFrontendOnlySchema && config.alwaysCheckSchema) {
-                        serverSchemaLoader.get()
+                        serverSchemaLoader.get(false)
                             .then(function() {
-                                defer.resolve(jeliInstance);
+                                resolve(jeliInstance);
                             });
                     } else {
-                        defer.resolve(jeliInstance);
+                        resolve(jeliInstance);
                     }
                 } else {
                     //set Message
@@ -217,8 +195,7 @@
                     // update the version
                     dbChecker.version = version;
                     // save the version
-                    _activeDBApi.get('_storage_').setItem('version', version);
-
+                    _activeDBApi.get(constants.STORAGE).setItem('version', version);
                     /**
                      * trigger schema upgrade check
                      */
@@ -226,22 +203,18 @@
                         /**
                          * trigger our create and update mode
                          */
-                        eventRegistry.onUpgrade(jeliInstance, function() {
+                        dbPromiseExtension.call('onUpgrade', [jeliInstance, function() {
                             /**
                              * resolve our instance
                              */
-                            defer.resolve(jeliInstance);
-                        });
+                            resolve(jeliInstance);
+                        }]);
                     });
                 }
             }
 
-            /**
-             * 
-             * @param {*} serverSchemaLoader 
-             * @param {*} schemaManager 
-             */
-            function initializeCreateNewMode(serverSchemaLoader, schemaManager) {
+
+            function initializeCreateNewMode() {
                 /**
                  * create our database instance
                  */
@@ -253,9 +226,9 @@
                     /**
                      * register next method to be triggered
                      */
-                    eventRegistry.onCreate(jeliInstance, function() {
-                        defer.resolve(jeliInstance);
-                    });
+                    dbPromiseExtension.call('onCreate', [jeliInstance, function() {
+                        resolve(jeliInstance);
+                    }]);
                 }
 
                 /**
@@ -263,69 +236,63 @@
                  * trigger our create and update mode
                  */
                 if (config.useFrontendOnlySchema) {
-                    serverSchemaLoader.get()
+                    serverSchemaLoader.get(true)
                         .then(next, function(response) {
-                            defer.reject(response);
+                            reject(response);
                         });
                 } else {
                     schemaManager.create(next, function() {
-                        _activeDBApi.get('resourceManager').setResource(getDBSetUp(name));
+                        _activeDBApi.get(constants.RESOURCEMANAGER).setResource(getDBSetUp(name));
                         // store the DB version
                         privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
                     });
                 }
             }
-
-            /**
-             * @method startLoginMode
-             * During this phase limited method are availabe to the Database instance
-             * methods: _users(), close(), api()
-             */
-            function startLoginMode() {
-                jeliInstance.result = new ApplicationInstance(name, version, ["_users", "name", "version", "close", "api"]);
-                //set Login Mode
-                jeliInstance.type = "loginMode";
-                jeliInstance.message = "DB Authentication Mode!!";
-                defer.resolve(jeliInstance);
-            }
-
-            //set upgradeneed to the promise Fn
-            promise.onUpgrade = onEventRegistry('onUpgrade');
-
-            /**
-             * onCreate Promise
-             */
-            promise.onCreate = onEventRegistry('onCreate');
-
-            return promise;
         }
+    }
 
 
-        /**
-         * Don't call this function except you re in procution
-         **/
-        function isClient() {
-            //set inproduction to true
-            _defaultConfig.isClientMode = true;
-            return ({
-                open: open,
-                requiresLogin: requiresLogin
-            });
-        }
-
-        function requiresLogin() {
-            _defaultConfig.isLoginRequired = true;
-            return ({
-                open: open
-            });
-        }
-
-
-
-        //return a promise
+    /**
+     * Don't call this function except you re in procution
+     **/
+    function isClient() {
+        //set inproduction to true
+        _defaultConfig.isClientMode = true;
         return ({
             open: open,
-            isClientMode: isClient,
             requiresLogin: requiresLogin
         });
     }
+
+    function requiresLogin() {
+        _defaultConfig.isLoginRequired = true;
+        return ({
+            open: open
+        });
+    }
+
+
+
+    //return a promise
+    return ({
+        open: open,
+        isClientMode: isClient,
+        requiresLogin: requiresLogin
+    });
+}
+
+/**
+ * register global AJAX interceptor to JDB plugins
+ */
+Database.registerGlobalInterceptor = function(type, fn) {
+    if (!_globalInterceptors.has(type)) {
+        _globalInterceptors.set(type, []);
+    }
+
+    _globalInterceptors.get(type).push(fn);
+
+    return this;
+};
+
+Database.plugins = new PluginsInstance();
+Database.storageAdapter = new StorageAdapter();

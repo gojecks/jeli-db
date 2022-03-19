@@ -1,6 +1,6 @@
 //@Function clearScreen
 //Clear Screen Plugin
-jEliDB.JDB_PLUGINS.jQl('cls', {
+Database.plugins.jQl('cls', {
     help: ['-cls (clearScreen)'],
     requiresParam: false,
     fn: clearScreenPluginFn

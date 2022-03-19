@@ -1,7 +1,7 @@
 //Help Plugin
 //Initialized in Env	
 
-jEliDB.JDB_PLUGINS.jQl('help', {
+Database.plugins.jQl('help', {
     help: '-help',
     requiresParam: false,
     fn: helperPluginFn
@@ -12,13 +12,14 @@ function helperPluginFn(query, handler) {
     var result = { state: query[0], result: { message: null } };
     return function(db) {
         var helpers;
-        if (query[1] && customPlugins.has(query[1])) {
-            helpers = [].concat(customPlugins.get(query[1]).help);
+        var plugin = Database.plugins.get(query[1])
+        if (query[1] && plugin) {
+            helpers = [].concat(plugin.help);
         } else {
             helpers = db.helpers.get().concat();
-            customPlugins.forEach(function(item) {
+            Database.plugins._pluginsContainer.forEach(function(item) {
                 helpers = helpers.concat(item.help);
-            })
+            });
         }
 
         result.result.message = helpers;

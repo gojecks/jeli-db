@@ -1,41 +1,38 @@
-//prototype for jEli Plugin
-var customPlugins = new Map(); //used to hold customPlugins
 /**
  * core custom pluginFn
  */
-jEliDB.JDB_PLUGINS = Object.create({
-    jQl: function(name, plugin) {
-        if (name && $isObject(plugin) && !customPlugins.has(name)) {
-            customPlugins.set(name, plugin);
-        } else {
-            errorBuilder('Failed to register plugin, either it already exists or invalid definition');
-        }
-    },
-    disablePlugins: function(list) {
-        if ($isArray(list)) {
-            list.forEach(disable);
-            return;
-        }
-        disable(list);
+function PluginsInstance() {
+    //used to hold customPlugins
+    this._pluginsContainer = new Map();
+    this.get = function(pluginId) {
+        return this._pluginsContainer.get(pluginId);
+    }
+}
 
-        function disable(_plugin) {
-            if (customPlugins.has(_plugin)) {
-                customPlugins.get(_plugin).disabled = true;
-            }
-        }
-    },
-    enablePlugins: function(list) {
-        if ($isArray(list)) {
-            list.forEach(enable);
-            return;
-        }
+PluginsInstance.prototype.jQl = function(name, plugin) {
+    if (name && $isObject(plugin) && !this._pluginsContainer.has(name)) {
+        this._pluginsContainer.set(name, plugin);
+    } else {
+        errorBuilder('Failed to register plugin, either it already exists or invalid definition');
+    }
+}
 
-        enable(list);
-
-        function enable(_plugin) {
-            if (customPlugins.has(_plugin)) {
-                customPlugins.get(_plugin).disabled = false;
+PluginsInstance.prototype.disablePlugins = function(list) {
+    if ($isArray(list)) {
+        for (var i = 0; i < list.length; i++) {
+            if (!this._pluginsContainer.has(list[i])) {
+                this._pluginsContainer.get(list[i]).disabled = true;
             }
         }
     }
-});
+}
+
+PluginsInstance.prototype.enablePlugins = function(list) {
+    if ($isArray(list)) {
+        for (var i = 0; i < list.length; i++) {
+            if (!this._pluginsContainer.has(list[i])) {
+                this._pluginsContainer.get(list[i]).disabled = false;
+            }
+        }
+    }
+}

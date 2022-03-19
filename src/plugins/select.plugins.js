@@ -1,5 +1,5 @@
     //juser
-    jEliDB.JDB_PLUGINS.jQl('select', {
+    Database.plugins.jQl('select', {
         help: ['select -[fields] -[table] -Clause[ -[join] -[on]  -where( CLAUSE[Like|IN|NOTIN]]) -limit -[orderBy] -[groupBy]'],
         requiresParam: true,
         fn: selectPluginFn

@@ -1,4 +1,4 @@
-jEliDB.JDB_PLUGINS.jQl('drop', {
+Database.plugins.jQl('drop', {
     help: ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ] -localOnly'],
     requiresParam: true,
     fn: dropPluginFn

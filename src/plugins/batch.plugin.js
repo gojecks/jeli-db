@@ -1,5 +1,5 @@
     //juser
-    jEliDB.JDB_PLUGINS.jQl('batch', {
+    Database.plugins.jQl('batch', {
         help: ['batch -[queries]'],
         requiresParam: true,
         fn: batchPluginFn
