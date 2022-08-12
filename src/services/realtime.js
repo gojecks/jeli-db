@@ -92,7 +92,7 @@ RealtimeAbstract.createInstance = function(options, socketMode) {
  * @returns 
  */
 function getRequestData(context) {
-    var requestData = privateApi.buildOptions(context.dbName, null, context.options.url);
+    var requestData = privateApi.buildHttpRequestOptions(context.dbName, { path: context.options.url });
     var requestPayload = generatePayload(context);
     Object.assign(requestData.data, requestPayload);
     return requestData;

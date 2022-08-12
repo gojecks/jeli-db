@@ -1,7 +1,7 @@
 /**
  * Sync ApplicationInstance METHOD
  */
-function ApplicationInstanceCore() {
+function ApplicationInstanceSync() {
     if (privateApi.databaseContainer.has(this.name)) {
         return new DatabaseSynchronization(this.name, this.version);
     }

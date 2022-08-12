@@ -159,6 +159,17 @@ var _operatorMethods = (function() {
     operatorMethods['lt'] = function(queryValue, recordValue) {
         return queryValue < recordValue;
     };
+    /**
+     * Min-Max
+     * @param {*} queryValue 
+     * @param {*} recordValue 
+     * @returns 
+     */
+    operatorMethods['lgte'] = function(queryValue, recordValue) {
+        if (!$isArray(queryValue)) return false;
+        return (queryValue[0] >= recordValue || ((queryValue[1] || 0) <= recordValue));
+    };
+
     operatorMethods['gt'] = function(queryValue, recordValue) {
         return queryValue > recordValue;
     };

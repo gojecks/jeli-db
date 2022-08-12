@@ -72,9 +72,7 @@ function transactionDelete(query, tableName) {
                 }
             }
 
-            privateApi
-                .storageEventHandler
-                .broadcast(eventNamingIndex(_this.DB_NAME, 'delete'), [tableName, delItem]);
+            privateApi.storageFacade.broadcast(_this.DB_NAME, DB_EVENT_NAMES.TRANSACTION_DELETE, [tableName, delItem]);
         }
         //return success Message
         return ({

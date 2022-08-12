@@ -2,11 +2,11 @@
  * ResourceManager()
  * @param {*} name 
  */
-function ResourceManager(name) {
-    var _resource = privateApi.storageFacade.get(privateApi.storeMapping.resourceName, name);
-
+function ResourceManager(appName) {
+    this.appName = appName;
+    var _resource = privateApi.storageFacade.get(privateApi.storeMapping.resourceName, this.name) || {};
     this.getResource = function() {
-        return _resource || privateApi.storageFacade.get(privateApi.storeMapping.resourceName, name);
+        return _resource || privateApi.storageFacade.get(privateApi.storeMapping.resourceName, this.appName);
     };
 
     /**
@@ -16,8 +16,7 @@ function ResourceManager(name) {
     this.setResource = function(resource, _name) {
         _resource = resource || _resource;
         //set and save the resource
-        privateApi.storageFacade.set(_name || privateApi.storeMapping.resourceName, _resource, name);
-        return this;
+        privateApi.storageFacade.set(_name || privateApi.storeMapping.resourceName, _resource, this.appName);
     };
 
     this.$isExists = function() {
@@ -27,13 +26,13 @@ function ResourceManager(name) {
     this.renameResource = function(newName) {
         var resource = this.getResource();
         resource.lastUpdated = +new Date;
-        this.setResource(resource, privateApi.getResourceName(newName))
-            .removeResource();
+        this.appName = newName;
+        this.setResource(resource);
     };
 
     this.removeResource = function() {
         _resource = null;
-        return privateApi.storageFacade.remove(privateApi.storeMapping.resourceName, name);
+        return privateApi.storageFacade.remove(privateApi.storeMapping.resourceName, this.appName);
     };
 
     this.getTableLastSyncDate = function(tbl) {
@@ -54,7 +53,7 @@ function ResourceManager(name) {
     };
 
     this.addTableToResource = function(tableName, data) {
-        if ($isArray(_resource.resourceManager)) {
+        if ($isArray(_resource.resourceManager) || !_resource.resourceManager) {
             _resource.resourceManager = {};
         }
         _resource.resourceManager[tableName] = data;
@@ -90,11 +89,11 @@ ResourceManager.prototype.renameTableResource = function(oldName, newName) {
 
 ResourceManager.prototype.getTableDifferences = function(resource) {
     var tables = this.getTableNames();
-    var resourceControl = this.getResource();
-    if (!resource) {
-        return tables;
+    if (!resource || !tables) {
+        return tables || [];
     }
 
+    var resourceControl = this.getResource();
     return tables.reduce(function(accum, tbl) {
         if (resource.resourceManager && resource.resourceManager.hasOwnProperty(tbl)) {
             if (resourceControl.resourceManager[tbl]._hash !== resource.resourceManager[tbl]._hash)

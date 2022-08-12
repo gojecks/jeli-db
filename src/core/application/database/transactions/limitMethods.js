@@ -80,25 +80,25 @@ var QueryLimitMethods = (function() {
             return groupByTask(cdata, definition);
         },
         orderBy: function(cdata, _, propertyName) {
-            var order = 'ASC';
-            /**
-             * set reverse options if defined
-             * only when been used as filter options in expressions
-             */
-            if (propertyName && propertyName.includes(':')) {
-                order = propertyName.split(':')[1].trim();
-            }
-
+            var checkParam = (_[propertyName] || 'ASC').split(':')
+            var order = checkParam.pop();
             /**
              * sort option accepts multiple property
              * split the properties into array
              * as method params
              */
-            var newList = _querySortPerformer.call(cdata, propertyName.split(':')[0].split(','));
-            if (order === 'DESC') {
-                newList.reverse();
+            if (checkParam.length) {
+                cdata = _querySortPerformer.call(cdata, checkParam[0].split(','));
             }
-            return newList;
+            /**
+             * set reverse options if defined
+             * only when been used as filter options in expressions
+             */
+            if (order === 'DESC') {
+                cdata.reverse();
+            }
+
+            return cdata;
         },
         limit: function(cdata, definition) {
             if (!definition.groupBy && !definition.groupByStrict) {

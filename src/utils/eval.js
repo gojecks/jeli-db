@@ -266,7 +266,7 @@ function createNewInstance(model, key, create, nextIsArrayKey) {
 }
 
 function modelGetter(field, cdata) {
-    if (typeof field === 'object' || $isBoolean(field)) return field;
+    if (typeof field === 'object' || $isBoolean(field) || $isNumber(field)) return field;
     return field.replace(/(\[)/g, '.').replace(/(\])/g, '').split('.').reduce(function(accum, key) {
         return (accum && accum.hasOwnProperty(key)) ? accum[key] : null;
     }, cdata || {});

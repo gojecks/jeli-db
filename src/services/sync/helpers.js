@@ -81,7 +81,7 @@ var syncHelper = (function() {
      * @param {*} tbl 
      */
     syncHelperPublicApi.prototype.setRequestData = function(appName, state, ignore, tbl) {
-        var options = privateApi.buildOptions(appName, tbl, state),
+        var options = privateApi.buildHttpRequestOptions(appName, { tbl: tbl, path: state }),
             process = this.process.getProcess(appName);
         //ignore post data
         if (!ignore) {
@@ -233,7 +233,7 @@ var syncHelper = (function() {
                 /**
                  * broadcast event
                  */
-                privateApi.storageEventHandler.broadcast(eventNamingIndex(appName, 'onResolveSchema'), [version, _onSchemaTables]);
+                privateApi.storageFacade.broadcast(appName, DB_EVENT_NAMES.RESOLVE_SCHEMA, [version, _onSchemaTables]);
                 _onSchemaTables = null;
             });
     };

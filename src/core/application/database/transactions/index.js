@@ -70,7 +70,6 @@ function TableTransaction(tables, mode, isMultipleTable, dbName) {
         this.insertReplace = TransactionInsertReplace;
         this.update = transactionUpdate;
         this['delete'] = transactionDelete;
-        this._autoSync = liveProcessor(dbName);
     }
 
     if ($inArray('read', tblMode)) {
@@ -101,6 +100,7 @@ TableTransaction.prototype.getTableData = function(tableName) {
 TableTransaction.prototype.execute = function(disableOfflineCache) {
     var executeStates = this.executeState;
     var executeLen = executeStates.length;
+    var autoSync = privateApi.getNetworkResolver('live', this.DB_NAME);
     var _this = this;
     return new DBPromise(function(resolve, reject) {
         if (executeLen) {
@@ -118,7 +118,7 @@ TableTransaction.prototype.execute = function(disableOfflineCache) {
                     error = true;
                 } finally {
                     _this.errLog = [];
-                    if ($inArray(ex[0], ["insert", "update", "delete"]) && !error) {
+                    if (autoSync && $inArray(ex[0], ["insert", "update", "delete"]) && !error) {
                         /**
                          * Sync to the backend
                          * Available only when live is define in configuration
@@ -126,7 +126,7 @@ TableTransaction.prototype.execute = function(disableOfflineCache) {
                          * @param {DB_NAME}
                          * @return {FUNCTION}
                          */
-                        _this._autoSync(res.table, ex[0])
+                        liveProcessor(_this.DB_NAME, res.table, ex[0])
                             .then(function(ajaxResponse) {
                                 if (ajaxResponse) {
                                     res.$ajax = ajaxResponse;

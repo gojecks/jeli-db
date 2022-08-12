@@ -70,15 +70,21 @@
       }).join('-');
   }
 
-  function jEliDeepCopy(data) {
-      return JSON.parse(JSON.stringify(data));
+  /**
+   * 
+   * @param {*} weight 
+   * @returns 
+   */
+  function randomStringGenerator(weight) {
+      var s = '';
+      var from = 'abcdefghijklmnnopqrstuvwxyzABCDEFGHIJKLMOPQRSTUVWXYZ00123456789';
+      for (var i = 0; i < weight; i++) {
+          s += from.charAt(Math.floor(Math.random() * from.length));
+      }
+
+      return s;
   }
 
-  /**
-   * DB event Naming
-   * @param {*} dbName 
-   * @param {*} evName 
-   */
-  function eventNamingIndex(dbName, evName) {
-      return "/event/" + dbName + "/" + evName;
+  function jEliDeepCopy(data) {
+      return JSON.parse(JSON.stringify(data));
   }

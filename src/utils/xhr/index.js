@@ -5,6 +5,7 @@
  * @param {*} support 
  */
 function AjaxSetup(interceptor) {
+    var CacheMechanism = new Map();
     var defaultOptions = {
         url: "",
         type: 'GET',
@@ -61,7 +62,83 @@ function AjaxSetup(interceptor) {
         return content
     }
 
-    var CacheMechanism = new Map();
+    /**
+     * 
+     * @param {*} request 
+     * @param {*} name 
+     * @returns any
+     */
+    function getResponseHeaders(request, name) {
+        if (!$isObject(name)) {
+            return request.getResponseHeader(name);
+        } else {
+            for (var i in name) {
+                name[i] = request.getResponseHeader(name[i]);
+            }
+
+            return name;
+        }
+    }
+
+    /**
+     * set Request Headers
+     */
+    function setHeaders(request, options) {
+        for (var name in options.headers) {
+            if (unsafeHeaders[name] || /^(Sec-|Proxy-)/.test(name)) {
+                throw new Error("Refused to set unsafe header \"" + name + "\"");
+            }
+
+            request.setRequestHeader(name, options.headers[name]);
+        }
+    }
+
+    /**
+     * 
+     * @param {*} options 
+     */
+    function processRequest(options) {
+        //check if header requires withCredentials flag
+        if (options.xhrFields && options.xhrFields.withCredentials) {
+            //set the withCredentials Flag
+            request.withCredentials = true;
+        }
+
+        if (options.contentType && !options.headers['Content-Type']) {
+            options.headers['Content-Type'] = 'application/json';
+        }
+
+
+        if (!$isString(options.data)) {
+            if ($isEqual(options.type, 'get')) {
+                options.data = serialize(options.data);
+            } else {
+                options.data = JSON.stringify(options.data);
+            }
+        }
+
+        //Set the options data and cache
+        if (options.type === 'get') {
+            if (options.data) {
+                options.url += ((/\?/).test(options.url) ? '&' : '?') + options.data;
+            }
+
+            if (!options.cache) {
+                options.url += ((/\?/).test(options.url) ? '&' : '?') + '_=' + (new Date()).getTime();
+            }
+        }
+    }
+
+    /**
+     * 
+     * @param {*} options 
+     * @returns 
+     */
+    function getCacheId(options) {
+        return ($isObject(options.cache) && options.cache.id) ? options.cache.id : options.url;
+    }
+
+
     /**
      * 
      * @param {*} url 
@@ -96,81 +173,13 @@ function AjaxSetup(interceptor) {
         }
 
         /**
-         * @method getResponseHeaders
-         * @param {*} name 
-         */
-        function getResponseHeaders(name) {
-            if (!$isObject(name)) {
-                return request.getResponseHeader(name);
-            } else {
-                for (var i in name) {
-                    name[i] = request.getResponseHeader(name[i]);
-                }
-
-                return name;
-            }
-        }
-
-        /**
-         * set Request Headers
-         */
-        function setHeaders() {
-            for (var name in options.headers) {
-                if (unsafeHeaders[name] || /^(Sec-|Proxy-)/.test(name)) {
-                    throw new Error("Refused to set unsafe header \"" + name + "\"");
-                }
-
-                request.setRequestHeader(name, options.headers[name]);
-            }
-        }
-
-        /**
-         * process Request
-         */
-        function processRequest() {
-            //check if header requires withCredentials flag
-            if (options.xhrFields && options.xhrFields.withCredentials) {
-                //set the withCredentials Flag
-                request.withCredentials = true;
-            }
-
-            if (options.contentType && !options.headers['Content-Type']) {
-                options.headers['Content-Type'] = 'application/json';
-            }
-
-
-            if (!$isString(options.data)) {
-                if ($isEqual(options.type, 'get')) {
-                    options.data = serialize(options.data);
-                } else {
-                    options.data = JSON.stringify(options.data);
-                }
-            }
-
-            //Set the options data and cache
-            if (options.type === 'get') {
-                if (options.data) {
-                    options.url += ((/\?/).test(options.url) ? '&' : '?') + options.data;
-                }
-
-                if (!options.cache) {
-                    options.url += ((/\?/).test(options.url) ? '&' : '?') + '_=' + (new Date()).getTime();
-                }
-            }
-        }
-
-        function getCacheId() {
-            return ($isObject(options.cache) && options.cache.id) ? options.cache.id : options.url;
-        }
-
-        /**
          * default ttl is 15mins
          * @param {*} data 
          */
         function storeCache(data, cacheId) {
             var ttl = (($isObject(options.cache) && options.cache.ttl) ? options.cache.ttl : ($isNumber(options.cache)) ? options.cache : 15);
             var expiresAt = new Date().setMilliseconds(60 * ttl * 1000);
-            CacheMechanism.set(cacheId || getCacheId(), {
+            CacheMechanism.set(cacheId || getCacheId(options), {
                 data: data,
                 expiresAt: expiresAt
             });
@@ -201,7 +210,7 @@ function AjaxSetup(interceptor) {
                 options.beforeSend.apply(options.beforeSend, [request]);
             }
 
-            setHeaders();
+            setHeaders(request, options);
             var body = null;
             if ($inArray(options.type, ['post', 'put', 'delete'])) {
                 body = options.data;
@@ -219,7 +228,7 @@ function AjaxSetup(interceptor) {
         return new DBPromise(function(resolve, reject) {
             // check for cacheOptions
             if (options.cache) {
-                var cacheId = getCacheId();
+                var cacheId = getCacheId(options);
                 var cacheResult = CacheMechanism.get(cacheId);
                 var now = Date.now();
                 if (cacheResult && cacheResult.expiresAt > now) {
@@ -231,7 +240,7 @@ function AjaxSetup(interceptor) {
             }
             // process requestData
             if (options.processData) {
-                processRequest();
+                processRequest(options);
             }
 
             request.addEventListener('loadend', function(event) {
@@ -250,8 +259,9 @@ function AjaxSetup(interceptor) {
                     }
 
                     //send the response header
-                    if (options.getResponseHeader) {
-                        options.getResponseHeader.apply(options.getResponseHeader, [getResponseHeaders]);
+                    var _csrfToken = request.getResponseHeader('X-CSRF-TOKEN');
+                    if (_csrfToken) {
+                        $cookie('X-CSRF-TOKEN', _csrfToken);
                     }
 
                     //resolve our response

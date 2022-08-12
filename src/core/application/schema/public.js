@@ -77,4 +77,17 @@ function PublicSchema(core) {
             });
         });
     };
+
+    this.getTableModel = function(tableName, replacerData) {
+        var tableSchema = privateApi.getTable(core.name, tableName);
+        if (tableSchema) {
+            replacerData = (replacerData || {});
+            return Object.keys(tableSchema.columns[0]).reduce(function(accum, prop) {
+                accum[prop] = (prop in replacerData) ? replacerData[prop] : null;
+                return accum;
+            }, {});
+        }
+
+        return ({});
+    }
 }

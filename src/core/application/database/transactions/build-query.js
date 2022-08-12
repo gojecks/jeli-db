@@ -45,47 +45,6 @@ function buildSelectQuery(query, entryPoint, regexp) {
 
 /**
  * 
- * @param {*} serverQuery 
- * @param {*} replacer 
- * @returns 
- */
-function parseServerQuery(serverQuery, replacer) {
-    /**
-     * 
-     * @param {*} query 
-     */
-    function _parse(query) {
-        var parsed = ApplicationInstanceJQL.parser(query, replacer);
-        var tQuery = Object.assign({ fields: parsed[0] }, buildSelectQuery(parsed, 0));
-        tQuery.where = _parseCondition(tQuery.where, replacer);
-        tQuery.tables = parsed[1].split(',').reduce(function(accum, tbl) {
-            tbl = tbl.split(' as ').map(trim);
-            accum[tbl[1] || tbl[0]] = tbl[0];
-            return accum;
-        }, {});
-        if (tQuery.join) {
-            tQuery.join.forEach(function(jQuery) {
-                if (jQuery.where) {
-                    jQuery.where = _parseCondition(jQuery.where, replacer);
-                }
-            });
-        }
-
-        return tQuery;
-    }
-
-    if ($isArray(serverQuery)) {
-        return Object.reduce(function(accum, query) {
-            accum.push(_parse(query));
-            return accum;
-        }, []);
-    }
-
-    return _parse(serverQuery);
-}
-
-/**
- * 
  * @param {*} condition 
  */
 function _parseCondition(condition, replacer) {
@@ -179,6 +138,9 @@ function _convertExpressionStringToObject(expression, replacer, params) {
             break;
         case ("<="):
             type = 'lte';
+            break;
+        case ("<>"):
+            type = "lgte";
             break;
         case ("<"):
             type = 'lt';

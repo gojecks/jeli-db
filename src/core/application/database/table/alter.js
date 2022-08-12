@@ -44,8 +44,7 @@ TableAlterInstance.prototype.drop = function(columnName) {
     /**
      * broadcast event
      **/
-    privateApi.storageEventHandler
-        .broadcast(eventNamingIndex(this.tableInfo.DB_NAME, 'onAlterTable'), [this.tableInfo.TBL_NAME, columnName, 0]);
+    privateApi.storageFacade.broadcast(this.tableInfo.DB_NAME, DB_EVENT_NAMES.ALTER_TABLE, [this.tableInfo.TBL_NAME, columnName, 0]);
 };
 
 /**
@@ -95,8 +94,7 @@ TableAlterInstance.prototype.rename = function(oldName, newName) {
     /**
      * broadcast event
      **/
-    privateApi.storageEventHandler
-        .broadcast(eventNamingIndex(this.tableInfo.DB_NAME, 'onAlterTable'), [this.tableInfo.TBL_NAME, [oldName, newName], 0]);
+    privateApi.storageFacade.broadcast(this.tableInfo.DB_NAME, DB_EVENT_NAMES.ALTER_TABLE, [this.tableInfo.TBL_NAME, [oldName, newName], 0]);
 };
 
 TableAlterAddInstance.constructTable =
@@ -151,7 +149,7 @@ function TableAlterAddInstance(tableInfo) {
              */
             if (!isObjectColumnName && notExists) {
                 TableAlterAddInstance.constructTable(null, tableInfo);
-                privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'onAlterTable'), [tableInfo.TBL_NAME, columnName, 1]);
+                privateApi.storageFacade.broadcast(tableInfo.DB_NAME, DB_EVENT_NAMES.ALTER_TABLE, [tableInfo.TBL_NAME, columnName, 1]);
             }
 
             /**

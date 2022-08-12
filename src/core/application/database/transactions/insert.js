@@ -66,10 +66,10 @@ function transactionInsert(data, hardInsert, tableName) {
         }, []);
 
         return function(data) {
-            tableInfo.lastInsertId++;
+            var inc = ++tableInfo.lastInsertId;
             if (fields.length) {
                 fields.forEach(function(field) {
-                    data[field] = tableInfo.lastInsertId;
+                    data[field] = inc;
                 });
             }
         };
@@ -183,7 +183,7 @@ function transactionInsert(data, hardInsert, tableName) {
     function updateTable(totalRecords) {
         var totalRecords = processedData.length;
         if ($isArray(processedData) && totalRecords) {
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(tableInfo.DB_NAME, 'insert'), [tableInfo.TBL_NAME, processedData, true]);
+            privateApi.storageFacade.broadcast(tableInfo.DB_NAME, DB_EVENT_NAMES.TRANSACTION_INSERT, [tableInfo.TBL_NAME, processedData, true]);
         }
 
         //return success after push

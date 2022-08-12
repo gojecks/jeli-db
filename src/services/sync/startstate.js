@@ -165,9 +165,7 @@ function startSyncState(appName, serverResource, loadedApiKey, pullState) {
                 if (isDeletedTable(serverResource.resourceManager, currentProcessTbl)) {
                     syncHelper.setMessage(currentProcessTbl + ' doesn\'t exist on the server');
                     if (networkResolver.resolveDeletedTable(currentProcessTbl)) {
-                        privateApi
-                            .storageEventHandler
-                            .broadcast(eventNamingIndex(appName, 'onDropTable'), [currentProcessTbl]);
+                        privateApi.storageFacade.broadcast(appName, DB_EVENT_NAMES.DROP_TABLE, [currentProcessTbl]);
 
                         privateApi
                             .getActiveDB(appName)

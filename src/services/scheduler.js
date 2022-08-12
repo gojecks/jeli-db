@@ -51,7 +51,7 @@ function ApplicationScheduler(appName) {
                 content: content
             });
             // trigger our scheduler
-            scheduler();
+            checkScheduler();
         }
     };
 
@@ -102,7 +102,7 @@ ApplicationScheduler.prototype.push = function() {
     };
 
     function process() {
-        var options = privateApi.buildOptions(_this.appName, '', _this.url);
+        var options = privateApi.buildHttpRequestOptions(_this.appName, { path: _this.url });
         var postData = _this._queue.shift();
         options.data.postData = postData;
         privateApi.$http(options)

@@ -7,35 +7,38 @@
  * @param {*} URL
  * @param {*} postData 
  * @param {*} tbl 
+ * @param {*} method
  * requestState can either be a STRING or OBJECT 
  * { 
- *   URL:STRING,
+ *   path:STRING,
  *   tbl:String,
  *   AUTH_TYPE:Boolean,
- *   METHOD:STRING, data:ANY
+ *   METHOD:STRING, data:ANY,
+ *   cache: boolen|{cacheId:string,ttl:number}
  * }
  */
 
-function ApplicationInstanceApi(URL, postData, tbl) {
-    var options = privateApi.buildOptions(this.name, tbl, URL);
+function ApplicationInstanceApi(path) {
+    var options = $isObject(path) ? path : { path: path };
+    var httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
     // set the postData
-    if (postData) {
-        if (options.type && $isEqual(options.type.toLowerCase(), 'get')) {
-            options.data.query = postData;
-        } else if (postData instanceof FormData) {
+    if (options.data && !httpRequestOptions.isErrorState) {
+        if (httpRequestOptions.type && $isEqual(httpRequestOptions.type.toLowerCase(), 'get')) {
+            httpRequestOptions.data.query = options.data;
+        } else if (options.data instanceof FormData) {
             // append all data into formData
-            for (var prop in options.data) {
-                postData.append(prop, options.data[prop]);
+            for (var prop in httpRequestOptions.data) {
+                options.data.append(prop, httpRequestOptions.data[prop]);
             }
-            options.data = postData;
-            options.contentType = false;
-            options.processData = false;
+            httpRequestOptions.data = options.data;
+            httpRequestOptions.contentType = false;
+            httpRequestOptions.processData = false;
         } else {
-            options.data.postData = postData;
+            httpRequestOptions.data.postData = options.data;
         }
     }
 
-    return privateApi.$http(options).then(function(res) {
+    return privateApi.$http(httpRequestOptions).then(function(res) {
         var ret = dbSuccessPromiseObject('api', "");
         ret.result = res;
         return ret;

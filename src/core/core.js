@@ -63,6 +63,8 @@ function Database(name, version) {
         var inProduction = config.isClientMode || false;
         var _activeDBApi;
         return new DBPromise(function(resolve, reject) {
+            var continueProcess = function() { return startDB(resolve, reject) };
+            var requestMapping = null;
             if (name) {
                 //set the current active DB
                 privateApi
@@ -85,18 +87,13 @@ function Database(name, version) {
                     } else if (!_activeDBApi.instance) {
                         //set production flag
                         //register our configuration
-                        var requestMapping = new RequestMapping(false, name);
+                        requestMapping = new RequestMapping(name);
                         _activeDBApi
                             .incrementInstance()
                             .get(constants.RESOLVERS)
                             .register(config)
                             .register('inProduction', inProduction)
-                            .register('requestMapping', requestMapping)
-                            .trigger(function() {
-                                if (!config.disableApiLoading && config.serviceHost) {
-                                    requestMapping.resolveCustomApis();
-                                }
-                            });
+                            .register('requestMapping', requestMapping);
                     }
                     /**
                      * initialize the deleteManager
@@ -111,7 +108,7 @@ function Database(name, version) {
                     if (deleteManagerInstance.isDeletedDataBase()) {
                         jeliInstance.message = name + " database is deleted and pending sync, to re-initialize this Database please clean-up storage.";
                         jeliInstance.mode = "deleteMode";
-                        jeliInstance.result = new ApplicationInstance(name, version, ["name", "version", "jQl", "synchronize", "info", "close"]);
+                        jeliInstance.result = new ApplicationDeletedInstance(name, version);
                         return reject(jeliInstance);
                     }
 
@@ -125,14 +122,23 @@ function Database(name, version) {
                          * During this phase limited method are availabe to the Database instance
                          * methods: _users(), close(), api()
                          */
-                        jeliInstance.result = new ApplicationInstance(name, version, ["_users", "name", "version", "close", "api"]);
+                        jeliInstance.result = new ApplicationLoginInstance(name, version);
                         //set Login Mode
                         jeliInstance.type = "loginMode";
                         jeliInstance.message = "DB Authentication Mode!!";
                         return resolve(jeliInstance);
                     }
 
-                    startDB(resolve, reject);
+                    /**
+                     * load api before continue process
+                     */
+                    if (!config.disableApiLoading && config.serviceHost && requestMapping) {
+                        requestMapping.resolveCustomApis()
+                            .then(continueProcess, continueProcess);
+                        requestMapping = null;
+                    } else {
+                        continueProcess();
+                    }
                 }
             } else {
                 jeliInstance.message = "There was an error creating your DB, either DB name or version number is missing";
@@ -244,7 +250,7 @@ function Database(name, version) {
                     schemaManager.create(next, function() {
                         _activeDBApi.get(constants.RESOURCEMANAGER).setResource(getDBSetUp(name));
                         // store the DB version
-                        privateApi.storageEventHandler.broadcast(eventNamingIndex(name, 'onResolveSchema'), [version, {}]);
+                        privateApi.storageFacade.broadcast(name, DB_EVENT_NAMES.RESOLVE_SCHEMA, [version, {}]);
                     });
                 }
             }

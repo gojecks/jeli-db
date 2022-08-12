@@ -2,7 +2,6 @@
  * 
  * @param {*} name 
  * @param {*} version 
- * @param {*} required 
  */
 function ApplicationInstance(name, version) {
     //set the DB name for reference
@@ -45,7 +44,7 @@ ApplicationInstance.prototype._users = function() {
 ApplicationInstance.prototype.transaction = ApplicationInstanceTransaction;
 ApplicationInstance.prototype.batchTransaction = ApplicationInstanceBatchTransaction;
 ApplicationInstance.prototype.table = ApplicationInstanceTable;
-ApplicationInstance.prototype.synchronize = ApplicationInstanceCore;
+ApplicationInstance.prototype.synchronize = ApplicationInstanceSync;
 ApplicationInstance.prototype.replicate = ApplicationInstanceReplicate;
 ApplicationInstance.prototype.rename = ApplicationInstanceRename;
 ApplicationInstance.prototype.jQl = ApplicationInstanceJQL;
@@ -56,3 +55,50 @@ ApplicationInstance.prototype.export = ApplicationInstanceExport;
 ApplicationInstance.prototype.drop = ApplicationInstanceDrop;
 ApplicationInstance.prototype.createTbl = ApplicationInstanceCreateTable;
 ApplicationInstance.prototype.api = ApplicationInstanceApi;
+
+
+/**
+ * Application login instance
+ * used only when login is required
+ */
+function ApplicationLoginInstance(name, version) {
+    this.name = name;
+    this.version = version;
+}
+
+/**
+ * 
+ * @param {*} flag 
+ */
+ApplicationLoginInstance.prototype.close = function(flag) {
+    //drop the DB if allowed
+    privateApi.closeDB(this.name, flag);
+};
+
+ApplicationLoginInstance.prototype._users = function() {
+    return new ApplicationUsersApi(this);
+};
+
+ApplicationLoginInstance.prototype.api = ApplicationInstanceApi;
+
+/**
+ * Application deleted instance
+ * used only when applicated is deleted
+ */
+function ApplicationDeletedInstance(name, version) {
+    this.name = name;
+    this.version = version;
+}
+
+/**
+ * 
+ * @param {*} flag 
+ */
+ApplicationDeletedInstance.prototype.close = function(flag) {
+    //drop the DB if allowed
+    privateApi.closeDB(this.name, flag);
+};
+
+ApplicationDeletedInstance.prototype.jQl = ApplicationInstanceJQL;
+ApplicationDeletedInstance.prototype.synchronize = ApplicationInstanceSync;
+ApplicationDeletedInstance.prototype.info = ApplicationInstanceInfo;

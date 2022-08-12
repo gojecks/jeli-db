@@ -107,7 +107,10 @@ ChildProcess.prototype.prepareSyncState = function() {
         tbls = tblNames || [];
     }
 
-    var postSyncTables = this.getSet('postSyncTables').filter(function(tbl) { return !tbls.includes(tbl); });
+    var postSyncTables = this.getSet('postSyncTables');
+    if (postSyncTables) {
+        postSyncTables.filter(function(tbl) { return !tbls.includes(tbl); });
+    }
 
-    return ({ tables: tbls, postSync: postSyncTables });
+    return ({ tables: tbls, postSync: postSyncTables || [] });
 }

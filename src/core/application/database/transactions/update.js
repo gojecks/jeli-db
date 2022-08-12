@@ -142,9 +142,7 @@ function transactionUpdate(updateData, query, tableName, replace) {
         /**
          * broadcast our event
          */
-        privateApi
-            .storageEventHandler
-            .broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableName, rowsToUpdate.slice()]);
+        privateApi.storageFacade.broadcast(tableInfo.DB_NAME, DB_EVENT_NAMES.TRANSACTION_UPDATE, [tableName, rowsToUpdate.slice()]);
 
         //empty the rows 
         rowsToUpdate.length = 0;
