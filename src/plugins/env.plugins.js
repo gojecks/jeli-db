@@ -13,7 +13,7 @@ function envPluginFn(query, handler) {
         var task = db.env[query[1]];
         if (task) {
             var _task = task(query[2]);
-            if ($isObject(_task)) {
+            if (isobject(_task)) {
                 ret.state = query[1];
                 _task.then(function(res) {
                     //set the state

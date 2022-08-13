@@ -40,14 +40,14 @@ ApplicationInstanceTransaction.async = function(dbName, table, mode) {
             return;
         }
 
-        if (!tableSchema.columns || !$isEqual(tableSchema.DB_NAME, dbName) || !$isEqual(tableSchema.TBL_NAME, table)) {
+        if (!tableSchema.columns || !isequal(tableSchema.DB_NAME, dbName) || !isequal(tableSchema.TBL_NAME, table)) {
             err.push("Table (" + table + ") is not well configured, if you re the owner please delete the table and create again");
         }
     }
 
     if (table) {
         //required table is an array
-        if ($isArray(table)) {
+        if (isarray(table)) {
             table.forEach(function(tbl) {
                 tbl = tbl.split(' as ').map(trim);
                 if (tbl.length > 1) {

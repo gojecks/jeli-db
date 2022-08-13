@@ -110,7 +110,7 @@ CoreDataResolver.prototype.isResolved = function(tbl, checksum) {
 };
 
 CoreDataResolver.prototype.destroy = function() {
-    if ($isEmptyObject(this._records)) {
+    if (isemptyobject(this._records)) {
         this._records = {};
         privateApi.storageFacade.remove(privateApi.storeMapping.pendingSync);
     }

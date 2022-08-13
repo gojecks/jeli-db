@@ -175,7 +175,7 @@ function Database(name, version) {
 
 
             function initializeExistMode() {
-                if (dbChecker && $isEqual(dbChecker.version, version)) {
+                if (dbChecker && isequal(dbChecker.version, version)) {
                     //set exists mode
                     // validate versions
                     jeliInstance.message = name + " DB already exists with version no:(" + dbChecker.version;

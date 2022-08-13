@@ -20,7 +20,7 @@ function RequestMapping(appName) {
      */
     this.set = function(config) {
         if (config) {
-            if ($isArray(config)) {
+            if (isarray(config)) {
                 customApiRepository = customApiRepository.concat(config);
             } else if (!customApiRepository.some(function(api) { return api.URL == config.URL; })) {
                 customApiRepository.push(config);
@@ -88,7 +88,7 @@ RequestMapping.prototype.resolveCustomApis = function() {
     var requestOptions = privateApi.buildHttpRequestOptions(this.appName, { path: '/application/api' });
     return privateApi.$http(requestOptions)
         .then(function(res) {
-            if ($isArray(res)) {
+            if (isarray(res)) {
                 self.customApiRepository = res;
             }
         });
@@ -120,9 +120,9 @@ function ApiMapper() {
      * @param {*} apiList 
      */
     this.set = function(apiList) {
-        if ($isArray(apiList)) {
+        if (isarray(apiList)) {
             this.coreApiRepository.push.apply(this.coreApiRepository, apiList);
-        } else if ($isObject(apiList)) {
+        } else if (isobject(apiList)) {
             this.coreApiRepository.push(apiList);
         }
     };
@@ -135,7 +135,7 @@ function ApiMapper() {
  */
 ApiMapper.prototype.remove = function(url) {
     this.coreApiRepository = this.coreApiRepository.filter(function(api) {
-        return !$isEqual(api.URL, url);
+        return !isequal(api.URL, url);
     });
 }
 
@@ -151,7 +151,7 @@ ApiMapper.prototype.clear = function() {
  */
 ApiMapper.prototype.find = function(key, customApiRepository, method) {
     return this.coreApiRepository.concat(customApiRepository || []).filter(function(api) {
-        return $isEqual(api.URL, key) && (!method || method === api.METHOD);
+        return isequal(api.URL, key) && (!method || method === api.METHOD);
     });
 }
 

@@ -36,7 +36,7 @@ var syncHelper = (function() {
         var networkResolver = this.process.getProcess(this.process.currentProcess).getSet('networkResolver');
         var localDateStr = new Date().toLocaleString();
         if (log && networkResolver) {
-            if ($isArray(log)) {
+            if (isarray(log)) {
                 log = log.map(function(item) { return '[' + localDateStr + '] : ' + item; }).join("\n");
             } else {
                 log = '[' + localDateStr + '] : ' + log;
@@ -70,7 +70,7 @@ var syncHelper = (function() {
      * @param {*} tbl 
      */
     syncHelperPublicApi.prototype.setTable = function(tbl) {
-        return (!$isUndefined(tbl) && tbl || this.mockTable());
+        return (!isundefined(tbl) && tbl || this.mockTable());
     };
 
     /**

@@ -19,11 +19,11 @@
  */
 
 function ApplicationInstanceApi(path) {
-    var options = $isObject(path) ? path : { path: path };
+    var options = isobject(path) ? path : { path: path };
     var httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
     // set the postData
     if (options.data && !httpRequestOptions.isErrorState) {
-        if (httpRequestOptions.type && $isEqual(httpRequestOptions.type.toLowerCase(), 'get')) {
+        if (httpRequestOptions.type && isequal(httpRequestOptions.type.toLowerCase(), 'get')) {
             httpRequestOptions.data.query = options.data;
         } else if (options.data instanceof FormData) {
             // append all data into formData

@@ -3,7 +3,7 @@
   var inUpdateProgress = 0;
 
   function purifyJSON(data) {
-      if ($isJsonString(data)) {
+      if (isjsonstring(data)) {
           return JSON.parse(data);
       } else {
           return undefined;

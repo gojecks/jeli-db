@@ -53,7 +53,7 @@ function ResourceManager(appName) {
     };
 
     this.addTableToResource = function(tableName, data) {
-        if ($isArray(_resource.resourceManager) || !_resource.resourceManager) {
+        if (isarray(_resource.resourceManager) || !_resource.resourceManager) {
             _resource.resourceManager = {};
         }
         _resource.resourceManager[tableName] = data;

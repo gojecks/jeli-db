@@ -7,7 +7,7 @@ function ApplicationInstanceRename(newName) {
     var _this = this;
     return new DBPromise(function(resolve, reject) {
         var resourceInstance = privateApi.getActiveDB(dbName).get(constants.RESOURCEMANAGER);
-        if ($isEqual(dbName, newName)) {
+        if (isequal(dbName, newName)) {
             failed({ message: newName + ' cannot be same as ' + dbName });
         } else {
             var resource = resourceInstance.getResource();

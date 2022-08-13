@@ -31,7 +31,7 @@ function TransactionDataAndColumnValidator(tableName, columns) {
                     /**
                      * Allow null value when NOT_NULL is not configured 
                      */
-                    if ($isNull(cData[key]) && !columns[key].NOT_NULL) {
+                    if (isnull(cData[key]) && !columns[key].NOT_NULL) {
                         return;
                     }
                     _this.setDBError(key + " Field requires " + requiredType.toUpperCase() + ", but got " + type.toUpperCase() + "(" + cData[key] + ")- ref #" + dataRef);

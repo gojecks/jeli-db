@@ -12,7 +12,7 @@ function ApplicationInstanceExport(type, table) {
     function getValueInArray(cdata) {
         var ret = []
         expect(cdata).each(function(item) {
-            ret.push($isObject(item) ? JSON.stringify(item) : item);
+            ret.push(isobject(item) ? JSON.stringify(item) : item);
         });
 
         return ret;
@@ -26,7 +26,7 @@ function ApplicationInstanceExport(type, table) {
             }
 
             //if export type was a JSON format
-            if ($inArray(type, ['json', 'jql'])) {
+            if (inarray(type, ['json', 'jql'])) {
                 //put the json data
                 exp.put(tableSchema);
             } else {

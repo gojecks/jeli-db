@@ -38,7 +38,7 @@ function ApplicationScheduler(appName) {
      * 
      */
     this.scheduler = function(when, content) {
-        if ($isNumber(when)) {
+        if (isnumber(when)) {
             // validate the number
             var current = +new Date;
             if (current > when) {

@@ -92,7 +92,7 @@ TableInstance.prototype.truncate = function(flag) {
  * Rename Table
  */
 TableInstance.prototype.rename = function(newTableName) {
-    if (!newTableName && $isEqual(newTableName, this.tableInfo.TBL_NAME)) {
+    if (!newTableName && isequal(newTableName, this.tableInfo.TBL_NAME)) {
         return dbErrorPromiseObject("Invalid TABLE NAME");
     }
     var db = privateApi.getActiveDB(this.tableInfo.DB_NAME);

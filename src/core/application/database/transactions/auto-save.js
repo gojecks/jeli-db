@@ -10,7 +10,7 @@ function liveProcessor(appName, tbl, type) {
     var recordResolver = privateApi.getActiveDB(appName).get(constants.RECORDRESOLVERS);
 
     return new DBPromise(function(resolve, reject) {
-        if (!$inArray(tbl, ignoreSync)) {
+        if (!inarray(tbl, ignoreSync)) {
             //process the request
             //Synchronize PUT STATE
             var dataToSync = recordResolver.get(tbl, null, 'data');

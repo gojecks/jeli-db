@@ -102,7 +102,7 @@ ChildProcess.prototype.prepareSyncState = function() {
     var tblNames = privateApi.getActiveDB(this.appName).get(constants.RESOURCEMANAGER).getTableNames();
     // check if table was requested
     if (tbls && tbls.length) {
-        tbls = ($isString(tbls) ? [tbls] : tbls).filter(function(tbl) { return $inArray(tbl, tblNames); });
+        tbls = (isstring(tbls) ? [tbls] : tbls).filter(function(tbl) { return inarray(tbl, tblNames); });
     } else {
         tbls = tblNames || [];
     }

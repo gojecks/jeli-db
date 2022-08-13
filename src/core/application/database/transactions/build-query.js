@@ -16,17 +16,17 @@ function buildSelectQuery(query, entryPoint, regexp) {
 
     var definition = {};
     if (query.length > entryPoint) {
-        if ($isString(query[entryPoint])) {
+        if (isstring(query[entryPoint])) {
             // splice our query
             // set definition
             [].concat.call(query).splice(entryPoint).map(function(qKey) {
                 qKey = qKey.replace(/\((.*)\)/, "~$1").split("~");
                 // function Query
                 if (qKey.length > 1) {
-                    if ($isJsonString(qKey[1])) {
+                    if (isjsonstring(qKey[1])) {
                         definition[qKey[0]] = JSON.parse(qKey[1]);
                     } else {
-                        if ($inArray(qKey[0], ["join"])) {
+                        if (inarray(qKey[0], ["join"])) {
                             definition[qKey[0]] = [buildSelectQuery(qKey[1], 0, /[@]/)];
                         } else {
                             definition[qKey[0]] = qKey[1];
@@ -48,7 +48,7 @@ function buildSelectQuery(query, entryPoint, regexp) {
  * @param {*} condition 
  */
 function _parseCondition(condition, replacer) {
-    condition = $removeWhiteSpace(condition || "").split(/[||]/gi)
+    condition = removewhitespace(condition || "").split(/[||]/gi)
         .filter(function(cond) { return !!cond; })
         .map(function(cond) {
             return cond.split(/[&&]/gi).filter(function(cond) {

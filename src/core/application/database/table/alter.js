@@ -25,7 +25,7 @@ TableAlterInstance.prototype.drop = function(columnName) {
         return 0;
     }
 
-    if ($isString(columnName) && this.tableInfo.columns[0][columnName]) {
+    if (isstring(columnName) && this.tableInfo.columns[0][columnName]) {
         delete this.tableInfo.columns[0][columnName];
     }
 
@@ -67,7 +67,7 @@ TableAlterInstance.prototype.rename = function(oldName, newName) {
         return 0;
     }
 
-    if ($isEqual(newName.toLowerCase(), oldName.toLowerCase())) {
+    if (isequal(newName.toLowerCase(), oldName.toLowerCase())) {
         console.log('[JDB TABLE ALTER]: Duplicate columnName (' + newName + ')');
         return 0;
     }
@@ -108,7 +108,7 @@ TableAlterAddInstance.constructTable =
         var tableData = privateApi.getTableData(tableInfo.DB_NAME, tableInfo.TBL_NAME);
         tableData.forEach(function(item, idx) {
             //perform task if argument is a function
-            if ($isFunction(cFn)) {
+            if (isfunction(cFn)) {
                 cFn(item);
             }
             //Update the dataSet
@@ -129,14 +129,14 @@ function TableAlterAddInstance(tableInfo) {
      * @param {*} config 
      */
     this.column = function(columnName, config) {
-        var isObjectColumnName = $isObject(columnName);
-        if (columnName && (isObjectColumnName || $isString(columnName))) {
+        var isObjectColumnName = isobject(columnName);
+        if (columnName && (isObjectColumnName || isstring(columnName))) {
             var nColumn = columnName;
             var notExists = !(tableInfo.columns[0] || {}).hasOwnProperty(columnName);
 
             if (!isObjectColumnName) {
                 nColumn = {};
-                nColumn[columnName] = $isObject(config) ? config : {
+                nColumn[columnName] = isobject(config) ? config : {
                     type: 'any'
                 };
             }
@@ -171,9 +171,9 @@ function TableAlterAddInstance(tableInfo) {
  */
 TableAlterAddInstance.prototype.index = function(name, setting) {
     if (name || setting) {
-        var indexData = $isArray(this.tableInfo.index) ? {} : this.tableInfo.index;
+        var indexData = isarray(this.tableInfo.index) ? {} : this.tableInfo.index;
         var columns = this.tableInfo.columns[0];
-        if ($isObject(name) && !setting) {
+        if (isobject(name) && !setting) {
             for (var prop in name) {
                 validateAndWrite(prop, name[prop]);
             }
@@ -245,7 +245,7 @@ TableAlterAddInstance.prototype.foreign = function(key, tableName) {
         var columns = this.tableInfo.columns[0];
         var dbName = this.tableInfo.DB_NAME;
 
-        if ($isObject(key) && !tableName) {
+        if (isobject(key) && !tableName) {
             // validate before writing;
             for (var prop in key) {
                 validateAndWrite(prop, key[prop]);

@@ -12,7 +12,7 @@ function SchemaPluginFn(query, handler) {
                 server: query[2]
             };
 
-            if ($isEqual(query[1], 'add')) {
+            if (isequal(query[1], 'add')) {
                 options.schemaData = query[2];
             }
 

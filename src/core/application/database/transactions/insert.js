@@ -15,14 +15,14 @@ function transactionInsert(data, hardInsert, tableName) {
     var tableInfo = this.getTableInfo(tableName);
     var time = performance.now();
     var columns = tableInfo.columns[0];
-    var objectType = $isObject(data);
+    var objectType = isobject(data);
     var _validator = this.validator(tableInfo.TBL_NAME, columns);
     var defaultValueGenerator = columnObjFn(columns);
     /**
      * Data must an Array or Object format
      * throw error if not in the format
      */
-    if (!$isArray(data) && !objectType) {
+    if (!isarray(data) && !objectType) {
         this.setDBError("Invalid dataType received, accepted types are  (ARRAY or OBJECT)");
     }
 
@@ -59,7 +59,7 @@ function transactionInsert(data, hardInsert, tableName) {
      */
     function getAutoIncCallback() {
         var fields = defaultValueGenerator.columnKeys.reduce(function(accum, column) {
-            if (columns[column].AUTO_INCREMENT && $inArray(columns[column].type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
+            if (columns[column].AUTO_INCREMENT && inarray(columns[column].type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
                 accum.push(column);
             }
             return accum;
@@ -135,7 +135,7 @@ function transactionInsert(data, hardInsert, tableName) {
                 var item = data[i];
                 var cdata = {};
                 //switch type
-                if ($isObject(item)) {
+                if (isobject(item)) {
                     cdata = item;
                 } else {
                     cdata = copyDataByIndex(defaultValueGenerator.columnKeys, item);
@@ -182,7 +182,7 @@ function transactionInsert(data, hardInsert, tableName) {
      */
     function updateTable(totalRecords) {
         var totalRecords = processedData.length;
-        if ($isArray(processedData) && totalRecords) {
+        if (isarray(processedData) && totalRecords) {
             privateApi.storageFacade.broadcast(tableInfo.DB_NAME, DB_EVENT_NAMES.TRANSACTION_INSERT, [tableInfo.TBL_NAME, processedData, true]);
         }
 

@@ -10,7 +10,7 @@ function PluginsInstance() {
 }
 
 PluginsInstance.prototype.jQl = function(name, plugin) {
-    if (name && $isObject(plugin) && !this._pluginsContainer.has(name)) {
+    if (name && isobject(plugin) && !this._pluginsContainer.has(name)) {
         this._pluginsContainer.set(name, plugin);
     } else {
         errorBuilder('Failed to register plugin, either it already exists or invalid definition');
@@ -18,7 +18,7 @@ PluginsInstance.prototype.jQl = function(name, plugin) {
 }
 
 PluginsInstance.prototype.disablePlugins = function(list) {
-    if ($isArray(list)) {
+    if (isarray(list)) {
         for (var i = 0; i < list.length; i++) {
             if (!this._pluginsContainer.has(list[i])) {
                 this._pluginsContainer.get(list[i]).disabled = true;
@@ -28,7 +28,7 @@ PluginsInstance.prototype.disablePlugins = function(list) {
 }
 
 PluginsInstance.prototype.enablePlugins = function(list) {
-    if ($isArray(list)) {
+    if (isarray(list)) {
         for (var i = 0; i < list.length; i++) {
             if (!this._pluginsContainer.has(list[i])) {
                 this._pluginsContainer.get(list[i]).disabled = false;

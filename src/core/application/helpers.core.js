@@ -11,7 +11,7 @@ function jCMDHelpers() {
     };
 
     this.overwrite = function(helps) {
-        if ($isArray(helps) && helps.length) {
+        if (isarray(helps) && helps.length) {
             list = helps;
         }
     };

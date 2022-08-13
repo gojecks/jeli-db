@@ -60,7 +60,7 @@ function startSyncState(appName, serverResource, loadedApiKey, pullState) {
      * @param {*} hash 
      */
     function updateHash(tableToUpdate, hash) {
-        if ($isString(tableToUpdate)) {
+        if (isstring(tableToUpdate)) {
             tableToUpdate = privateApi.getTable(appName, tableToUpdate);
         }
 
@@ -234,7 +234,7 @@ function startSyncState(appName, serverResource, loadedApiKey, pullState) {
      * @param {*} state 
      */
     function finalize(state) {
-        if (state && $isFunction(syncHelper[state])) {
+        if (state && isfunction(syncHelper[state])) {
             syncHelper[state](appName);
         }
         //remove deleteRecords
@@ -260,7 +260,7 @@ function startSyncState(appName, serverResource, loadedApiKey, pullState) {
 
             return;
         }
-        finalize($isEqual(response.state.toLowerCase(), 'error') ? 'killState' : 'finalizeProcess');
+        finalize(isequal(response.state.toLowerCase(), 'error') ? 'killState' : 'finalizeProcess');
     }
 
     /**
@@ -268,7 +268,7 @@ function startSyncState(appName, serverResource, loadedApiKey, pullState) {
      * @param {*} response 
      */
     function finalizePull(response) {
-        if ($isEqual(response.state.toLowerCase(), 'error')) {
+        if (isequal(response.state.toLowerCase(), 'error')) {
             _resolve({
                 state: 'Success',
                 status: 200,

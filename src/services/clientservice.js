@@ -43,12 +43,12 @@ function parseServerQuery(serverQuery, replacer) {
         return tQuery;
     }
 
-    if ($isArray(serverQuery)) {
+    if (isarray(serverQuery)) {
         return Object.reduce(function(accum, query) {
             accum.push(_parse(query));
             return accum;
         }, []);
-    } else if ($isObject(serverQuery)) {
+    } else if (isobject(serverQuery)) {
         var parseValue = ApplicationInstanceJQL.parseValue(replacer);
         return jSonParser(parseValue(JSON.stringify(serverQuery)));
     }

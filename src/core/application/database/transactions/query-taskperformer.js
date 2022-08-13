@@ -3,7 +3,7 @@
 function _querySortPerformer() {
     var sortArguments = arguments;
     var data = this;
-    if ($isArray(data)) {
+    if (isarray(data)) {
         return data.sort(function(obj1, obj2) {
             /*
              * save the arguments object as it will be overwritten
@@ -45,8 +45,8 @@ function _querySortPerformer() {
  * @returns 
  */
 function _queryWherePerformer(data, logic, callback) {
-    if ($isArray(data) && logic) {
-        var filter = $removeWhiteSpace(logic).split(/(?:like):/gi);
+    if (isarray(data) && logic) {
+        var filter = removewhitespace(logic).split(/(?:like):/gi);
 
         return data.filter(function(item, idx) {
             var found = ((filter.length > 1) ? (String(item[filter[0]] || '').toLowerCase().search(String(filter[1]).toLowerCase()) !== -1) : $logicChecker(logic, item));
@@ -130,7 +130,7 @@ function externalQuery(logic, replacer) {
     }
 
     if (logic) {
-        if ($isString(logic)) {
+        if (isstring(logic)) {
             if (!cachedLogics.has(logic)) {
                 cachedLogics.set(logic, _parseCondition(logic, replacer));
             }
@@ -140,7 +140,7 @@ function externalQuery(logic, replacer) {
          * user defined logic as object
          * convert to array
          */
-        else if ($isObject(logic)) {
+        else if (isobject(logic)) {
             logic = [logic];
         }
         // create or expect instance
@@ -166,7 +166,7 @@ var _operatorMethods = (function() {
      * @returns 
      */
     operatorMethods['lgte'] = function(queryValue, recordValue) {
-        if (!$isArray(queryValue)) return false;
+        if (!isarray(queryValue)) return false;
         return (queryValue[0] >= recordValue || ((queryValue[1] || 0) <= recordValue));
     };
 
@@ -174,28 +174,28 @@ var _operatorMethods = (function() {
         return queryValue > recordValue;
     };
     operatorMethods['inClause'] = function(queryValue, recordValue) {
-        return $inArray(queryValue, recordValue);
+        return inarray(queryValue, recordValue);
     };
     operatorMethods['inArray'] = function(queryValue, recordValue) {
-        return $inArray(recordValue, queryValue);
+        return inarray(recordValue, queryValue);
     };
     operatorMethods['lk'] = function(queryValue, recordValue) {
         return (String(queryValue || "").toLowerCase()).search((recordValue || '').toLowerCase()) > -1;
     };
     operatorMethods['notInClause'] = function(queryValue, recordValue) {
-        return !$inArray(queryValue, recordValue);
+        return !inarray(queryValue, recordValue);
     };
     operatorMethods['notInArray'] = function(queryValue, recordValue) {
-        return !$inArray(recordValue, queryValue);
+        return !inarray(recordValue, queryValue);
     };
     operatorMethods['is'] = function(queryValue, recordValue) {
-        return $isEqual(recordValue, queryValue);
+        return isequal(recordValue, queryValue);
     };
     operatorMethods['not'] = function(queryValue, recordValue) {
-        return !$isEqual(recordValue, queryValue);
+        return !isequal(recordValue, queryValue);
     };
     operatorMethods['isDefined'] = function(queryValue, recordValue) {
-        return $isEqual(recordValue, !$isEmpty(queryValue));
+        return isequal(recordValue, !isempty(queryValue));
     };
     operatorMethods['isNot'] = function(queryValue, recordValue) {
         return recordValue != queryValue;
@@ -221,10 +221,10 @@ var _operatorMethods = (function() {
  * @returns 
  */
 function _matcher($query, fieldValue, item) {
-    if ($isObject($query)) {
+    if (isobject($query)) {
         var recordValue = modelGetter($query.value, item) || $query.value;
         return _operatorMethods[$query.type](fieldValue, recordValue)
-    } else if ($isObject(fieldValue)) {
+    } else if (isobject(fieldValue)) {
         return jsonMatcher($query, fieldValue);
     }
 

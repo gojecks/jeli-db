@@ -53,7 +53,7 @@ function ApplicationInstanceCreateTable(name, columns, additionalConfig, ignoreI
 }
 
 function checkColumns(columns) {
-    if ($isObject(columns)) {
+    if (isobject(columns)) {
         var nColumn = [];
         nColumn.push(columns);
         columns = nColumn;

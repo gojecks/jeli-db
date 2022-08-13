@@ -20,7 +20,7 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
          * check if schemaFilePath is Defined
          * 
          */
-        if (!schemaFilePath || !$isString(schemaFilePath)) {
+        if (!schemaFilePath || !isstring(schemaFilePath)) {
             return next();
         }
 

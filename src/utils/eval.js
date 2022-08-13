@@ -39,7 +39,7 @@ function simpleArgumentParser(arg) {
         isNum = Number(arg);
     if (arg && !isNaN(isNum)) {
         return isNum;
-    } else if (!$isUndefined(booleanMatcher)) {
+    } else if (!isundefined(booleanMatcher)) {
         return booleanMatcher;
     }
 
@@ -134,13 +134,13 @@ function generateArguments(args, context, event) {
         if (arg[0] === "$event") {
             return event;
         } else {
-            if ($isString(arg)) {
+            if (isstring(arg)) {
                 return arg;
             }
 
             arg = arg.join('.');
             var param = resolveValueFromContext(arg, context);
-            return !$isUndefined(param) ? param : simpleArgumentParser(arg);
+            return !isundefined(param) ? param : simpleArgumentParser(arg);
         }
     });
 }
@@ -151,16 +151,16 @@ function generateArguments(args, context, event) {
  * @param {*} context 
  */
 function resolveValueFromContext(expression, context) {
-    if ($isUndefined(expression) || $isNull(expression) || $isBoolean(expression)) {
+    if (isundefined(expression) || isnull(expression) || isboolean(expression)) {
         return expression;
-    } else if ($isObject(expression)) {
+    } else if (isobject(expression)) {
         return parseObjectExpression(expression, context);
-    } else if ($isArray(expression)) {
+    } else if (isarray(expression)) {
         return expression;
     }
 
     var value = simpleArgumentParser(expression);
-    if ($isEqual(value, expression)) {
+    if (isequal(value, expression)) {
         value = maskedEval(expression, context);
     }
 
@@ -185,11 +185,11 @@ function parseObjectExpression(expression, context) {
         /**
          * itenary type
          */
-        if ($isObject(obj) && obj.test) {
+        if (isobject(obj) && obj.test) {
             accum[key] = _localParser_[obj.type](obj);
         } else {
             var value = maskedEval(obj, context);
-            accum[key] = $isUndefined(value) ? obj : value;
+            accum[key] = isundefined(value) ? obj : value;
         }
         return accum;
     }, {});
@@ -266,7 +266,7 @@ function createNewInstance(model, key, create, nextIsArrayKey) {
 }
 
 function modelGetter(field, cdata) {
-    if (typeof field === 'object' || $isBoolean(field) || $isNumber(field)) return field;
+    if (typeof field === 'object' || isboolean(field) || isnumber(field)) return field;
     return field.replace(/(\[)/g, '.').replace(/(\])/g, '').split('.').reduce(function(accum, key) {
         return (accum && accum.hasOwnProperty(key)) ? accum[key] : null;
     }, cdata || {});
@@ -279,17 +279,17 @@ function modelGetter(field, cdata) {
  * @param {*} create 
  */
 function ModelSetterGetter(key, context, create) {
-    if (!$isString(key)) {
+    if (!isstring(key)) {
         return key;
     }
 
-    return deepArrayChecker(create, $removeWhiteSpace(key), context);
+    return deepArrayChecker(create, removewhitespace(key), context);
 }
 
 function matchScopeObject(ckey, fn) {
     var fnd = false;
     for (var i in ckey) {
-        if (!$isUndefined(fn)) {
+        if (!isundefined(fn)) {
             if (fn.indexOf(ckey[i]) > -1) {
                 fnd = ckey[i];
             }
@@ -303,7 +303,7 @@ function matchScopeObject(ckey, fn) {
  * split STRING on condition
  */
 function splitStringCondition(str) {
-    return $removeWhiteSpace(str).split(/[&&||]/gi);
+    return removewhitespace(str).split(/[&&||]/gi);
 }
 
 /**
@@ -343,7 +343,7 @@ function $logicChecker($logic, elementModel, ignore) {
         return nArguments;
     }
 
-    var splitExpr = $removeWhiteSpace($logic).split(/([|()=<>!*+//&-])/ig),
+    var splitExpr = removewhitespace($logic).split(/([|()=<>!*+//&-])/ig),
         len = splitExpr.length;
     while (len--) {
         if (splitExpr[len].match(/[a-zA-Z]/ig)) {
@@ -351,7 +351,7 @@ function $logicChecker($logic, elementModel, ignore) {
             var exprValue = maskedEval(splitExpr[len], elementModel);
             //check if exprValue is a function
             //initialize the function and set the value
-            if ($isFunction(exprValue)) {
+            if (isfunction(exprValue)) {
                 //wrap the user function in a masked IIFE
                 //IIFE only returns the actually result of the user function
                 var arg = getFunctionArg(len, splitExpr);
@@ -361,17 +361,17 @@ function $logicChecker($logic, elementModel, ignore) {
             }
             //check if exprValue is an Object or Array
             //set the value to true
-            else if ($isObject(exprValue) || $isArray(exprValue)) {
+            else if (isobject(exprValue) || isarray(exprValue)) {
                 exprValue = true;
             }
 
             //convert null to false as it will be remove 
             //by jolin FN
-            if ($isNull(exprValue) || $isUndefined(exprValue)) {
+            if (isnull(exprValue) || isundefined(exprValue)) {
                 exprValue = false;
             }
 
-            splitExpr[len] = (($isString(exprValue)) ? "'" + exprValue + "'" : exprValue);
+            splitExpr[len] = ((isstring(exprValue)) ? "'" + exprValue + "'" : exprValue);
         }
     }
     //MaskedEval 

@@ -8,7 +8,7 @@ var QueryLimitMethods = (function() {
      * @returns 
      */
     function limitTask(data, definition) {
-        if ($isNumber(definition.limit)) {
+        if (isnumber(definition.limit)) {
             definition.limit = definition.limit.toString();
         }
 

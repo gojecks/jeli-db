@@ -43,7 +43,7 @@ function TableTransaction(tables, mode, isMultipleTable, dbName) {
         var tableData = this.getTableData(tableName);
         return tableData.reduce(function(previousValue, currentValue) {
             var value = currentValue._data[columnName];
-            if (!$isUndefined(value) && !$isNull(value)) {
+            if (!isundefined(value) && !isnull(value)) {
                 previousValue.push(value);
             }
             return previousValue;
@@ -51,7 +51,7 @@ function TableTransaction(tables, mode, isMultipleTable, dbName) {
     };
 
     //Check the required Mode
-    if ($inArray('write', tblMode)) {
+    if (inarray('write', tblMode)) {
         var _recordResolvers = privateApi.getActiveDB(dbName).get(constants.RECORDRESOLVERS);
         this.dataProcessing = function(process) {
             this.processData = process;
@@ -60,7 +60,7 @@ function TableTransaction(tables, mode, isMultipleTable, dbName) {
 
         this.updateOfflineCache = function(type, data, tableName) {
             var ignoreSync = privateApi.getNetworkResolver('ignoreSync', dbName);
-            if ((!ignoreSync || ($isArray(ignoreSync) && !$inArray(tableName, ignoreSync)) && data.length)) {
+            if ((!ignoreSync || (isarray(ignoreSync) && !inarray(tableName, ignoreSync)) && data.length)) {
                 _recordResolvers.setData(tableName, type, data);
             }
         };
@@ -72,7 +72,7 @@ function TableTransaction(tables, mode, isMultipleTable, dbName) {
         this['delete'] = transactionDelete;
     }
 
-    if ($inArray('read', tblMode)) {
+    if (inarray('read', tblMode)) {
         this.select = transactionSelect;
         /**
          * Quick Search Language
@@ -84,7 +84,7 @@ function TableTransaction(tables, mode, isMultipleTable, dbName) {
 }
 
 TableTransaction.prototype.setDBError = function(msg) {
-    if (!$inArray(msg, this.errLog)) {
+    if (!inarray(msg, this.errLog)) {
         this.errLog.push(msg);
     }
 }
@@ -118,7 +118,7 @@ TableTransaction.prototype.execute = function(disableOfflineCache) {
                     error = true;
                 } finally {
                     _this.errLog = [];
-                    if (autoSync && $inArray(ex[0], ["insert", "update", "delete"]) && !error) {
+                    if (autoSync && inarray(ex[0], ["insert", "update", "delete"]) && !error) {
                         /**
                          * Sync to the backend
                          * Available only when live is define in configuration

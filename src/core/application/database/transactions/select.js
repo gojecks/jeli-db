@@ -62,7 +62,7 @@ function transactionSelect(selectFields, definition) {
         this.setDBError("Clause: groupByStrict requires two fields for matching");
     }
 
-    if (queryDefinition.join && !$isArray(queryDefinition.join)) {
+    if (queryDefinition.join && !isarray(queryDefinition.join)) {
         this.setDBError("Expected Join clause to be an array");
     }
 
@@ -73,17 +73,17 @@ function transactionSelect(selectFields, definition) {
         //Split through the queryColumn
         var queryColumn = queryDefinition.fields.split(",");
 
-        if (queryDefinition.join && $isEqual(selectFields, '*')) {
+        if (queryDefinition.join && isequal(selectFields, '*')) {
             _this.setDBError('Invalid Select Statment.');
         }
 
         //Loop through queryColumn
         queryColumn.forEach(function(query) {
-            if ($inArray(query, ".")) {
+            if (inarray(query, ".")) {
                 if (_this.isMultipleTable && query) {
                     query = query.replace(/\((.*?)\)/, "|$1").split("|");
                     var tblName;
-                    if ($isEqual(query[0].toLowerCase(), 'case')) {
+                    if (isequal(query[0].toLowerCase(), 'case')) {
                         tblName = query[1].split(new RegExp("when", "gi"))[1].split(".")[0];
                     } else {
                         tblName = (query[1] || query[0]).split(".")[0];
@@ -107,9 +107,9 @@ function transactionSelect(selectFields, definition) {
         var joinOn = joinObj.on.split("=");
         var leftLogic = joinOn[0].split(".");
         var rightLogic = joinOn[1].split(".");
-        var queryMatchIsLeft = $isEqual(joinObj.table, _this.tables[leftLogic[0]]);
+        var queryMatchIsLeft = isequal(joinObj.table, _this.tables[leftLogic[0]]);
         var clause = (joinObj.clause || 'INNER').toLowerCase();
-        var isRightClause = $isEqual('right', clause);
+        var isRightClause = isequal('right', clause);
 
         /**
          * should incase of wrong matching with ON clause
@@ -190,7 +190,7 @@ function transactionSelect(selectFields, definition) {
                 result.push(resObject);
             }
 
-            if ($isArray(joinObj.resolve)) {
+            if (isarray(joinObj.resolve)) {
                 performResolve(joinObj.resolve, resObject, rightTable, rightTableIndex);
             }
 
@@ -278,7 +278,7 @@ function transactionSelect(selectFields, definition) {
             };
 
             // we expect data to be array of foreignKeys to resolve
-            if ($isArray(data) && hasGroupBy) {
+            if (isarray(data) && hasGroupBy) {
                 var total = data.length;
                 for (var i = 0; i < total; i++) {
                     var value = data[i];
@@ -329,9 +329,9 @@ function transactionSelect(selectFields, definition) {
          * return the required column
          */
         var fields = (queryInstance.field || queryInstance.fields || queryInstance.select || "");
-        if (fields && !$isEqual(fields, '*')) {
+        if (fields && !isequal(fields, '*')) {
             var hasSingleResultQuery = ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].some(function(key) {
-                return $inArray(key, fields);
+                return inarray(key, fields);
             });
             var valueMethods = new ValueMethods(fields, tableData);
             if (!queryInstance.isArrayResult && hasSingleResultQuery) {
@@ -363,7 +363,7 @@ function transactionSelect(selectFields, definition) {
     function performInClauseQuery() {
         queryDefinition.where.forEach(function(item) {
             Object.keys(item).forEach(function(key) {
-                if (item[key].type && $inArray(item[key].type.toLowerCase(), ["inclause", "notinclause"])) {
+                if (item[key].type && inarray(item[key].type.toLowerCase(), ["inclause", "notinclause"])) {
                     runClause(item, key);
                 }
             });
@@ -429,9 +429,9 @@ function transactionSelect(selectFields, definition) {
     this.executeState.push(["select", function() {
         // convert where query to an object
         if (queryDefinition.where) {
-            if ($isString(queryDefinition.where)) {
+            if (isstring(queryDefinition.where)) {
                 queryDefinition.where = _parseCondition(queryDefinition.where);
-            } else if ($isObject(queryDefinition.where)) {
+            } else if (isobject(queryDefinition.where)) {
                 console.warn("WHERE clause type(Object) support will be removed in next version, please use type(Array)");
                 queryDefinition.where = [queryDefinition.where];
             }
@@ -473,7 +473,7 @@ function transactionSelect(selectFields, definition) {
  */
 function SelectQueryFacade(queryDefinition, execute) {
     this.join = function(definition) {
-        if (!$isObject(definition)) {
+        if (!isobject(definition)) {
             throw new TypeError("join DEFINITION should be an object");
         }
 

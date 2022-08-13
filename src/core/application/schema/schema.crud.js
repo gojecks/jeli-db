@@ -88,7 +88,7 @@ SchemaCrudProcess.prototype.process = function(next) {
             /**
              * insert transaction
              */
-            if ($isEqual(conf.type, 'insert')) {
+            if (isequal(conf.type, 'insert')) {
                 query = 'insert -%data% -%table%';
                 if (conf.skipDataProcessing) {
                     query += " -skip";
@@ -97,26 +97,26 @@ SchemaCrudProcess.prototype.process = function(next) {
             /**
              * update transactions
              */
-            else if ($isEqual(conf.type, 'update')) {
+            else if (isequal(conf.type, 'update')) {
                 query = 'update -%table% -%data% -%query%';
                 mapper.query = conf.query;
             }
             /**
              * delete transactions
              */
-            else if ($isEqual(conf.type, 'delete')) {
+            else if (isequal(conf.type, 'delete')) {
                 query = "delete -%table% -%data%";
             }
             /**
              * batch transactions
              */
-            else if ($isEqual(conf.type, 'batch')) {
+            else if (isequal(conf.type, 'batch')) {
                 query = 'batch -%data%';
             }
             /**
              * insertreplace transactions
              */
-            else if ($isEqual(conf.type, 'insertreplace')) {
+            else if (isequal(conf.type, 'insertreplace')) {
                 query = 'insert -%data% -%table% -replace -%column%';
                 if (conf.skipDataProcessing) {
                     query += " -skip";

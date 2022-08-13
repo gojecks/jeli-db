@@ -69,7 +69,7 @@ function AjaxSetup(interceptor) {
      * @returns any
      */
     function getResponseHeaders(request, name) {
-        if (!$isObject(name)) {
+        if (!isobject(name)) {
             return request.getResponseHeader(name);
         } else {
             for (var i in name) {
@@ -109,8 +109,8 @@ function AjaxSetup(interceptor) {
         }
 
 
-        if (!$isString(options.data)) {
-            if ($isEqual(options.type, 'get')) {
+        if (!isstring(options.data)) {
+            if (isequal(options.type, 'get')) {
                 options.data = serialize(options.data);
             } else {
                 options.data = JSON.stringify(options.data);
@@ -135,7 +135,7 @@ function AjaxSetup(interceptor) {
      * @returns 
      */
     function getCacheId(options) {
-        return ($isObject(options.cache) && options.cache.id) ? options.cache.id : options.url;
+        return (isobject(options.cache) && options.cache.id) ? options.cache.id : options.url;
     }
 
 
@@ -145,7 +145,7 @@ function AjaxSetup(interceptor) {
      * @param {*} options 
      */
     return function(url, options) {
-        if ($isUndefined(options) && $isObject(url)) {
+        if (isundefined(options) && isobject(url)) {
             options = url;
         }
 
@@ -177,7 +177,7 @@ function AjaxSetup(interceptor) {
          * @param {*} data 
          */
         function storeCache(data, cacheId) {
-            var ttl = (($isObject(options.cache) && options.cache.ttl) ? options.cache.ttl : ($isNumber(options.cache)) ? options.cache : 15);
+            var ttl = ((isobject(options.cache) && options.cache.ttl) ? options.cache.ttl : (isnumber(options.cache)) ? options.cache : 15);
             var expiresAt = new Date().setMilliseconds(60 * ttl * 1000);
             CacheMechanism.set(cacheId || getCacheId(options), {
                 data: data,
@@ -206,13 +206,13 @@ function AjaxSetup(interceptor) {
             request.open(options.type, options.url, options.asynchronous);
             //handle before send
             //function recieves the XMLHTTPREQUEST
-            if (options.beforeSend && $isFunction(options.beforeSend)) {
+            if (options.beforeSend && isfunction(options.beforeSend)) {
                 options.beforeSend.apply(options.beforeSend, [request]);
             }
 
             setHeaders(request, options);
             var body = null;
-            if ($inArray(options.type, ['post', 'put', 'delete'])) {
+            if (inarray(options.type, ['post', 'put', 'delete'])) {
                 body = options.data;
             }
             //send the request

@@ -50,7 +50,7 @@ var privateApi = (function() {
         if (!this.databaseContainer.has(name)) {
             this.databaseContainer.createInstance(name);
             this._activeDatabase = name;
-        } else if (!$isEqual(this._activeDatabase, name)) {
+        } else if (!isequal(this._activeDatabase, name)) {
             this._activeDatabase = name;
         }
 
@@ -73,7 +73,7 @@ var privateApi = (function() {
 
         var _db = this.databaseContainer.get(name).get(constants.STORAGE).getItem();
         if (properties) {
-            if ($isArray(properties)) {
+            if (isarray(properties)) {
                 var _ret = {};
                 properties.forEach(function(key) {
                     _ret[key] = _db[key];
@@ -316,7 +316,7 @@ var privateApi = (function() {
         var storageInit = Database.storageAdapter.get(config.storage || 'memory');
         var _activeDBInstance = this.getActiveDB(dbName);
 
-        if ($isFunction(storageInit)) {
+        if (isfunction(storageInit)) {
             var dbToStorageInstance = Object.create({
                 generateStruct: this.generateStruct,
                 eventNames: DB_EVENT_NAMES,
@@ -364,7 +364,7 @@ var privateApi = (function() {
                     },
                     delete: function(cdata) {
                         tblData = tblData.filter(function(item) {
-                            return !$inArray(item._ref, cdata);
+                            return !inarray(item._ref, cdata);
                         });
                         _ret['delete'] = cdata;
                         return cdata;
@@ -415,7 +415,7 @@ var privateApi = (function() {
         if (requestState) {
             var cToken = $cookie('X-CSRF-TOKEN');
             var tbl = reqOptions.tbl || requestState.tbl;
-            if ($isArray(tbl)) {
+            if (isarray(tbl)) {
                 tbl = JSON.stringify(tbl);
             }
             /**
@@ -478,7 +478,7 @@ var privateApi = (function() {
                     _previousHash: table._previousHash
                 };
 
-                if ($isFunction(updateFn)) {
+                if (isfunction(updateFn)) {
                     updateFn.apply(updateFn, [ret]);
                 }
 

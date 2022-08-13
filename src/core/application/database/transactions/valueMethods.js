@@ -31,7 +31,7 @@ var ValueMethods = (function() {
 
     function getNumberOnlyValues(field, queryResult) {
         return queryResult.reduce(function(accum, item) {
-            if (item && item.hasOwnProperty(field) && $isNumber(item[field])) {
+            if (item && item.hasOwnProperty(field) && isnumber(item[field])) {
                 return accum.concat(item[field]);
             }
         }, []);
@@ -149,7 +149,7 @@ var ValueMethods = (function() {
                 var fieldName = aCol.split(' as ').map(trim),
                     tCol;
                 //if fieldName contains table name
-                if ($inArray('.', aCol)) {
+                if (inarray('.', aCol)) {
                     var spltCol = aCol.split(".").map(trim);
                     tCol = spltCol.shift();
                     // split our required column on ' as '
@@ -166,7 +166,7 @@ var ValueMethods = (function() {
                     custom: replacer(select.split(" as ")[0].trim()),
                     field: field,
                     tCol: tCol,
-                    asx: (field === '*' && $isEqual(_as, field))
+                    asx: (field === '*' && isequal(_as, field))
                 };
             });
 
@@ -213,7 +213,7 @@ var ValueMethods = (function() {
             var odata = {};
             //set the data
             requiredFields.forEach(function(field) {
-                if ($isEqual(field.field, '*')) {
+                if (isequal(field.field, '*')) {
                     resolveAsterixQuery(field);
                 } else {
                     odata[field._as] = _this.getValue(field.custom, cData);
