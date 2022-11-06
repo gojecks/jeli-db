@@ -1,6 +1,10 @@
   /*** Common Method ***/
   /*** Methods are Private **/
-
+  var window = window || {
+      location: {
+          host: null
+      }
+  };
 
   //@Function trim
   var trim = ''.trim ? function(s) { return s.trim(); } : function(s) {

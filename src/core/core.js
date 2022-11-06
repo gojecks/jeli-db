@@ -33,7 +33,11 @@ function Database(name, version) {
          * set to true to use socket.io for realtime data
          * this requires you to compile application with socket.io library
          */
-        enableSocket: false
+        enableSocket: false,
+        /**
+         * wait for api to load before starting DB
+         */
+        waitApiToLoad: true
     });
 
     var dbPromiseExtension = new DBPromise.extension(
@@ -133,9 +137,14 @@ function Database(name, version) {
                      * load api before continue process
                      */
                     if (!config.disableApiLoading && config.serviceHost && requestMapping) {
-                        requestMapping.resolveCustomApis()
-                            .then(continueProcess, continueProcess);
-                        requestMapping = null;
+                        var apiMappingRequest = requestMapping.resolveCustomApis();
+                        if (config.waitApiToLoad) {
+                            apiMappingRequest.then(continueProcess, continueProcess);
+                        } else {
+                            continueProcess();
+                        }
+
+                        requestMapping = apiMappingRequest = null;
                     } else {
                         continueProcess();
                     }
