@@ -2,9 +2,9 @@
  * 
  * @param {*} definition 
  * 
- * @return AstractContainer INSTANCE
+ * @return AbstractContainer INSTANCE
  */
-function AstractContainer(definition) {
+function AbstractContainer(definition) {
     this.instance = 0;
     this._open = false;
     this._closed = false;
@@ -24,13 +24,13 @@ function AstractContainer(definition) {
     });
 }
 
-AstractContainer.prototype.open = function() {
+AbstractContainer.prototype.open = function() {
     this._open = true;
     this._closed = false;
     return this;
 }
 
-AstractContainer.prototype.close = function() {
+AbstractContainer.prototype.close = function() {
     this._closed = true;
     this._open = false;
     return this;
@@ -42,9 +42,9 @@ AstractContainer.prototype.close = function() {
  * @param {*} definitions 
  * @returns 
  */
-AstractContainer.prototype.createInstance = function(name, definitions) {
+AbstractContainer.prototype.createInstance = function(name, definitions) {
     if (!this._container.hasOwnProperty(name)) {
-        this._container[name] = new AstractContainer(definitions);
+        this._container[name] = new AbstractContainer(definitions);
     }
 
     return this;
@@ -54,7 +54,7 @@ AstractContainer.prototype.createInstance = function(name, definitions) {
  * 
  * @param {*} name 
  */
-AstractContainer.prototype.get = function(name) {
+AbstractContainer.prototype.get = function(name) {
     return this._container[name];
 };
 
@@ -63,7 +63,7 @@ AstractContainer.prototype.get = function(name) {
  * @param {*} name 
  * @param {*} value 
  */
-AstractContainer.prototype.set = function(name, value) {
+AbstractContainer.prototype.set = function(name, value) {
     this._container[name] = value;
     return this;
 };
@@ -72,7 +72,7 @@ AstractContainer.prototype.set = function(name, value) {
  * 
  * @param {*} name 
  */
-AstractContainer.prototype.has = function(name) {
+AbstractContainer.prototype.has = function(name) {
     return this._container.hasOwnProperty(name);
 }
 
@@ -80,7 +80,7 @@ AstractContainer.prototype.has = function(name) {
  * 
  * @param {*} name 
  */
-AstractContainer.prototype.destroy = function(name) {
+AbstractContainer.prototype.destroy = function(name) {
     if (name) {
         this._container[name] = null;
         delete this._container[name];
@@ -89,16 +89,23 @@ AstractContainer.prototype.destroy = function(name) {
     return this;
 };
 
-AstractContainer.prototype.incrementInstance = function() {
+AbstractContainer.prototype.incrementInstance = function() {
     this.instance++;
     return this;
 };
 
-AstractContainer.prototype.decrementInstance = function() {
+AbstractContainer.prototype.decrementInstance = function() {
     this.instance--;
     return this;
 };
 
-AstractContainer.prototype.keys = function() {
+AbstractContainer.prototype.keys = function() {
     return Object.keys(this._container);
 };
+
+AbstractContainer.prototype.rename = function(oldName, newName) {
+    if (this.has(oldName)) {
+        this._container[newName] = this._container[oldName];
+        delete this._container[oldName];
+    }
+}

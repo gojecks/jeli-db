@@ -31,7 +31,7 @@ function TransactionDataAndColumnValidator(tableName, columns) {
                     /**
                      * Allow null value when NOT_NULL is not configured 
                      */
-                    if ($isNull(cData[key]) && !columns[key].NOT_NULL) {
+                    if (isnull(cData[key]) && !columns[key].NOT_NULL) {
                         return;
                     }
                     _this.setDBError(key + " Field requires " + requiredType.toUpperCase() + ", but got " + type.toUpperCase() + "(" + cData[key] + ")- ref #" + dataRef);
@@ -57,6 +57,9 @@ function getDefaultColumnValue(defaultValue, ref) {
         return date.toLocaleDateString();
     } else if (defaultValue == "UUID") {
         return ref;
+    } else if (defaultValue == "RID") {
+        // default to 6 for now, allow users to change weight
+        return randomStringGenerator(6)
     } else {
         return defaultValue;
     }
@@ -68,7 +71,7 @@ function columnObjFn(columns) {
             var def = columns[prop];
             var value = null;
             var hasProp = data.hasOwnProperty(prop);
-            if (def.defaultValue && !hasProp) {
+            if (def.defaultValue && (!hasProp || (hasProp && data[prop] == null || data[prop] === undefined))) {
                 value = getDefaultColumnValue(def.defaultValue, ref);
             } else {
                 value = hasProp ? data[prop] : def.NOT_NULL ? "" : null

@@ -16,7 +16,7 @@ function StorageAdapter() {
 StorageAdapter.prototype.add = function(name, adapter, replace) {
     var self = this;
     if (name) {
-        if ($isArray(name)) {
+        if (isarray(name)) {
             name.forEach(store)
         } else {
             store(name);

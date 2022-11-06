@@ -4,7 +4,7 @@
  * @param {*} updateRef 
  */
 function TransactionInsertReplace(data, updateRef) {
-    if (!$isArray(data)) {
+    if (!isarray(data)) {
         throw new Error('TypeError: Expected Array dataType but got ' + typeof data);
     }
     var tableName = this.rawTables[0];
@@ -35,7 +35,7 @@ function TransactionInsertReplace(data, updateRef) {
     function dataIterator(item, idx) {
         var updateValue = item[updateRef],
             valueIndex = updateRefMapper.indexOf(updateValue);
-        if (item.hasOwnProperty(updateRef) && !$isEqual(-1, valueIndex)) {
+        if (item.hasOwnProperty(updateRef) && !isequal(-1, valueIndex)) {
             updateIndexes.push(valueIndex);
             rowsToUpdate.push(item);
         } else {

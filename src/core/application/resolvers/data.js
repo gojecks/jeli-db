@@ -81,6 +81,14 @@ CoreDataResolver.prototype.get = function(tbl) {
     return { data: this.tableRecordHolder(), columns: this.tableRecordHolder() };
 };
 
+CoreDataResolver.prototype.getAllPending = function() {
+    var _this = this;
+    return Object.keys(this._records).reduce(function(accum, tblName) {
+        accum.push(_this.resolveSyncData(tblName));
+        return accum;
+    }, []);
+};
+
 CoreDataResolver.prototype.isResolved = function(tbl, checksum) {
     var lStorage;
     if (this._records[tbl]) {
@@ -102,7 +110,7 @@ CoreDataResolver.prototype.isResolved = function(tbl, checksum) {
 };
 
 CoreDataResolver.prototype.destroy = function() {
-    if ($isEmptyObject(this._records)) {
+    if (isemptyobject(this._records)) {
         this._records = {};
         privateApi.storageFacade.remove(privateApi.storeMapping.pendingSync);
     }
@@ -119,11 +127,7 @@ CoreDataResolver.prototype.rename = function(newName) {
  */
 CoreDataResolver.prototype.resolveSyncData = function(tbl) {
     var syncData = {
-        data: {
-            delete: {},
-            update: [],
-            insert: []
-        }
+        data: {}
     };
     var tableData = privateApi.getTableData(this.name, tbl);
     var syncRecords = this._records[tbl];
@@ -134,13 +138,10 @@ CoreDataResolver.prototype.resolveSyncData = function(tbl) {
      * ref : @ref DATA || COLUMN
      */
 
-    for (var type in syncData.data) {
+    for (var type in syncRecords.data) {
         var records = Object.keys(syncRecords.data[type]);
         if (type === "delete") {
-            syncData.data[type] = records.reduce(function(accum, ref) {
-                accum[ref] = true;
-                return accum;
-            }, {});
+            syncData.data[type] = records;
         } else {
             syncData.data[type] = privateApi.getDataByRefs(tableData, records);
         }

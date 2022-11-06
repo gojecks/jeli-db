@@ -92,7 +92,7 @@ RealtimeAbstract.createInstance = function(options, socketMode) {
  * @returns 
  */
 function getRequestData(context) {
-    var requestData = privateApi.buildOptions(context.dbName, null, context.options.url);
+    var requestData = privateApi.buildHttpRequestOptions(context.dbName, { path: context.options.url });
     var requestPayload = generatePayload(context);
     Object.assign(requestData.data, requestPayload);
     return requestData;
@@ -130,12 +130,12 @@ function getSleepTimer(options) {
  * @returns 
  */
 function generatePayload(context) {
-    var payload = ($isFunction(context.options.payload) ? context.options.payload() : context.options.payload);
+    var payload = (isfunction(context.options.payload) ? context.options.payload() : context.options.payload);
     var dbName = context.dbName;
     var _queryPayload = {};
     var requestData = {};
     // update type is DB
-    if ($isEqual(context.ref, 'db')) {
+    if (isequal(context.ref, 'db')) {
         if (!payload) {
             privateApi.getDbTablesNames(dbName).forEach(function(name) {
                 _queryPayload[name] = {};
@@ -199,7 +199,7 @@ function startPolling(context) {
                 context.events.emit('socket.connect', [res.socketServerEndpoint]);
             }
 
-            if ($isEqual(res.type, 'message')) {
+            if (isequal(res.type, 'message')) {
                 return errorPolling();
             } else if (res.destroy) {
                 return context.disconnect();

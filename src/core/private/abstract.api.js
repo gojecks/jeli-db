@@ -8,8 +8,7 @@ var privateApi = (function() {
         this.accessStorage = 'jEliAccessToken';
         this.stack = [];
         this._activeDatabase = null;
-        this.databaseContainer = new AstractContainer();
-        this.storageEventHandler = new EventEmitters();
+        this.databaseContainer = new AbstractContainer();
         this.storeMapping = {
             delRecordName: "_d_",
             resourceName: "_r_",
@@ -35,6 +34,9 @@ var privateApi = (function() {
                 if (key && value) {
                     _this.getActiveDB(db).get(constants.STORAGE).setItem(key, value);
                 }
+            },
+            broadcast: function(db, eventName, args) {
+                _this.getActiveDB(db).get(constants.STORAGE).broadcast(eventName, args);
             }
         };
     }
@@ -48,7 +50,7 @@ var privateApi = (function() {
         if (!this.databaseContainer.has(name)) {
             this.databaseContainer.createInstance(name);
             this._activeDatabase = name;
-        } else if (!$isEqual(this._activeDatabase, name)) {
+        } else if (!isequal(this._activeDatabase, name)) {
             this._activeDatabase = name;
         }
 
@@ -71,7 +73,7 @@ var privateApi = (function() {
 
         var _db = this.databaseContainer.get(name).get(constants.STORAGE).getItem();
         if (properties) {
-            if ($isArray(properties)) {
+            if (isarray(properties)) {
                 var _ret = {};
                 properties.forEach(function(key) {
                     _ret[key] = _db[key];
@@ -133,8 +135,9 @@ var privateApi = (function() {
 
     AbstractApi.prototype.generateStruct = function(cache) {
         var ret = { tables: {}, version: cache.version };
-        if (cache.hasOwnProperty(this.storeMapping.resourceName)) {
-            Object.keys(cache[this.storeMapping.resourceName].resourceManager).forEach(attachObject);
+        var resources = cache[this.storeMapping.resourceName];
+        if (resources && resources.resourceManager) {
+            Object.keys(resources.resourceManager).forEach(attachObject);
         }
 
         function attachObject(tbl) {
@@ -158,19 +161,6 @@ var privateApi = (function() {
         return Object.keys(this.get(db || this._activeDatabase, 'tables'));
     };
 
-    /**
-     * 
-     * @param {*} oldName 
-     * @param {*} newName 
-     */
-    AbstractApi.prototype.renameDataBase = function(oldName, newName, cb) {
-        var oldInstance = this.getActiveDB(oldName);
-        var self = this;
-        oldInstance.get(constants.STORAGE).rename(oldName, newName, function() {
-            cb();
-            self.closeDB(oldName, true);
-        });
-    };
 
     /**
      * 
@@ -277,7 +267,7 @@ var privateApi = (function() {
             var tableList = _resource.getTableNames();
             if (tableList) {
                 tableList.forEach(function(tableName) {
-                    privateApi.storageEventHandler.broadcast(eventNamingIndex(db, 'onDropTable'), [tableName]);
+                    privateApi.storageFacade.broadcast(db, DB_EVENT_NAMES.DROP_TABLE, [tableName]);
                 });
             }
             // remove other storage
@@ -326,12 +316,10 @@ var privateApi = (function() {
         var storageInit = Database.storageAdapter.get(config.storage || 'memory');
         var _activeDBInstance = this.getActiveDB(dbName);
 
-        if ($isFunction(storageInit)) {
+        if (isfunction(storageInit)) {
             var dbToStorageInstance = Object.create({
-                getInstance: this.getActiveDB,
-                storageEventHandler: this.storageEventHandler,
-                eventNamingIndex: eventNamingIndex,
                 generateStruct: this.generateStruct,
+                eventNames: DB_EVENT_NAMES,
                 storeMapping: this.storeMapping
             });
 
@@ -376,7 +364,7 @@ var privateApi = (function() {
                     },
                     delete: function(cdata) {
                         tblData = tblData.filter(function(item) {
-                            return !$inArray(item._ref, cdata);
+                            return !inarray(item._ref, cdata);
                         });
                         _ret['delete'] = cdata;
                         return cdata;
@@ -399,7 +387,7 @@ var privateApi = (function() {
                         var type = types[i];
                         if (data.hasOwnProperty(type) && data[type] && data[type].length) {
                             var eventValue = _task[type](data[type]);
-                            _this.storageEventHandler.broadcast(eventNamingIndex(db, type), [tbl, eventValue, false]);
+                            _this.storageFacade.broadcast(db, type, [tbl, eventValue, false]);
                         }
                     }
 
@@ -416,24 +404,24 @@ var privateApi = (function() {
     /**
      * 
      * @param {*} dbName 
-     * @param {*} tbl 
-     * @param {*} requestState 
-     * requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
+     * @param {*} options: {tbl, path, method}
+     * @returns 
      */
-    AbstractApi.prototype.buildOptions = function(dbName, tbl, requestState) {
+    AbstractApi.prototype.buildHttpRequestOptions = function(dbName, reqOptions) {
         var options = {};
         var networkResolver = this.getActiveDB(dbName).get(constants.RESOLVERS).networkResolver;
-        requestState = networkResolver.requestMapping.get(requestState);
+        // requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
+        var requestState = networkResolver.requestMapping.get(reqOptions.path, reqOptions.method);
         if (requestState) {
             var cToken = $cookie('X-CSRF-TOKEN');
-            tbl = tbl || requestState.tbl;
-            if ($isArray(tbl)) {
+            var tbl = reqOptions.tbl || requestState.tbl;
+            if (isarray(tbl)) {
                 tbl = JSON.stringify(tbl);
             }
             /**
              * configure request options
              */
-            options = ({
+            options = Object({
                 url: (networkResolver.serviceHost || '') + requestState.URL,
                 __appName__: dbName,
                 type: requestState.METHOD,
@@ -449,7 +437,7 @@ var privateApi = (function() {
                     'X-APP-NAME': dbName
                 },
                 requestState: requestState,
-                cache: requestState.CACHE
+                cache: reqOptions.cache || requestState.CACHE
             });
             /**
              * set X-CSRF-TOKEN
@@ -462,14 +450,6 @@ var privateApi = (function() {
             if (networkResolver.interceptor) {
                 networkResolver.interceptor(options, requestState);
             }
-
-            //options.getRequestHeader
-            options.getResponseHeader = function(fn) {
-                var _csrfToken = fn('X-CSRF-TOKEN');
-                if (_csrfToken) {
-                    $cookie('X-CSRF-TOKEN', _csrfToken);
-                }
-            };
         } else {
             options.isErrorState = true;
         }
@@ -498,11 +478,11 @@ var privateApi = (function() {
                     _previousHash: table._previousHash
                 };
 
-                if ($isFunction(updateFn)) {
+                if (isfunction(updateFn)) {
                     updateFn.apply(updateFn, [ret]);
                 }
 
-                this.storageEventHandler.broadcast(eventNamingIndex(name, 'onUpdateTable'), [tblName, ret]);
+                this.storageFacade.broadcast(name, DB_EVENT_NAMES.UPDATE_TABLE, [tblName, ret]);
             }
 
             /**
@@ -524,7 +504,7 @@ var privateApi = (function() {
                 /**
                  * set last sync date for table
                  */
-                if (dbRef.resourceManager.hasOwnProperty(tblName)) {
+                if (dbRef.resourceManager && dbRef.resourceManager.hasOwnProperty(tblName)) {
                     dbRef.resourceManager[tblName].lastSyncedDate = lastSynced || dbRef.resourceManager[tblName].lastSyncedDate || null;
                 }
                 dbRef.lastUpdated = +new Date;

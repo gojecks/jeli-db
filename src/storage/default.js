@@ -1,13 +1,19 @@
+function mockStorage() {
+    this.setItem
+}
+
 /**
  * 
  * @param {*} config 
- * @param {*} dbInstances 
+ * @param {*} storageUtils 
  * @param {*} callback 
  */
-function DefaultStorage(config, dbInstances, callback) {
+function DefaultStorage(config, storageUtils, callback) {
     var dbName = config.name;
     var publicApi = Object.create(null);
     var _privateStore = Object();
+    var _eventRegistry = new Map();
+    var hasStorage = (window && window[config.type]);
 
     /**
      * 
@@ -15,7 +21,7 @@ function DefaultStorage(config, dbInstances, callback) {
      * @param {*} data 
      * @param {*} insertData 
      */
-    function insertListener(tableName, data, insertData) {
+    function insertEvent(tableName, data, insertData) {
         if (insertData) {
             _privateStore[tableName + ":data"].push.apply(_privateStore[tableName + ":data"], data);
         }
@@ -78,37 +84,41 @@ function DefaultStorage(config, dbInstances, callback) {
      * @param {*} cb 
      */
     function onRenameDataBase(oldName, newName, cb) {
-        var oldData = publicApi.getItem(oldName);
-        Object.keys(oldData.tables).forEach(function(tbl) {
-            oldData.tables[tbl].DB_NAME = newName;
-            oldData.tables[tbl].lastModified = +new Date
+        var resource = publicApi.getItem(storageUtils.storeMapping.resourceName);
+        Object.keys(resource.resourceManager).forEach(function(tbl) {
+            _privateStore[tbl].DB_NAME = newName;
+            _privateStore[tbl].lastModified = +new Date;
         });
-        publicApi.setItem(newName, oldData);
-        publicApi.setItem(privateApi.getResourceName(newName), publicApi.getItem(privateApi.getResourceName(oldName)));
-        privateApi.getActiveDB(oldName).get(constants.RECORDRESOLVERS).rename(newName);
-        publicApi.removeItem(oldName);
+        var clonedObject = Object.assign({}, _privateStore);
+        var propertyNames = Object.keys(clonedObject);
+        for (const name of propertyNames) {
+            dbName = oldName;
+            publicApi.removeItem(name);
+            dbName = newName;
+            publicApi.setItem(name, clonedObject[name]);
+        }
+        // change the dbName variable
+        dbName = newName;
         (cb || noop)();
     }
 
     /**
-     * Event listener
+     * Event Event
      */
-    privateApi
-        .storageEventHandler
-        .subscribe(eventNamingIndex(dbName, 'insert'), insertListener)
-        .subscribe(eventNamingIndex(dbName, 'update'), saveData)
-        .subscribe(eventNamingIndex(dbName, 'delete'), function(tableName, delItem) {
-            // remove the data
-            saveData(tableName);
-        })
-        .subscribe(eventNamingIndex(dbName, 'onCreateTable'), onCreateTable)
-        .subscribe(eventNamingIndex(dbName, 'onDropTable'), onDropTable)
-        .subscribe(eventNamingIndex(dbName, 'onUpdateTable'), onUpdateTable)
-        .subscribe(eventNamingIndex(dbName, 'onTruncateTable'), saveData)
-        .subscribe(eventNamingIndex(dbName, 'onResolveSchema'), onResolveSchema)
-        .subscribe(eventNamingIndex(dbName, 'onRenameTable'), onRenameTable)
-        .subscribe(eventNamingIndex(dbName, 'onAlterTable'), saveData)
-        .subscribe(eventNamingIndex(dbName, 'onRenameDataBase'), onRenameDataBase);
+    _eventRegistry.set('insert', insertEvent);
+    _eventRegistry.set('update', saveData);
+    _eventRegistry.set('delete', function(tableName, delItem) {
+        // remove the data
+        saveData(tableName);
+    });
+    _eventRegistry.set('onCreateTable', onCreateTable);
+    _eventRegistry.set('onDropTable', onDropTable);
+    _eventRegistry.set('onUpdateTable', onUpdateTable);
+    _eventRegistry.set('onTruncateTable', saveData);
+    _eventRegistry.set('onResolveSchema', onResolveSchema);
+    _eventRegistry.set('onRenameTable', onRenameTable);
+    _eventRegistry.set('onAlterTable', saveData);
+    _eventRegistry.set('onRenameDataBase', onRenameDataBase);
 
     /**
      * 
@@ -119,22 +129,24 @@ function DefaultStorage(config, dbInstances, callback) {
     }
 
     function loadData() {
-        var resource = getItem(privateApi.storeMapping.resourceName);
+        var resource = getItem(storageUtils.storeMapping.resourceName);
         if (resource) {
-            _privateStore[privateApi.storeMapping.resourceName] = resource;
-            _privateStore[privateApi.storeMapping.delRecordName] = getItem(privateApi.storeMapping.delRecordName);
-            _privateStore[privateApi.storeMapping.pendingSync] = getItem(privateApi.storeMapping.pendingSync);
+            _privateStore[storageUtils.storeMapping.resourceName] = resource;
+            _privateStore[storageUtils.storeMapping.delRecordName] = getItem(storageUtils.storeMapping.delRecordName);
+            _privateStore[storageUtils.storeMapping.pendingSync] = getItem(storageUtils.storeMapping.pendingSync);
             _privateStore['version'] = getItem('version');
-            Object.keys(resource.resourceManager).forEach(function(tbl) {
-                _privateStore[tbl] = getItem(tbl);
-                _privateStore[tbl + ":data"] = getItem(tbl + ":data");
-            });
+            if (resource.resourceManager) {
+                Object.keys(resource.resourceManager).forEach(function(tbl) {
+                    _privateStore[tbl] = getItem(tbl);
+                    _privateStore[tbl + ":data"] = getItem(tbl + ":data");
+                });
+            }
         }
     }
 
     function getItem(name) {
         name = getStoreName(name);
-        if (!!window[config.type]) {
+        if (hasStorage) {
             return (window[config.type][name] && JSON.parse(window[config.type][name]) || false);
         }
         // memeory support
@@ -178,35 +190,46 @@ function DefaultStorage(config, dbInstances, callback) {
         /**
          * support for session && localStorage
          */
-        if (!!window[config.type]) {
+        if (hasStorage) {
             window[config.type][getStoreName(name)] = jsonValue;
         }
     };
 
     publicApi.getItem = function(name) {
         if (!name) {
-            return privateApi.generateStruct(_privateStore);
+            return storageUtils.generateStruct(_privateStore);
         }
         return _privateStore[name];
     };
 
     publicApi.removeItem = function(name) {
         delete _privateStore[name];
-        window[config.type] && window[config.type].removeItem(getStoreName(name));
+        if (hasStorage) {
+            window[config.type].removeItem(getStoreName(name));
+        }
     };
 
     publicApi.clear = function() {
-        window[config.type] && window[config.type].clear();
+        if (hasStorage) {
+            window[config.type] && window[config.type].clear();
+        }
+
         storage = {};
     };
 
     publicApi.usage = function(name) {
-        return JSON.stringify(storage[getStoreName(name)] || '').length;
+        return JSON.stringify(_privateStore || '').length;
     };
 
     publicApi.isExists = function(name) {
         return _privateStore.hasOwnProperty(name);
     };
+
+    publicApi.broadcast = function(eventName, args) {
+        if (_eventRegistry.has(eventName)) {
+            _eventRegistry.get(eventName).apply(null, args);
+        }
+    }
 
 
     loadData();

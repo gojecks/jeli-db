@@ -16,17 +16,17 @@ function buildSelectQuery(query, entryPoint, regexp) {
 
     var definition = {};
     if (query.length > entryPoint) {
-        if ($isString(query[entryPoint])) {
+        if (isstring(query[entryPoint])) {
             // splice our query
             // set definition
             [].concat.call(query).splice(entryPoint).map(function(qKey) {
                 qKey = qKey.replace(/\((.*)\)/, "~$1").split("~");
                 // function Query
                 if (qKey.length > 1) {
-                    if ($isJsonString(qKey[1])) {
+                    if (isjsonstring(qKey[1])) {
                         definition[qKey[0]] = JSON.parse(qKey[1]);
                     } else {
-                        if ($inArray(qKey[0], ["join"])) {
+                        if (inarray(qKey[0], ["join"])) {
                             definition[qKey[0]] = [buildSelectQuery(qKey[1], 0, /[@]/)];
                         } else {
                             definition[qKey[0]] = qKey[1];
@@ -45,51 +45,10 @@ function buildSelectQuery(query, entryPoint, regexp) {
 
 /**
  * 
- * @param {*} serverQuery 
- * @param {*} replacer 
- * @returns 
- */
-function parseServerQuery(serverQuery, replacer) {
-    /**
-     * 
-     * @param {*} query 
-     */
-    function _parse(query) {
-        var parsed = ApplicationInstanceJQL.parser(query, replacer);
-        var tQuery = Object.assign({ fields: parsed[0] }, buildSelectQuery(parsed, 0));
-        tQuery.where = _parseCondition(tQuery.where, replacer);
-        tQuery.tables = parsed[1].split(',').reduce(function(accum, tbl) {
-            tbl = tbl.split(' as ').map(trim);
-            accum[tbl[1] || tbl[0]] = tbl[0];
-            return accum;
-        }, {});
-        if (tQuery.join) {
-            tQuery.join.forEach(function(jQuery) {
-                if (jQuery.where) {
-                    jQuery.where = _parseCondition(jQuery.where, replacer);
-                }
-            });
-        }
-
-        return tQuery;
-    }
-
-    if ($isArray(serverQuery)) {
-        return Object.reduce(function(accum, query) {
-            accum.push(_parse(query));
-            return accum;
-        }, []);
-    }
-
-    return _parse(serverQuery);
-}
-
-/**
- * 
  * @param {*} condition 
  */
 function _parseCondition(condition, replacer) {
-    condition = $removeWhiteSpace(condition || "").split(/[||]/gi)
+    condition = removewhitespace(condition || "").split(/[||]/gi)
         .filter(function(cond) { return !!cond; })
         .map(function(cond) {
             return cond.split(/[&&]/gi).filter(function(cond) {
@@ -179,6 +138,9 @@ function _convertExpressionStringToObject(expression, replacer, params) {
             break;
         case ("<="):
             type = 'lte';
+            break;
+        case ("<>"):
+            type = "lgte";
             break;
         case ("<"):
             type = 'lt';

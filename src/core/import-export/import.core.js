@@ -25,7 +25,7 @@ function importModules(type) {
     this.setData = function(data) {
         okeys = this.fileData.columns = data[0][0].split(",");
         for (var i = 1; i <= data.length; i++) {
-            if (data[i] && !$isEmpty(data[i][0])) {
+            if (data[i] && !isempty(data[i][0])) {
                 var value = data[i][0].split(",");
                 this.setValue(value);
             }
@@ -36,7 +36,7 @@ function importModules(type) {
 importModules.prototype.json = function(content) {
     if (content) {
         var parsedContent = JSON.parse(content);
-        if ($isArray(parsedContent)) {
+        if (isarray(parsedContent)) {
             this.fileData.data = parsedContent
             this.fileData.columns = Object.keys(this.fileData.data[0]);
         } else {

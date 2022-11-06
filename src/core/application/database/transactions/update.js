@@ -13,7 +13,7 @@ function transactionUpdate(updateData, query, tableName, replace) {
     var time = performance.now();
     var columns = tableInfo.columns[0];
     var validator = this.validator(tableName, columns);
-    var isObjectType = $isObject(updateData);
+    var isObjectType = isobject(updateData);
 
     /**
      * 
@@ -23,7 +23,7 @@ function transactionUpdate(updateData, query, tableName, replace) {
         // return setData when its an object
         if (isObjectType || replace) {
             return cData;
-        } else if ($isString(cData)) {
+        } else if (isstring(cData)) {
             //convert String Data to Object
             var nString = removeSingleQuote(cData),
                 splitComma = nString.split(","),
@@ -52,7 +52,7 @@ function transactionUpdate(updateData, query, tableName, replace) {
      */
     function updateAndValidateData(data, idx) {
         Object.keys(columns).forEach(function(column) {
-            if (columns[column].hasOwnProperty('ON_UPDATE') && $isString(columns[column].ON_UPDATE)) {
+            if (columns[column].hasOwnProperty('ON_UPDATE') && isstring(columns[column].ON_UPDATE)) {
                 if (!data.hasOwnProperty(column)) {
                     data[column] = getDefaultColumnValue(columns[column].ON_UPDATE);
                 }
@@ -142,9 +142,7 @@ function transactionUpdate(updateData, query, tableName, replace) {
         /**
          * broadcast our event
          */
-        privateApi
-            .storageEventHandler
-            .broadcast(eventNamingIndex(tableInfo.DB_NAME, 'update'), [tableName, rowsToUpdate.slice()]);
+        privateApi.storageFacade.broadcast(tableInfo.DB_NAME, DB_EVENT_NAMES.TRANSACTION_UPDATE, [tableName, rowsToUpdate.slice()]);
 
         //empty the rows 
         rowsToUpdate.length = 0;

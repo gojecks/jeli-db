@@ -32,8 +32,8 @@ function transactionDelete(query, tableName) {
     var time = performance.now();
     var tableData = this.getTableData(tableName);
     if (query) {
-        if ($isObject(query) && query.hasOwnProperty('byRefs')) {
-            if (!$isArray(query.byRefs)) {
+        if (isobject(query) && query.hasOwnProperty('byRefs')) {
+            if (!isarray(query.byRefs)) {
                 throw Error("ByRefs requires ArrayList<ref>");
             }
 
@@ -58,12 +58,12 @@ function transactionDelete(query, tableName) {
              * Remove all data by filtering
              */
             var dataLen = tableData.length
-            if ($isEqual(delItem.length, dataLen)) {
+            if (isequal(delItem.length, dataLen)) {
                 tableData.length = 0;
             } else {
                 while (dataLen--) {
                     var item = tableData[dataLen];
-                    if ($inArray(item._ref, delItem)) {
+                    if (inarray(item._ref, delItem)) {
                         /**
                          * remove the object
                          */
@@ -72,9 +72,7 @@ function transactionDelete(query, tableName) {
                 }
             }
 
-            privateApi
-                .storageEventHandler
-                .broadcast(eventNamingIndex(_this.DB_NAME, 'delete'), [tableName, delItem]);
+            privateApi.storageFacade.broadcast(_this.DB_NAME, DB_EVENT_NAMES.TRANSACTION_DELETE, [tableName, delItem]);
         }
         //return success Message
         return ({

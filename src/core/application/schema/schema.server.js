@@ -67,7 +67,7 @@ function ServerSchemaLoader(appName, version) {
                             }
                         }
                         // register DB to QueryDB
-                        privateApi.storageEventHandler.broadcast(eventNamingIndex(appName, 'onResolveSchema'), [version, dbTables]);
+                        privateApi.storageFacade.broadcast(appName, DB_EVENT_NAMES.RESOLVE_SCHEMA, [version, dbTables]);
                         resolve();
                     }, handleNetworkError('schema', "Unable to load schema, please try again.", function() {
                         // reload the schema when network is stable

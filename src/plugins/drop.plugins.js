@@ -24,7 +24,7 @@ function dropPluginFn(query, handler) {
                         .onSuccess(function(tbl) {
                             var state = tbl.result.drop(flag);
                             state.type = "table";
-                            if ($isEqual(state.status, 'success')) {
+                            if (isequal(state.status, 'success')) {
                                 handler.onSuccess(state);
                             } else {
                                 handler.onError(state);
@@ -36,7 +36,7 @@ function dropPluginFn(query, handler) {
                     db.drop(flag, query[2], query[4])
                         .onSuccess(function(state) {
                             state.type = query[1];
-                            if ($isEqual(state.status, 'success')) {
+                            if (isequal(state.status, 'success')) {
                                 handler.onSuccess(state);
                             } else {
                                 handler.onError(state);

@@ -19,7 +19,7 @@ function ApplicationInstanceImport(table, isSchema, handler) {
     //check if handler
     handler = extend(true, _def, handler || {});
     if (!isSchema) {
-        if (table && $isString(table)) {
+        if (table && isstring(table)) {
             if (!privateApi.tableExists(this.name, table)) {
                 createTable = true;
                 handler.logService('Table(' + table + ') was not found!!');
@@ -43,7 +43,7 @@ function ApplicationInstanceImport(table, isSchema, handler) {
             process();
 
             function process() {
-                if ($isEqual(total, start)) {
+                if (isequal(total, start)) {
                     return handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
                 }
 
@@ -69,7 +69,7 @@ function ApplicationInstanceImport(table, isSchema, handler) {
                 handler.logService('Skipped ' + data.skippedData.length + " records");
             }
 
-            if ($isEqual(data._type, "jql")) {
+            if (isequal(data._type, "jql")) {
                 return processJQL(data.data)
             }
 

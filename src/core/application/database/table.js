@@ -6,13 +6,29 @@ function ApplicationInstanceTable(name, mode) {
     //get the requested table
     var dbName = this.name;
     return new DBPromise(function(resolve, reject) {
-        if (name && privateApi.tableExists(dbName, name)) {
-            var instance = TableInstance.factory.add(dbName, name, mode);
+        var instance = ApplicationInstanceTable.async(dbName, name, mode);
+        if (instance) {
             resolve({ result: instance });
         } else {
             reject({ message: "There was an error, Table (" + name + ") was not found on this DB (" + dbName + ")", errorCode: 401 })
         }
     });
+};
+
+/**
+ * 
+ * @param {*} dbName 
+ * @param {*} tableName 
+ * @param {*} mode 
+ * @returns 
+ */
+ApplicationInstanceTable.async = function(dbName, tableName, mode) {
+    if (tableName && privateApi.tableExists(dbName, tableName)) {
+        var instance = TableInstance.factory.add(dbName, tableName, mode);
+        return instance;
+    }
+
+    return null;
 };
 
 /**
@@ -24,69 +40,84 @@ function ApplicationInstanceTable(name, mode) {
  * @returns 
  */
 function ApplicationInstanceCreateTable(name, columns, additionalConfig, ignoreInstance) {
-    var response = { state: "create", result: null, errorCode: null, message: null };
-    var _opendedDBInstance = privateApi.getActiveDB(this.name);
     var dbName = this.name;
     return new DBPromise(function(resolve, reject) {
-        if (name && _opendedDBInstance && !privateApi.tableExists(dbName, name)) {
-            //pardon wrong columns format
-            checkColumns();
-            var DB_NAME = dbName;
-            var curTime = +new Date;
-            var definition = extend({
-                columns: columns || [{}],
-                DB_NAME: DB_NAME,
-                TBL_NAME: name,
-                primaryKey: null,
-                foreignKey: null,
-                lastInsertId: 0,
-                allowedMode: { readwrite: 1, readonly: 1 },
-                proc: null,
-                index: {},
-                created: curTime,
-                lastModified: curTime,
-                _hash: GUID(),
-                _previousHash: ""
-            }, additionalConfig || {});
-
-            /**
-             * add table to resource
-             */
-            _opendedDBInstance.get(constants.RESOURCEMANAGER).addTableToResource(name, {
-                _hash: definition._hash,
-                lastModified: definition.lastModified,
-                created: definition.created
-            });
-            /**
-             * broadcast event
-             */
-            privateApi.storageEventHandler.broadcast(eventNamingIndex(DB_NAME, 'onCreateTable'), [name, definition]);
-            privateApi.updateDB(DB_NAME, name);
-
-            //set the result
-            if (!ignoreInstance) {
-                response.result = TableInstance.factory.add(DB_NAME, name);
-            }
-            response.message = 'Table(' + name + ') created successfully';
-
+        var response = ApplicationInstanceCreateTable.async(dbName, name, columns, additionalConfig, ignoreInstance);
+        if (!response.errorCode) {
             resolve(response);
         } else {
-            response.message = (name) ? 'Table(' + name + ') already exist' : 'Table name is required';
-            response.errorCode = 402;
             //reject the process
-            reject(result);
+            reject(response);
         }
     });
+}
 
-
-    function checkColumns() {
-        if ($isObject(columns)) {
-            var nColumn = [];
-            nColumn.push(columns);
-
-            columns = nColumn;
-            //empty column
-            nColumn = null;
-        }
+function checkColumns(columns) {
+    if (isobject(columns)) {
+        var nColumn = [];
+        nColumn.push(columns);
+        columns = nColumn;
+        //empty column
+        nColumn = null;
     }
-};
+
+    return columns;
+}
+
+
+/**
+ * 
+ * @param {*} dbName 
+ * @param {*} tableName 
+ * @param {*} columns 
+ * @param {*} additionalConfig 
+ * @param {*} ignoreInstance 
+ */
+ApplicationInstanceCreateTable.async = function(dbName, tableName, columns, additionalConfig, ignoreInstance) {
+    var response = { state: "create", result: null, errorCode: null, message: null };
+    var _opendedDBInstance = privateApi.getActiveDB(dbName);
+    if (tableName && _opendedDBInstance && !privateApi.tableExists(dbName, tableName)) {
+        //pardon wrong columns format
+        columns = checkColumns(columns);
+        var curTime = +new Date;
+        var definition = extend({
+            columns: columns || [{}],
+            DB_NAME: dbName,
+            TBL_NAME: tableName,
+            primaryKey: null,
+            foreignKey: null,
+            lastInsertId: 0,
+            allowedMode: { readwrite: 1, readonly: 1 },
+            proc: null,
+            index: {},
+            created: curTime,
+            lastModified: curTime,
+            _hash: GUID(),
+            _previousHash: ""
+        }, additionalConfig || {});
+
+        /**
+         * add table to resource
+         */
+        _opendedDBInstance.get(constants.RESOURCEMANAGER).addTableToResource(tableName, {
+            _hash: definition._hash,
+            lastModified: definition.lastModified,
+            created: definition.created
+        });
+        /**
+         * broadcast event
+         */
+        privateApi.storageFacade.broadcast(dbName, DB_EVENT_NAMES.CREATE_TABLE, [tableName, definition]);
+        privateApi.updateDB(dbName, tableName);
+        //set the result
+        if (!ignoreInstance) {
+            response.result = TableInstance.factory.add(dbName, tableName);
+        }
+        response.message = 'Table(' + tableName + ') created successfully';
+    } else {
+        response.message = (tableName) ? 'Table(' + tableName + ') already exist' : 'Table name is required';
+        response.errorCode = 402;
+    }
+
+    return response;
+}

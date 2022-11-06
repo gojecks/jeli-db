@@ -13,15 +13,15 @@ function serialize(obj) {
      * @param {*} dn 
      */
     function buildParams(prefix, dn) {
-        if ($isArray(dn)) {
+        if (isarray(dn)) {
             dn.forEach(function(n) {
                 if ((/\[\]$/).test(prefix)) {
                     add(prefix, n);
                 } else {
-                    buildParams(prefix + "[" + ($isObject(n) ? prefix : "") + "]", n)
+                    buildParams(prefix + "[" + (isobject(n) ? prefix : "") + "]", n)
                 }
             });
-        } else if ($isObject(dn)) {
+        } else if (isobject(dn)) {
             for (var name in dn) {
                 buildParams(prefix + "[" + name + "]", dn[name]);
             }
@@ -36,11 +36,11 @@ function serialize(obj) {
      * @param {*} value 
      */
     function add(key, value) {
-        value = $isFunction(value) ? value() : ($isEmpty(value) ? "" : value);
+        value = isfunction(value) ? value() : (isempty(value) ? "" : value);
         param[param.length] = encodeURIComponent(key) + '=' + encodeURIComponent(value);
     };
 
-    if ($isArray(obj)) {
+    if (isarray(obj)) {
         obj.forEach(function(n, i) {
             add(i, n)
         });
@@ -59,7 +59,7 @@ function serialize(obj) {
  */
 function unSerialize(par) {
     var ret = {};
-    if (!$isUndefined(par) && $isString(par)) {
+    if (!isundefined(par) && isstring(par)) {
         par.split("&").forEach(function(val, key) {
             if (val) {
                 var splitPairs = val.split('=');

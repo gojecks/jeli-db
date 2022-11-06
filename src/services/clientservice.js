@@ -4,12 +4,56 @@
  * @param {*} replacer 
  * @returns 
  */
-function _parseQueryString(query, replacer) {
-    if (typeof query === "string") {
+function _parseQuery(query, replacer) {
+    if (typeof query === "string" || replacer) {
         query = parseServerQuery(query, replacer);
     }
 
     return query;
+}
+
+/**
+ * 
+ * @param {*} serverQuery 
+ * @param {*} replacer 
+ * @returns 
+ */
+function parseServerQuery(serverQuery, replacer) {
+    /**
+     * 
+     * @param {*} query 
+     */
+    function _parse(query) {
+        var parsed = ApplicationInstanceJQL.parser(query, replacer);
+        var tQuery = Object.assign({ fields: parsed[0] }, buildSelectQuery(parsed, 0));
+        tQuery.where = _parseCondition(tQuery.where, replacer);
+        tQuery.tables = parsed[1].split(',').reduce(function(accum, tbl) {
+            tbl = tbl.split(' as ').map(trim);
+            accum[tbl[1] || tbl[0]] = tbl[0];
+            return accum;
+        }, {});
+        if (tQuery.join) {
+            tQuery.join.forEach(function(jQuery) {
+                if (jQuery.where) {
+                    jQuery.where = _parseCondition(jQuery.where, replacer);
+                }
+            });
+        }
+
+        return tQuery;
+    }
+
+    if (isarray(serverQuery)) {
+        return Object.reduce(function(accum, query) {
+            accum.push(_parse(query));
+            return accum;
+        }, []);
+    } else if (isobject(serverQuery)) {
+        var parseValue = ApplicationInstanceJQL.parseValue(replacer);
+        return jSonParser(parseValue(JSON.stringify(serverQuery)));
+    }
+
+    return _parse(serverQuery);
 }
 
 /**
@@ -29,13 +73,12 @@ function clientService(appName) {
             privateApi.$http(options)
                 .then(function(res) {
                     privateApi
-                        .resolveUpdate(appName, tbl, { insert: res._rec })
+                        .resolveUpdate(appName, tbl, { insert: res })
                         .then(function(_ret) {
                             privateApi.updateDB(appName, tbl);
                             //resolve promise
                             resolve(new SelectQueryEvent(_ret.insert, (performance.now() - time)));
                         });
-
                 }, function(res) {
                     reject(dbErrorPromiseObject("Unable to fetch records"));
                 });
@@ -50,15 +93,12 @@ function clientService(appName) {
      */
     function setParams(tbl, type, limit, params) {
         var requestParams = syncHelper.setRequestData(appName, '/database/fetch', true, tbl);
-        /**
-         * support for non array params
-         */
-        if (!Array.isArray(params)) {
-            params = [params];
+        requestParams.data.query = { type: type || "_", limit: limit, mode: 1 };
+        // set the query only when required
+        if (params) {
+            requestParams.data.query.where = (!Array.isArray(params) ? [params] : params);
         }
-
-        requestParams.data.query = { type: type || "_", limit: limit, where: params, mode: 1 };
-        return requestParams
+        return requestParams;
     }
 
     /**
@@ -132,7 +172,7 @@ clientService.prototype.delete = function(tbl, data) {
 **/
 clientService.prototype.query = function(query, replacer, cacheOptions) {
     var requestParams = syncHelper.setRequestData(this.appName, '/database/query', false);
-    requestParams.data.query = _parseQueryString(query, replacer);
+    requestParams.data.query = _parseQuery(query, replacer);
     requestParams.cache = cacheOptions;
 
     return syncHelper.processRequest(requestParams, null, this.appName);

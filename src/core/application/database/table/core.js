@@ -61,7 +61,7 @@ TableInstance.prototype.drop = function(flag) {
     /**
       broadcast event
     **/
-    privateApi.storageEventHandler.broadcast(eventNamingIndex(this.tableInfo.DB_NAME, 'onDropTable'), [this.tableInfo.TBL_NAME]);
+    privateApi.storageFacade.broadcast(this.tableInfo.DB_NAME, DB_EVENT_NAMES.DROP_TABLE, [this.tableInfo.TBL_NAME]);
 
     return dbSuccessPromiseObject("drop", "Table (" + this.tableInfo.TBL_NAME + ") was dropped successfully");
 };
@@ -84,8 +84,7 @@ TableInstance.prototype.truncate = function(flag) {
     /**
      * broadcast event
      */
-    privateApi.storageEventHandler.broadcast(eventNamingIndex(this.tableInfo.DB_NAME, 'onTruncateTable'), [this.tableInfo.TBL_NAME]);
-
+    privateApi.storageFacade.broadcast(this.tableInfo.DB_NAME, DB_EVENT_NAMES.TRUNCATE_TABLE, [this.tableInfo.TBL_NAME]);
     return dbSuccessPromiseObject("truncate", this.tableInfo.TBL_NAME + " was truncated");
 };
 
@@ -93,7 +92,7 @@ TableInstance.prototype.truncate = function(flag) {
  * Rename Table
  */
 TableInstance.prototype.rename = function(newTableName) {
-    if (!newTableName && $isEqual(newTableName, this.tableInfo.TBL_NAME)) {
+    if (!newTableName && isequal(newTableName, this.tableInfo.TBL_NAME)) {
         return dbErrorPromiseObject("Invalid TABLE NAME");
     }
     var db = privateApi.getActiveDB(this.tableInfo.DB_NAME);
@@ -117,7 +116,7 @@ TableInstance.prototype.rename = function(newTableName) {
     /**
      * broadcastEvent
      */
-    privateApi.storageEventHandler.broadcast(eventNamingIndex(this.tableInfo.DB_NAME, 'onRenameTable'), [oldTableName, newTableName]);
+    privateApi.storageFacade.broadcast(this.tableInfo.DB_NAME, DB_EVENT_NAMES.RENAME_TABLE, [oldTableName, newTableName]);
     $resource.renameTableResource(oldTableName, newTableName);
     this.info.tableName = newTableName;
     /**

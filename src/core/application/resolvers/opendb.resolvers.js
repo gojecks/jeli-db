@@ -36,7 +36,7 @@ function openedDBResolvers() {
      * @param {*} value 
      */
     this.register = function(name, value) {
-        if ($isObject(name) && !value) {
+        if (isobject(name) && !value) {
             this.networkResolver = extend(true, this.networkResolver, name);
         } else {
             this.networkResolver[name] = value;

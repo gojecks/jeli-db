@@ -28,7 +28,7 @@ exportersModule.prototype.csv = function() {
             });
         },
         row: function(data) {
-            if (data && $isArray(data)) {
+            if (data && isarray(data)) {
                 workbook += data.join(',');
             }
             //end row
@@ -40,7 +40,7 @@ exportersModule.prototype.csv = function() {
             });
         },
         close: function() {
-            if (!$isEmpty(workbook) && !closed) {
+            if (!isempty(workbook) && !closed) {
                 closed = true;
             }
 
@@ -73,7 +73,7 @@ exportersModule.prototype.html = function() {
 
             row += '</tr>';
 
-            if (!$isEmpty(html)) {
+            if (!isempty(html)) {
                 html += row;
             }
 
@@ -83,7 +83,7 @@ exportersModule.prototype.html = function() {
             });
         },
         close: function() {
-            if (!$isEmpty(html) && !closed) {
+            if (!isempty(html) && !closed) {
                 html += '</table></body></html>';
                 closed = true;
             }
@@ -114,7 +114,7 @@ exportersModule.prototype.jql = function() {
             // create table query
             try {
                 queries += "create -" + table.TBL_NAME + " -" + JSON.stringify(table.columns) + '\n';
-                if (!$isEmptyObject(table.index)) {
+                if (!isemptyobject(table.index)) {
                     expect(table.index).each(function(obj, indx) {
                         queries += "alter -" + table.TBL_NAME + " -a -u -" + indx + " -" + JSON.stringify(obj) + '\n';
                     });
@@ -146,7 +146,7 @@ function exportGenerator(doc, fileType) {
 
     return ({
         download: function(fileName) {
-            if ($isObject(doc)) {
+            if (isobject(doc)) {
                 doc = JSON.stringify(doc, null, 3);
             }
 

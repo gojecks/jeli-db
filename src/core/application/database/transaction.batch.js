@@ -6,22 +6,22 @@
 function ApplicationInstanceBatchTransaction(transactions) {
     var _this = this;
     return new DBPromise(function(resolve, reject) {
-        if (!transactions || !$isArray(transactions)) {
+        if (!transactions || !isarray(transactions)) {
             throw new Error('BatchTransaction: nothing to commit or invalid transaction format');
         }
 
-        var tables = transactions.map($isString);
+        var tables = transactions.map(isstring);
         _this.transaction(tables, "write").then(startBatchTransaction);
 
         function startBatchTransaction(tx) {
             transactions.forEach(performTransaction);
 
             function performTransaction(transaction) {
-                if ($isEqual(transaction.type, "insert")) {
+                if (isequal(transaction.type, "insert")) {
                     tx.result.insert(transaction.data, false, transaction.table);
-                } else if ($isEqual(transaction.type, "update")) {
+                } else if (isequal(transaction.type, "update")) {
                     tx.result.update(transaction.data, transaction.query, transaction.table);
-                } else if ($isEqual(transaction.type, "delete")) {
+                } else if (isequal(transaction.type, "delete")) {
                     tx.result.delete(transaction.query, transaction.table);
                 }
             }

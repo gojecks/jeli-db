@@ -26,7 +26,7 @@ function CoreSchemaProcessService(core) {
      * @param next
      */
     this.process = function(data, next) {
-        if (!$isObject(data)) {
+        if (!isobject(data)) {
             throw new TypeError('JDBSchema Error: invalid schema dataType');
         }
 
@@ -40,7 +40,7 @@ function CoreSchemaProcessService(core) {
             /**
              * support for multiple type of config
              */
-            if ($isEqual(config.type, 'create')) {
+            if (isequal(config.type, 'create')) {
                 core.createTbl(tableName, config.definition, config.additionalConfig);
                 /**
                  * check for crud definition in create query
@@ -50,9 +50,9 @@ function CoreSchemaProcessService(core) {
             /**
              * Clone a table
              */
-            else if ($isEqual(config.type, 'clone')) {
+            else if (isequal(config.type, 'clone')) {
                 OtherProcess(config.from);
-            } else if ($isEqual(config.type, 'crud')) {
+            } else if (isequal(config.type, 'crud')) {
                 pushCrudTask(config, tableName);
             } else {
                 OtherProcess(tableName);
@@ -62,7 +62,7 @@ function CoreSchemaProcessService(core) {
                 core.table(tbl)
                     .then(function(tx) {
                         var tableInstance = tx.result;
-                        if ($isArray(config)) {
+                        if (isarray(config)) {
                             config.forEach(function(conf) {
                                 processRequest(tableInstance, conf);
                             });
@@ -78,13 +78,13 @@ function CoreSchemaProcessService(core) {
              * @param {*} conf 
              */
             function processRequest(tableInstance, conf) {
-                if ($isEqual(conf.type, 'drop')) {
+                if (isequal(conf.type, 'drop')) {
                     tableInstance.drop(tableName);
-                } else if ($isEqual(conf.type, 'rename')) {
+                } else if (isequal(conf.type, 'rename')) {
                     tableInstance.rename(conf.name);
-                } else if ($isEqual(conf.type, 'truncate')) {
+                } else if (isequal(conf.type, 'truncate')) {
                     tableInstance.truncate(true);
-                } else if ($isEqual(conf.type, 'alter')) {
+                } else if (isequal(conf.type, 'alter')) {
                     conf.columns.forEach(function(column) {
                         var type = column.type.toLowerCase();
                         /**
@@ -96,7 +96,7 @@ function CoreSchemaProcessService(core) {
                             tableInstance.alter[type](column.name, column.definition);
                         }
                     });
-                } else if ($isEqual(conf.type, 'clone')) {
+                } else if (isequal(conf.type, 'clone')) {
                     var definition = extend(true, tableInstance.columns(), conf.definition || {});
                     /**
                      * create the table

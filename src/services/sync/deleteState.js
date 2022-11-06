@@ -15,12 +15,12 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         var _resData = res.renamed || res.removed;
         var _totalTask = Object.keys(deleteRecords[task]);
         var _inc = 0;
-        var _isDataBaseTask = $isEqual('database', task) && _resData[appName];
+        var _isDataBaseTask = isequal('database', task) && _resData[appName];
         // check if records are fully processed
         for (var i = 0; i < _totalTask.length; i++) {
             var taskName = _totalTask[i];
             if (_resData.hasOwnProperty(taskName)) {
-                if (!$isObject(_resData[taskName]) && _resData[taskName]) {
+                if (!isobject(_resData[taskName]) && _resData[taskName]) {
                     delete _delRecordManager[appName][task][taskName];
                     _inc++;
                 } else {
@@ -34,7 +34,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         /**
          * check is request type was database
          */
-        if (_isDataBaseTask && $isEqual(_inc, _totalTask.length)) {
+        if (_isDataBaseTask && isequal(_inc, _totalTask.length)) {
             delete _delRecordManager[appName];
         }
 
@@ -43,7 +43,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         /**
          * reset deletedRecords
          */
-        if ($isEqual(_inc, _totalTask.length)) {
+        if (isequal(_inc, _totalTask.length)) {
             if (_isDataBaseTask) {
                 privateApi.closeDB(appName, true);
             } else {
@@ -72,7 +72,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
             }
 
 
-            if (!$isEqual(_task, 'database')) {
+            if (!isequal(_task, 'database')) {
                 startSyncState(appName, serverResource, true);
             } else {
                 syncHelper.finalizeProcess(appName);
@@ -112,7 +112,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
          * Process renamed Tables before deleting
          */
         var _renamedTables = Object.keys(deleteRecords.rename);
-        if ($isEqual(_task, 'table') && _renamedTables.length) {
+        if (isequal(_task, 'table') && _renamedTables.length) {
             syncHelper.setMessage('Renaming Tables(' + JSON.stringify(_renamedTables) + ') on the server');
             processRenamedTables().then(mainRequest, fail);
             return;

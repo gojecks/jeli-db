@@ -9,9 +9,9 @@ function insertPluginFn(query, handler) {
     var tblName = query[2],
         data = query[1] || [],
         options = query.slice(3),
-        replaceCall = $inArray('replace', options),
-        skipProcessing = $inArray('skip', options),
-        hardInsert = $inArray('hard', options);
+        replaceCall = inarray('replace', options),
+        skipProcessing = inarray('skip', options),
+        hardInsert = inarray('hard', options);
 
     return function(db) {
         db

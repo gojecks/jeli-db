@@ -89,15 +89,27 @@
    * @param {*} replacer 
    */
   ApplicationInstanceJQL.parser = function(query, replacer) {
+      replacer = replacer ? replacer : {};
+      var parseValueFn = ApplicationInstanceJQL.parseValue(replacer);
+      return query.split(/\s+(?:-)/gi)
+          .map(parseValueFn)
+          .map(function(a) { return jSonParser(a.trim()); });
+  };
+
+  /**
+   * 
+   * @param {*} replacer 
+   * @returns 
+   */
+  ApplicationInstanceJQL.parseValue = function(replacer) {
       function stringfy(val) {
           return typeof val === "object" ? JSON.stringify(val) : val;
-      }
+      };
 
-      return query.split(/\s+(?:-)/gi)
-          .map(function(key) {
-              return key.replace(/\%(.*?)\%/g, function(a, key) {
-                  return replacer.hasOwnProperty(key) ? stringfy(replacer[key]) : key;
-              });
-          })
-          .map(function(a) { return jSonParser(a.trim()); });
+      var valueRegEx = /\%(.*?)\%/g;
+      return function(entry) {
+          return entry.replace(valueRegEx, function(_, key) {
+              return replacer.hasOwnProperty(key) ? stringfy(replacer[key]) : key;
+          });
+      };
   };

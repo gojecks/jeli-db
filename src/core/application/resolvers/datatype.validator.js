@@ -3,25 +3,25 @@
  */
 var _type_validators_ = Object({
     _char_: function(type) {
-        return ($isEqual(type, 'string'));
+        return (isequal(type, 'string'));
     },
     _number_: function(type, data) {
-        return ($isNumber(data) || !isNaN(Number(data)));
+        return (isnumber(data) || !isNaN(Number(data)));
     },
     _double_: function(type, data) {
-        return $isDouble(data);
+        return isdouble(data);
     },
     _boolean_: function(type, data) {
         return (!isNaN(Number(data)));
     },
     _float_: function(type, data) {
-        return ($isFloat(data));
+        return (isfloat(data));
     },
     _date_: function(type, data) {
         return (new Date(data) instanceof Date);
     },
     _blob_: function(type, data) {
-        return ($isObject(data) || $isArray(data) || $isString(data));
+        return (isobject(data) || isarray(data) || isstring(data));
     },
     _any_: function() {
         return true
