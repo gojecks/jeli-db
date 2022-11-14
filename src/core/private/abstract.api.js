@@ -427,7 +427,8 @@ var privateApi = (function() {
                 type: requestState.METHOD,
                 data: {
                     _h: window.location.host,
-                    _r: Base64Fn.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce)
+                    _r: Base64Fn.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce),
+                    _cache: reqOptions.cache || requestState.CACHE
                 },
                 dataType: "json",
                 contentType: "application/json",
