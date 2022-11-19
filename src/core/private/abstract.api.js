@@ -415,6 +415,7 @@ var privateApi = (function() {
         if (requestState) {
             var cToken = $cookie('X-CSRF-TOKEN');
             var tbl = reqOptions.tbl || requestState.tbl;
+            var cache = reqOptions.cache || requestState.CACHE || null;
             if (isarray(tbl)) {
                 tbl = JSON.stringify(tbl);
             }
@@ -427,8 +428,7 @@ var privateApi = (function() {
                 type: requestState.METHOD,
                 data: {
                     _h: window.location.host,
-                    _r: Base64Fn.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce),
-                    _cache: reqOptions.cache || requestState.CACHE
+                    _r: Base64Fn.encode(dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce)
                 },
                 dataType: "json",
                 contentType: "application/json",
@@ -438,7 +438,7 @@ var privateApi = (function() {
                     'X-APP-NAME': dbName
                 },
                 requestState: requestState,
-                cache: reqOptions.cache || requestState.CACHE
+                cache: cache
             });
             /**
              * set X-CSRF-TOKEN

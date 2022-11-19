@@ -1,10 +1,19 @@
   /*** Common Method ***/
   /*** Methods are Private **/
-  var window = window || {
+  var window = Object.defineProperties({}, {
       location: {
-          host: null
+          get: function() {
+              return (location || { host: null });
+          }
+      },
+      onfocus: {
+          set: function(fn) {
+              if (window) {
+                  window.onfocus = fn;
+              }
+          }
       }
-  };
+  });
 
   //@Function trim
   var trim = ''.trim ? function(s) { return s.trim(); } : function(s) {

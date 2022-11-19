@@ -53,7 +53,7 @@ function ApplicationInstanceApi(path) {
  */
 ApplicationInstanceApi.localTransport = function(url, success, error) {
     if (!window) {
-        errorBuilder('LocalTransport can only be used on a Browser instance');
+        return errorBuilder('LocalTransport can only be used on a Browser instance');
     }
 
     /**

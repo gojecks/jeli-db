@@ -152,6 +152,23 @@ clientService.prototype.delete = function(tbl, data) {
     return syncHelper.processRequest(_options, null, this.appName);
 };
 
+
+/**
+ * 
+ * @param {*} path 
+ * @param {*} query 
+ * @param {*} replacer 
+ * @param {*} cacheOptions 
+ * @returns 
+ */
+function _queryRequest(path, query, replacer, cacheOptions, appName) {
+    var requestParams = syncHelper.setRequestData(appName, path, false);
+    requestParams.data.query = _parseQuery(query, replacer);
+    requestParams.cache = cacheOptions;
+
+    return syncHelper.processRequest(requestParams, null, appName);
+}
+
 /**
   @params : query
   {
@@ -170,12 +187,26 @@ clientService.prototype.delete = function(tbl, data) {
     }
   }
 **/
+/**
+ * 
+ * @param {*} query 
+ * @param {*} replacer 
+ * @param {*} cacheOptions 
+ * @returns 
+ */
 clientService.prototype.query = function(query, replacer, cacheOptions) {
-    var requestParams = syncHelper.setRequestData(this.appName, '/database/query', false);
-    requestParams.data.query = _parseQuery(query, replacer);
-    requestParams.cache = cacheOptions;
+    return _queryRequest('/database/query', query, replacer, cacheOptions, this.appName);
+};
 
-    return syncHelper.processRequest(requestParams, null, this.appName);
+/**
+ * 
+ * @param {*} query 
+ * @param {*} replacer 
+ * @param {*} cacheOptions 
+ * @returns 
+ */
+clientService.prototype.fetch = function(query, replacer, cacheOptions) {
+    return _queryRequest('/database/fetch', query, replacer, cacheOptions, this.appName);
 };
 
 
