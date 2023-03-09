@@ -313,7 +313,7 @@ function splitStringCondition(str) {
  * @param {*} ignore 
  */
 function $logicChecker($logic, elementModel, ignore) {
-    var self = this;
+    var _this = this;
 
     if ($isBooleanValue.indexOf($logic) > -1) {
         return simpleBooleanParser($logic);
@@ -337,7 +337,7 @@ function $logicChecker($logic, elementModel, ignore) {
         var nArguments = [];
         if (list && list[key]) {
             var arg = list[parseInt(key) + 2];
-            nArguments = generateArguments(arg, elementModel, self);
+            nArguments = generateArguments(arg, elementModel, _this);
         }
 
         return nArguments;

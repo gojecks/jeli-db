@@ -130,6 +130,7 @@ function getSleepTimer(options) {
  * @returns 
  */
 function generatePayload(context) {
+    // get payload, payload could be function that contains logic for generation
     var payload = (isfunction(context.options.payload) ? context.options.payload() : context.options.payload);
     var dbName = context.dbName;
     var _queryPayload = {};
@@ -172,7 +173,6 @@ function generatePayload(context) {
     if (context.options.socketEnabled && context.options.socketRedial) {
         console.log('socketServerEndpoint requested')
         requestData.socketEnabled = true;
-        context.options.socketRedial = false;
     }
 
     return requestData;
@@ -197,6 +197,8 @@ function startPolling(context) {
              */
             if (res.socketServerEndpoint) {
                 context.events.emit('socket.connect', [res.socketServerEndpoint]);
+                // disable socketRedial on next request
+                context.options.socketRedial = false;
             }
 
             if (isequal(res.type, 'message')) {

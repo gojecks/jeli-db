@@ -84,12 +84,12 @@ RequestMapping.prototype.resolveCustomApis = function() {
     }
 
     this.isResolvedCustom = true;
-    var self = this;
+    var _this = this;
     var requestOptions = privateApi.buildHttpRequestOptions(this.appName, { path: '/application/api' });
     return privateApi.$http(requestOptions)
         .then(function(res) {
             if (isarray(res)) {
-                self.customApiRepository = res;
+                _this.customApiRepository = res;
             }
         });
 };

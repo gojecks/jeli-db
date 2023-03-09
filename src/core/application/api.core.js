@@ -52,7 +52,7 @@ function ApplicationInstanceApi(path) {
  * used only for loading local data
  */
 ApplicationInstanceApi.localTransport = function(url, success, error) {
-    if (!window) {
+    if (!isBrowserMode) {
         return errorBuilder('LocalTransport can only be used on a Browser instance');
     }
 

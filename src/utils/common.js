@@ -1,19 +1,20 @@
   /*** Common Method ***/
   /*** Methods are Private **/
-  var window = Object.defineProperties({}, {
-      location: {
-          get: function() {
-              return (location || { host: null });
-          }
-      },
-      onfocus: {
-          set: function(fn) {
-              if (window) {
-                  window.onfocus = fn;
-              }
-          }
-      }
-  });
+  var isBrowserMode = false;
+  try {
+    var isBrowserMode = !!window;
+  } catch (e) {
+    var window = Object.defineProperties({}, {
+        location: {
+            get: function() {
+                return (location || { host: null });
+            }
+        },
+        onfocus: {
+            set: function() {  }
+        }
+    });
+  }
 
   //@Function trim
   var trim = ''.trim ? function(s) { return s.trim(); } : function(s) {

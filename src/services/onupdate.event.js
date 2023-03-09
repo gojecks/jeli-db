@@ -70,7 +70,7 @@ OnupdateEventHandler.prototype.getTable = function(tblName) {
 };
 
 OnupdateEventHandler.prototype.count = function(tblName, type) {
-    var self = this;
+    var _this = this;
     if (type) {
         return _count(type);
     }
@@ -82,8 +82,8 @@ OnupdateEventHandler.prototype.count = function(tblName, type) {
     }, 0);
 
     function _count(_type) {
-        if (self._data.hasOwnProperty(tblName) && self._data[tblName][_type]) {
-            return self._data[tblName][_type].length;
+        if (_this._data.hasOwnProperty(tblName) && _this._data[tblName][_type]) {
+            return _this._data[tblName][_type].length;
         }
 
         return 0;

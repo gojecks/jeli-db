@@ -4,7 +4,7 @@
  * @param {*} query 
  * @param {*} tableName 
  * @param {*} replace 
- * @returns self
+ * @returns _this
  */
 function transactionUpdate(updateData, query, tableName, replace) {
     tableName = tableName || this.rawTables[0];

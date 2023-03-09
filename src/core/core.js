@@ -63,7 +63,7 @@ function Database(name, version) {
      * }
      */
     function open(config) {
-        var config = extend(true, _defaultConfig, config);
+        config = extend(true, _defaultConfig, config);
         var inProduction = config.isClientMode || false;
         var _activeDBApi;
         return new DBPromise(function(resolve, reject) {
@@ -143,7 +143,6 @@ function Database(name, version) {
                         } else {
                             continueProcess();
                         }
-
                         requestMapping = apiMappingRequest = null;
                     } else {
                         continueProcess();
@@ -171,7 +170,7 @@ function Database(name, version) {
             var dbChecker = privateApi.get(name) || false;
             jeliInstance.result = new ApplicationInstance(name, version);
             var schemaManager = new SchemaManager(jeliInstance.result, version, dbChecker.version || 1, config.schemaPath);
-            var serverSchemaLoader = new ServerSchemaLoader(name, version);
+            var serverSchemaLoader = ServerSchemaLoader(name, version);
 
             /**
              * dataBase exists
@@ -195,10 +194,10 @@ function Database(name, version) {
                      * check for updated schema from FO service
                      */
                     if (config.useFrontendOnlySchema && config.alwaysCheckSchema) {
-                        serverSchemaLoader.get(false)
+                        serverSchemaLoader(false)
                             .then(function() {
                                 resolve(jeliInstance);
-                            });
+                            }, reject);
                     } else {
                         resolve(jeliInstance);
                     }
@@ -251,7 +250,7 @@ function Database(name, version) {
                  * trigger our create and update mode
                  */
                 if (config.useFrontendOnlySchema) {
-                    serverSchemaLoader.get(true)
+                    serverSchemaLoader(true)
                         .then(next, function(response) {
                             reject(response);
                         });

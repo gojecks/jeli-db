@@ -131,5 +131,5 @@ function ServerSchemaLoader(appName, version) {
         });
     }
 
-    this.get = initializeDBSuccess;
+    return initializeDBSuccess;
 };

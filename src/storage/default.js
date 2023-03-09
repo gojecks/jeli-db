@@ -13,7 +13,7 @@ function DefaultStorage(config, storageUtils, callback) {
     var publicApi = Object.create(null);
     var _privateStore = Object();
     var _eventRegistry = new Map();
-    var hasStorage = (window && window[config.type]);
+    var _storage = (self && self[config.type]);
 
     /**
      * 
@@ -146,8 +146,8 @@ function DefaultStorage(config, storageUtils, callback) {
 
     function getItem(name) {
         name = getStoreName(name);
-        if (hasStorage) {
-            return (window[config.type][name] && JSON.parse(window[config.type][name]) || false);
+        if (_storage) {
+            return (_storage[name] && JSON.parse(_storage[name]) || false);
         }
         // memeory support
         return _privateStore[name];
@@ -190,8 +190,8 @@ function DefaultStorage(config, storageUtils, callback) {
         /**
          * support for session && localStorage
          */
-        if (hasStorage) {
-            window[config.type][getStoreName(name)] = jsonValue;
+        if (_storage) {
+            _storage[getStoreName(name)] = jsonValue;
         }
     };
 
@@ -204,17 +204,17 @@ function DefaultStorage(config, storageUtils, callback) {
 
     publicApi.removeItem = function(name) {
         delete _privateStore[name];
-        if (hasStorage) {
-            window[config.type].removeItem(getStoreName(name));
+        if (_storage) {
+            _storage.removeItem(getStoreName(name));
         }
     };
 
     publicApi.clear = function() {
-        if (hasStorage) {
-            window[config.type] && window[config.type].clear();
+        if (_storage) {
+            _storage.clear();
         }
 
-        storage = {};
+        _privateStore = {};
     };
 
     publicApi.usage = function(name) {

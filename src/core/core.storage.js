@@ -14,7 +14,7 @@ function StorageAdapter() {
  * @param {*} replace 
  */
 StorageAdapter.prototype.add = function(name, adapter, replace) {
-    var self = this;
+    var _this = this;
     if (name) {
         if (isarray(name)) {
             name.forEach(store)
@@ -24,8 +24,8 @@ StorageAdapter.prototype.add = function(name, adapter, replace) {
     }
 
     function store(storeName) {
-        if (!self.storageAdapterContainer.has(storeName) || replace) {
-            self.storageAdapterContainer.set(storeName, adapter);
+        if (!_this.storageAdapterContainer.has(storeName) || replace) {
+            _this.storageAdapterContainer.set(storeName, adapter);
         } else {
             errorBuilder('Adapter already exists, pass true to overwrite');
         }

@@ -62,9 +62,9 @@ openedDBResolvers.prototype.$hasOwnPropery = function(name) {
 };
 
 openedDBResolvers.prototype.trigger = function(fn) {
-    var self = this;
+    var _this = this;
     setTimeout(function() {
-        fn.call(self);
+        fn.call(_this);
     }, 1);
 
     return this;
