@@ -1,19 +1,19 @@
 /**
  * 
- * @param {*} updateData 
+ * @param {*} record 
  * @param {*} query 
  * @param {*} tableName 
- * @param {*} replace 
- * @returns _this
  */
-function transactionUpdate(updateData, query, tableName, replace) {
+function transactionUpdate(record, query, tableName) {
     tableName = tableName || this.rawTables[0];
     var _this = this;
     var tableInfo = this.getTableInfo(tableName);
     var time = performance.now();
     var columns = tableInfo.columns[0];
-    var validator = this.validator(tableName, columns);
-    var isObjectType = isobject(updateData);
+    var fieldErrors = [];
+    var validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
+    var isObjectType = isobject(record);
+    var refs = [];
 
     /**
      * 
@@ -21,122 +21,57 @@ function transactionUpdate(updateData, query, tableName, replace) {
      */
     function structureUpdateData(cData) {
         // return setData when its an object
-        if (isObjectType || replace) {
-            return cData;
-        } else if (isstring(cData)) {
+        if (isstring(cData)) {
             //convert String Data to Object
-            var nString = removeSingleQuote(cData),
-                splitComma = nString.split(","),
-                i = splitComma.length,
-                tempObj = {};
-            //Loop through the split Data
-            while (i--) {
-                var splitEqualTo = splitComma[i].split("=");
-                //set the new Object Data
-                tempObj[splitEqualTo[0]] = splitEqualTo[1];
-            }
-
-            return tempObj;
-        } else {
+            record = stringEqualToObject(cData);
+        } else if(!isObjectType) {
             _this.setDBError('Unable to update Table(' + tableName + '), unaccepted dataType recieved');
         }
     }
 
-    var dataToUpdate = structureUpdateData(updateData);
+    structureUpdateData();
     var tableData = this.getTableData(tableName);
-    var u = tableData.length;
     var updated = 0;
     var rowsToUpdate = [];
     /**
-     * check for onUpdate event in schema settings
-     */
-    function updateAndValidateData(data, idx) {
-        Object.keys(columns).forEach(function(column) {
-            if (columns[column].hasOwnProperty('ON_UPDATE') && isstring(columns[column].ON_UPDATE)) {
-                if (!data.hasOwnProperty(column)) {
-                    data[column] = getDefaultColumnValue(columns[column].ON_UPDATE);
-                }
-            }
-        });
-
-        /**
-         * validate our data
-         */
-        validator(data, idx);
-    }
-
-    /**
      * validate and update column with ON_UPDATE configuration
      */
-    if (!replace) {
-        updateAndValidateData(dataToUpdate, 0);
-    } else {
-        dataToUpdate.forEach(updateAndValidateData);
-    }
-
-    /**
-     * directly update the columns
-     */
-    function performMultipleUpdate() {
-        var defaultValueGenerator = columnObjFn(columns);
-        query.forEach(function(key, idx) {
-            if (tableData[key]) {
-                var ref = tableData[key]._ref;
-                store({
-                    _data: defaultValueGenerator({}, ref),
-                    _ref: ref
-                }, dataToUpdate[idx], key);
-            }
-        });
-    }
-
-    function performSingleUpdate() {
-        if (query) {
-            _queryPerformer(tableData, query, function(data, idx) {
-                store(data, dataToUpdate, idx);
-            });
-        } else {
-            while (u--) {
-                store(tableData[u], dataToUpdate, u);
-            }
-        }
-    }
-
+    this.performTableAction(tableInfo, record, 'ON_UPDATE');
+    validator(record, 0);
 
     /**
      * 
      * @param {*} data 
      * @param {*} idx 
      */
-    function store(previous, current, idx) {
+    function store(previous, idx) {
         //set the current Value
-        tableData[idx]._data = extend(true, previous._data, current);
+        tableData[idx]._data = extend(true, previous._data, record);
         updated++;
         /**
          * store the ref to be updated
          */
         rowsToUpdate.push({
             _ref: previous._ref,
-            _data: (replace ? tableData[idx]._data : current)
+            _data: record
         });
+        // update refs
+        refs.push(previous._ref);
     }
 
-    this.executeState.push(["update", function(disableOfflineCache) {
+    this.executeState.push(["update", (disableOfflineCache) => {
         //Execute Function 
         //Kill Process if error was Found
-        if (_this.hasError() || !dataToUpdate) {
-            throw Error(_this.getError());
+        if (this.hasError() || !record) {
+            throw new TransactionErrorEvent('update', this.getError(fieldErrors));
         }
 
-        if (replace) {
-            performMultipleUpdate();
-        } else {
-            performSingleUpdate();
-        }
-
+        queryPerformer(tableData, query, function(data, idx) {
+            store(data, idx);
+        });
         //push records to our resolver
         if (!disableOfflineCache) {
-            _this.updateOfflineCache('update', _this.getAllRef(rowsToUpdate), tableName);
+            this.updateOfflineCache('update', refs, tableName);
         }
 
         /**
@@ -151,10 +86,8 @@ function transactionUpdate(updateData, query, tableName, replace) {
         return ({
             state: "update",
             table: tableName,
-            result: {
-                timing: performance.now() - time,
-                message: updated + " row(s) updated."
-            }
+            timing: performance.now() - time,
+            message: updated + " row(s) updated."
         });
     }]);
 

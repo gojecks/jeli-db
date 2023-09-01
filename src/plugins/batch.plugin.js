@@ -16,9 +16,8 @@
             if (query.length > 1) {
                 //build table
                 db.batchTransaction(transactions)
-                    .onSuccess(handler.onSuccess)
-                    .onError(handler.onError);
+                .then(handler.onSuccess, handler.onError)
+                .catch(handler.onError)
             }
-
         };
     }

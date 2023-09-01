@@ -1,30 +1,29 @@
 /**
  * 
- * @param {*} ret 
- * @param {*} objectStore 
+ * @param {*} records 
  * @param {*} timing 
  */
-function SelectQueryEvent(objectStore, timing) {
+function SelectQueryEvent(records, timing) {
     this.state = "select";
     this.timing = timing;
     this.getResult = function() {
-        return objectStore;
+        return records;
     };
 
     this.first = function() {
-        return objectStore[0];
+        return records[0];
     };
 
     this.limit = function(start, end) {
-        return copy(objectStore).slice(start, end);
+        return records.slice(start, end);
     };
 
     this.jDBNumRows = function() {
-        return objectStore.length;
+        return records.length;
     };
 
     this.getRow = function(row) {
-        return objectStore[row];
+        return records[row];
     };
 }
 

@@ -14,15 +14,15 @@ function SchemaCrudProcess(core) {
                 this.task[table] = definition;
             }
         }
-    };
+    }
 }
 
 SchemaCrudProcess.prototype.process = function(next) {
     /**
      * check for crudTask before finalizing
      */
-    var _this = this,
-        tables = Object.keys(this.task);
+    var _this = this;
+    var tables = Object.keys(this.task);
 
     function processNext() {
         if (tables.length) {
@@ -79,56 +79,22 @@ SchemaCrudProcess.prototype.process = function(next) {
          * @param {*} data 
          */
         function performCrud(data) {
-            var query = "",
-                mapper = {
-                    data: data,
-                    table: tableName
-                };
+            var query = {
+                insert: 'insert -%1% -%0%',
+                update: 'update -%0% -%1% -%2%',
+                delete: "delete -%0% -%1%",
+                batch: 'batch -%data%',
+                insertreplace: 'insert -%1% -%0% -replace -%2%'
+            }[conf.type];
 
-            /**
-             * insert transaction
-             */
-            if (isequal(conf.type, 'insert')) {
-                query = 'insert -%data% -%table%';
-                if (conf.skipDataProcessing) {
-                    query += " -skip";
-                }
-            }
-            /**
-             * update transactions
-             */
-            else if (isequal(conf.type, 'update')) {
-                query = 'update -%table% -%data% -%query%';
-                mapper.query = conf.query;
-            }
-            /**
-             * delete transactions
-             */
-            else if (isequal(conf.type, 'delete')) {
-                query = "delete -%table% -%data%";
-            }
-            /**
-             * batch transactions
-             */
-            else if (isequal(conf.type, 'batch')) {
-                query = 'batch -%data%';
-            }
-            /**
-             * insertreplace transactions
-             */
-            else if (isequal(conf.type, 'insertreplace')) {
-                query = 'insert -%data% -%table% -replace -%column%';
-                if (conf.skipDataProcessing) {
-                    query += " -skip";
-                }
-
-                mapper.column = conf.column;
+            if (conf.skipDataProcessing) {
+                query += " -skip";
             }
 
             _this.db.jQl(query, {
                 onSuccess: nextCRUD,
                 onError: nextCRUD
-            }, mapper);
+            }, [tableName, data, conf.column || conf.query]);
         }
 
         function nextCRUD(res) {

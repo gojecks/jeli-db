@@ -13,10 +13,10 @@ function deletePluginFn(query, handler) {
                 .onSuccess(function(del) {
                     del
                         .result
-                        .delete(jSonParser(query[2]))
+                        .delete(query[2])
                         .execute(query[3])
-                        .onSuccess(handler.onSuccess)
-                        .onError(handler.onError)
+                        .then(handler.onSuccess, handler.onError)
+                        .catch(handler.onError)
                 })
                 .onError(handler.onError)
         }

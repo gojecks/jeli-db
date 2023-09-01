@@ -115,9 +115,7 @@ exportersModule.prototype.jql = function() {
             try {
                 queries += "create -" + table.TBL_NAME + " -" + JSON.stringify(table.columns) + '\n';
                 if (!isemptyobject(table.index)) {
-                    expect(table.index).each(function(obj, indx) {
-                        queries += "alter -" + table.TBL_NAME + " -a -u -" + indx + " -" + JSON.stringify(obj) + '\n';
-                    });
+                    queries += "alter -" + table.TBL_NAME + " -a -u -" + JSON.stringify(table.index) + '\n';
                 }
 
                 if (table.data.length) {

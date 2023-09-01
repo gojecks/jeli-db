@@ -52,34 +52,3 @@ function serialize(obj) {
 
     return param.join("&").replace(/%20/g, '+');
 }
-
-/**
- * Function unSerialize
- * @param {*} par 
- */
-function unSerialize(par) {
-    var ret = {};
-    if (!isundefined(par) && isstring(par)) {
-        par.split("&").forEach(function(val, key) {
-            if (val) {
-                var splitPairs = val.split('=');
-                ret[splitPairs[0]] = jSonParser(splitPairs[1]);
-            }
-        })
-    }
-
-    return ret;
-}
-
-/**
- * 
- * @param {*} e 
- */
-function makeUID(e) {
-    var h = '';
-    var f = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (var g = 0; g < e; g++) {
-        h += f.charAt(Math.floor(Math.random() * f.length))
-    }
-    return h
-}

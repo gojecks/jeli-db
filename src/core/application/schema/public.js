@@ -51,9 +51,10 @@ function PublicSchema(core) {
             return exportGen.download(fileName);
         }
 
-        return new DBPromise(function(resolve, reject) {
+        return new Promise(function(resolve, reject) {
             if (options.server) {
-                syncHelper.getSchema(core.name, tables)
+                var request = privateApi.buildHttpRequestOptions(core.name, {path: '/database/schema', tbl: tables || []});
+                privateApi.$http(request)
                     .then(function(response) {
                         resolve(structure(response.schemas));
                     }, function() {

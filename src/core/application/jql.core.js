@@ -4,13 +4,13 @@
    * @param {*} handler 
    * @param {*} params 
    */
-  function ApplicationInstanceJQL(tasks, handler, params) {
+  function DatabaseInstanceJQL(tasks, handler, params) {
       if (handler) {
           console.warn('Support for handler is deprecated and will be removed in next release.');
       }
-      var _this = this;
+
       handler = handler || {};
-      return new DBPromise(function(resolve, reject) {
+      return new Promise((resolve, reject) => {
           handler.onSuccess = handler.onSuccess || resolve;
           handler.onError = handler.onError || reject;
           /**
@@ -18,18 +18,20 @@
            */
           if (Array.isArray(tasks)) {
               tasks = tasks.filter(function(task) { return !!task; });
-              startMultipleTask();
+              startMultipleTask(this);
           } else {
-              performTask(tasks, handler);
+              performTask(tasks, handler, this);
           }
       });
+      
       /**
        * 
        * @param {*} taskToPerform 
        * @param {*} taskPerformerHandler 
+       * @param {*} context 
        */
-      function performTask(taskToPerform, taskPerformerHandler) {
-          var taskType = ApplicationInstanceJQL.parser(taskToPerform, params);
+      function performTask(taskToPerform, taskPerformerHandler, context) {
+          var taskType = queryParser(taskToPerform, params);
           var task = taskType[0].toLowerCase();
           var taskPerformerObj = Database.plugins.get(task);
 
@@ -39,22 +41,25 @@
 
           if (taskType && taskPerformerObj) {
               if (taskPerformerObj.disabled) {
-                  taskPerformerHandler.error(dbErrorPromiseObject("command is diabled, to use command please enable it."));
+                  taskPerformerHandler.error(dbErrorPromiseObject("command is disabled, to use command please enable it."));
               } else if (taskPerformerObj.requiresParam && taskType.length === 1) {
                   taskPerformerHandler.error(dbErrorPromiseObject("command requires parameters but got none,\n type help -[command]"));
               } else {
                   try {
-                      taskPerformerObj.fn(taskType, taskPerformerHandler)(_this);
+                      taskPerformerObj.fn(taskType, taskPerformerHandler)(context);
                   } catch (e) {
                       taskPerformerHandler.onError(e);
-                  } finally {}
+                  }
               }
           } else {
               taskPerformerHandler.onError(dbErrorPromiseObject("Invalid command passed, use -help for help"));
           }
       }
-
-      function startMultipleTask() {
+      /**
+       * 
+       * @param {*} context 
+       */
+      function startMultipleTask(context) {
           var index = 0;
           var taskPerformerHandler = Object({
               onSuccess: next(1),
@@ -71,45 +76,15 @@
                   } else {
                       responses.push(res);
                       if (tasks.length > index) {
-                          performTask(tasks[index], taskPerformerHandler);
+                          performTask(tasks[index], taskPerformerHandler, context);
                       } else {
                           handler.onSuccess(responses);
                       }
                   }
               }
           }
-          performTask(tasks[index], taskPerformerHandler);
+          
+          performTask(tasks[index], taskPerformerHandler, context);
       }
 
-  };
-
-  /**
-   * 
-   * @param {*} query 
-   * @param {*} replacer 
-   */
-  ApplicationInstanceJQL.parser = function(query, replacer) {
-      replacer = replacer ? replacer : {};
-      var parseValueFn = ApplicationInstanceJQL.parseValue(replacer);
-      return query.split(/\s+(?:-)/gi)
-          .map(parseValueFn)
-          .map(function(a) { return jSonParser(a.trim()); });
-  };
-
-  /**
-   * 
-   * @param {*} replacer 
-   * @returns 
-   */
-  ApplicationInstanceJQL.parseValue = function(replacer) {
-      function stringfy(val) {
-          return typeof val === "object" ? JSON.stringify(val) : val;
-      };
-
-      var valueRegEx = /\%(.*?)\%/g;
-      return function(entry) {
-          return entry.replace(valueRegEx, function(_, key) {
-              return replacer.hasOwnProperty(key) ? stringfy(replacer[key]) : key;
-          });
-      };
   };

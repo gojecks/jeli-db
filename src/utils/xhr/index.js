@@ -275,15 +275,14 @@ function AjaxSetup(interceptor) {
                         $cookie('X-CSRF-TOKEN', _csrfToken);
                     }
 
-                    //resolve our response
+                    var result = parseJSON((request.responseText || '').trim(), false);
                     if (response.success) {
-                        var result = parseJSON(request.responseText, false);
                         resolve(result);
                         if (options.cache) {
                             storeCache(result, cacheId, options.cache);
                         }
                     } else {
-                        reject(response);
+                        reject(result);
                     }
 
                     cleanup();

@@ -6,7 +6,7 @@
  *  - create
  *  - type
  */
-function ApplicationInstanceReplicate(definition) {
+function DatabaseInstanceReplicate(definition) {
     definition.current = this.name;
     if (!definition.name) {
         definition.name = this.name + "_copy";

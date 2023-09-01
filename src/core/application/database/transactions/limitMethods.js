@@ -124,6 +124,6 @@ var QueryLimitMethods = (function() {
             };
         });
 
-        return JSON.parse(JSON.stringify(cdata));
+        return copy(cdata, true);
     };
 })();

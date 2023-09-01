@@ -2,7 +2,7 @@
  * @param {*} table
  * @param {*} type
  */
-function ApplicationInstanceExport(type, table) {
+function DatabaseInstanceExport(type, table) {
     var type = type || 'csv';
     var exp = new jExport(type);
     var tableSchema = privateApi.getTable(this.name, table);
@@ -10,12 +10,7 @@ function ApplicationInstanceExport(type, table) {
 
     //getValue
     function getValueInArray(cdata) {
-        var ret = []
-        expect(cdata).each(function(item) {
-            ret.push(isobject(item) ? JSON.stringify(item) : item);
-        });
-
-        return ret;
+        return Object.values(cdata).map(item => (isobject(item) ? JSON.stringify(item) : item));
     }
 
     return ({

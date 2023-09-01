@@ -6,10 +6,10 @@ var transactionManager = new TransactionManager();
  * @param {*} table 
  * @param {*} mode 
  */
-function ApplicationInstanceTransaction(table, mode) {
+function DatabaseInstanceTransaction(table, mode) {
     var dbName = this.name;
     return new DBPromise(function(resolve, reject) {
-        var instance = ApplicationInstanceTransaction.async(dbName, table, mode);
+        var instance = DatabaseInstanceTransaction.async(dbName, table, mode);
         if (!instance || instance.message) {
             reject(instance);
         } else {
@@ -24,7 +24,7 @@ function ApplicationInstanceTransaction(table, mode) {
  * @param {*} table 
  * @param {*} mode 
  */
-ApplicationInstanceTransaction.async = function(dbName, table, mode) {
+DatabaseInstanceTransaction.async = function(dbName, table, mode) {
     var err = [];
     var isMultipleTable = false;
     var tableJoinMapping = {};

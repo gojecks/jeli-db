@@ -49,30 +49,28 @@ importModules.prototype.json = function(content) {
 importModules.prototype.html = function(content) {
     var div = document.createElement('div');
     div.innerHTML = content;
-    var tr = div.querySelectorAll('tr'),
-        lines = [];
+    var tr = div.querySelectorAll('tr');
+    var lines = [];
 
-    //Function to remove td 
+    /**
+     * 
+     * @param {*} row 
+     * @returns 
+     */
     function removeTD(row) {
-        var td = row.childNodes,
-            tarr = [],
-            data = [];
-        expect(td).each(function(_td) {
-            data.push(_td.textContent);
-        });
+        var tarr = [];
+        var data = [];
 
+        row.forEach(td => data.push(td.textContent));
         tarr.push(data.join(','));
-        //return tarr
         return tarr;
     }
-
-    if (tr.length) {
-        expect(tr).each(function(trow) {
-            if (trow.tagName) {
-                lines.push(removeTD(trow));
-            }
-        });
-    }
+    
+    tr.forEach(trow  =>  {
+        if (trow.tagName) {
+            lines.push(removeTD(trow.childNodes));
+        }
+    });
 
     this.setData(lines);
     return this.fileData;

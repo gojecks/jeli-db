@@ -57,16 +57,12 @@ function openedDBResolvers() {
  * 
  * @param {*} name 
  */
-openedDBResolvers.prototype.$hasOwnPropery = function(name) {
+openedDBResolvers.prototype.has = function(name) {
     return this.networkResolver.hasOwnProperty(name);
 };
 
 openedDBResolvers.prototype.trigger = function(fn) {
-    var _this = this;
-    setTimeout(function() {
-        fn.call(_this);
-    }, 1);
-
+    setTimeout(()=> fn.call(this), 1);
     return this;
 };
 

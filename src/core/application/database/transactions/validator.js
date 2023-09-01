@@ -1,43 +1,48 @@
 /**
  * 
- * @param {*} dbName 
  * @param {*} tableName 
  * @param {*} columns 
+ * @param {*} callback 
+ * @returns 
  */
-function TransactionDataAndColumnValidator(tableName, columns) {
-    var _this = this,
-        _typeValidator = privateApi.getActiveDB(this.DB_NAME).get(constants.DATATYPES);
+function TransactionDataAndColumnValidator(tableName, columns, callback) {
+    var  _typeValidator = privateApi.getActiveDB(this.DB_NAME).get(constants.DATATYPES);
+    callback = callback || noop;
+
     /**
      * 
      * @param {*} cData 
      * @param {*} dataRef 
      */
-    return function(cData, dataRef) {
+    return (cData, dataRef) => {
         //Process the Data
         var passed = 1;
         if (cData) {
-            Object.keys(cData).forEach(function(key) {
+            var cdataKeys = Object.keys(cData);
+            for(var key of cdataKeys){
                 //check if column is in table
                 if (!columns[key]) {
                     //throw new error
-                    _this.setDBError('column (' + key + ') was not found on this table (' + tableName + '), to add a new column use the addColumn FN - ref #' + dataRef);
+                    this.setDBError('column (' + key + ') was not found on this table (' + tableName + '), to add a new column use the addColumn FN - ref #' + dataRef);
+                    callback(key);
                     passed = !1;
                     return;
                 }
 
-                var type = typeof cData[key],
-                    requiredType = (columns[key].type || 'string').toUpperCase();
+                var type = typeof cData[key];
+                var requiredType = (columns[key].type || 'string').toUpperCase();
+
                 if (!_typeValidator.validate(cData[key], requiredType)) {
                     /**
                      * Allow null value when NOT_NULL is not configured 
                      */
-                    if (isnull(cData[key]) && !columns[key].NOT_NULL) {
-                        return;
-                    }
-                    _this.setDBError(key + " Field requires " + requiredType.toUpperCase() + ", but got " + type.toUpperCase() + "(" + cData[key] + ")- ref #" + dataRef);
+                    if (isnull(cData[key]) && !columns[key].NOT_NULL) continue;
+                    
+                    callback(key, requiredType, type);
+                    this.setDBError(key + " Field requires " + requiredType.toUpperCase() + ", but got " + type.toUpperCase() + "(" + cData[key] + ")- ref #" + dataRef);
                     passed = !1;
                 }
-            });
+            }
 
             return passed;
         }
@@ -66,22 +71,21 @@ function getDefaultColumnValue(defaultValue, ref) {
 }
 
 function columnObjFn(columns) {
+    var columnKeys = Object.keys(columns);
     function parser(data, ref) {
-        return parser.columnKeys.reduce(function(accum, prop) {
+        return columnKeys.reduce(function(accum, prop) {
             var def = columns[prop];
-            var value = null;
             var hasProp = data.hasOwnProperty(prop);
-            if (def.defaultValue && (!hasProp || (hasProp && data[prop] == null || data[prop] === undefined))) {
+            var value = hasProp ? data[prop] : def.NOT_NULL ? "" : null;
+            if (def.defaultValue && (!hasProp || (hasProp && [null, undefined, ""].includes(value)))) {
                 value = getDefaultColumnValue(def.defaultValue, ref);
-            } else {
-                value = hasProp ? data[prop] : def.NOT_NULL ? "" : null
             }
 
             accum[prop] = value;
             return accum;
         }, {});
-    };
+    }
 
-    parser.columnKeys = Object.keys(columns);
+    parser.columnKeys = columnKeys;
     return parser;
 }

@@ -29,8 +29,8 @@ function insertPluginFn(query, handler) {
 
                 instance
                     .execute()
-                    .onSuccess(handler.onSuccess)
-                    .onError(handler.onError);
+                    .then(handler.onSuccess, handler.onError)
+                    .catch(handler.onError);
             })
             .onError(handler.onError)
     }

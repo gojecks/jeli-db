@@ -35,22 +35,34 @@ CoreDataResolver.prototype.setData = function(tbl, type, data) {
         this._records[tbl] = { data: this.tableRecordHolder(), columns: {} };
     }
 
-    if (data.length) {
-        //push the data to the list
-        for (var ref of data) {
-            switch (type) {
-                case ('update'):
-                    delete this._records[tbl].data['insert'][ref];
-                    break;
-                case ('delete'):
-                    delete this._records[tbl].data['insert'][ref];
-                    delete this._records[tbl].data['update'][ref];
-                    break;
-            }
-
-            this._records[tbl].data[type][ref] = true;
+    var taskHandler = {
+        insert: (records) => {
+           records.forEach(ref => {
+                this._records[tbl].data.insert[ref] = true;
+            });
+        },
+        update: (records) => {
+           records.forEach(ref => {
+                if (!this._records[tbl].data.insert[ref]) {
+                    this._records[tbl].data.update[ref] = true;
+                }
+            });
+        },
+        delete: (records) => {
+            records.forEach(ref => {
+                delete this._records[tbl].data['insert'][ref];
+                delete this._records[tbl].data['update'][ref];
+                this._records[tbl].data.delete[ref] = true;
+            });
+        },
+        insertReplace: () => {
+            taskHandler.insert(data.insert);
+            taskHandler.update(data.update);
         }
+    };
 
+    if (data.length || isobject(data)){
+        taskHandler[type](data);
         privateApi.storageFacade.set(privateApi.storeMapping.pendingSync, this._records, this.name);
     }
 }

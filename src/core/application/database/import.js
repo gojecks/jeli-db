@@ -4,7 +4,7 @@
  * @param {*} handler
  */
 
-function ApplicationInstanceImport(table, isSchema, handler) {
+function DatabaseInstanceImport(table, isSchema, handler) {
     var createTable = false,
         db = this,
         _def = ({

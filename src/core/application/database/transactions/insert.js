@@ -9,15 +9,16 @@ function transactionInsert(data, hardInsert, tableName) {
      * make sure table is set
      */
     tableName = tableName || this.rawTables[0];
+    var fieldErrors = [];
     var processedData = [];
     var _skipped = [];
-    var _this = this;
     var tableInfo = this.getTableInfo(tableName);
     var time = performance.now();
     var columns = tableInfo.columns[0];
     var objectType = isobject(data);
-    var _validator = this.validator(tableInfo.TBL_NAME, columns);
+    var _validator = this.validator(tableInfo.TBL_NAME, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
     var defaultValueGenerator = columnObjFn(columns);
+    var refs = [];
     /**
      * Data must an Array or Object format
      * throw error if not in the format
@@ -47,32 +48,9 @@ function transactionInsert(data, hardInsert, tableName) {
         }, {});
     }
 
-    function setLastInsertID() {
-        // set lastinsert ID
-        tableInfo.lastInsertId = (tableInfo.lastInsertId + processedData.length);
-        data = null;
-    }
 
-    /**
-     * 
-     * @returns function
-     */
-    function getAutoIncCallback() {
-        var fields = defaultValueGenerator.columnKeys.reduce(function(accum, column) {
-            if (columns[column].AUTO_INCREMENT && inarray(columns[column].type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER'])) {
-                accum.push(column);
-            }
-            return accum;
-        }, []);
-
-        return function(data) {
-            var inc = ++tableInfo.lastInsertId;
-            if (fields.length) {
-                fields.forEach(function(field) {
-                    data[field] = inc;
-                });
-            }
-        };
+    function getLastInsertId(){
+        return (tableInfo.primaryKey ? processedData[processedData.length - 1]._data[tableInfo.primaryKey] : tableInfo.lastInsertId);
     }
 
     /**
@@ -80,98 +58,81 @@ function transactionInsert(data, hardInsert, tableName) {
      * @param {*} pData 
      * @param {*} _ref 
      */
-    function checkTableIndex(pData, _ref) {
-        var _index,
-            _dataExists = false;
-        for (_index in tableInfo.index) {
-            var _currentIndexCheck = tableInfo.index[_index];
-            if (_currentIndexCheck.indexes) {
+    function checkTableIndex(pData, ref) {
+        var dataExists = false;
+        for (var index in tableInfo.index) {
+            var tableColumnIndex = tableInfo.index[index];
+            if (tableColumnIndex.indexes) {
                 // check the the index already exists
-                if (_currentIndexCheck.indexes[pData[_index]]) {
-                    if (_currentIndexCheck.unique) {
-                        _dataExists = true;
-                        _skipped.push(_currentIndexCheck.indexes[pData[_index]]);
+                if (tableColumnIndex.indexes[pData[index]]) {
+                    if (tableColumnIndex.unique) {
+                        dataExists = true;
+                        _skipped.push(tableColumnIndex.indexes[pData[index]]);
                     }
                 } else {
-                    _currentIndexCheck.indexes[pData[_index]] = _ref;
+                    tableColumnIndex.indexes[pData[index]] = ref;
                 }
             } else {
-                _currentIndexCheck.indexes = {};
-                _currentIndexCheck.indexes[pData[_index]] = _ref;
+                tableColumnIndex.indexes = {};
+                tableColumnIndex.indexes[pData[index]] = ref;
             }
         }
 
-        return _dataExists;
+        return dataExists;
     }
 
+
+
     if (data.length && !this.hasError()) {
-        var autoIncCallback = getAutoIncCallback();
+        var autoIncCallback = this.getTableIncCallback(tableInfo);
+        var validateAndProcessData  = (_data) => {
+            if (hardInsert){
+                refs.push(_data._ref);
+                processedData.push(_data);
+                return;
+            }
+
+            var _ref = GUID();
+            _data = defaultValueGenerator(_data, _ref);
+            var dataExists = checkTableIndex(_data, _ref);
+            if (!this.processData || (this.processData && !dataExists)) {
+                refs.push(_ref);
+                autoIncCallback(_data);
+                processedData.push({
+                    _ref,
+                    _data
+                });
+            }
+        };
+
         /**
          * check for hardInsert
          * data must contain refs
          */
-        if (hardInsert) {
-            /**
-             * remove data not jdb structure
-             */
-            processedData = data.reduce(function(accum, item, idx) {
-                if (!item._ref || !item._data) {
-                    _skipped.push(idx);
-                } else {
-                    accum.push(item)
-                }
-
-                return accum;
-            }, []);
-
-            setLastInsertID();
-        }
-        /**
-         * check if dataProcessing is disabled
-         */
-        else if (this.processData) {
-            var len = data.length;
-            for (var i = 0; i < len; i++) {
-                var item = data[i];
-                var cdata = {};
-                //switch type
-                if (isobject(item)) {
-                    cdata = item;
-                } else {
-                    cdata = copyDataByIndex(defaultValueGenerator.columnKeys, item);
-                }
-
-                if (_validator(cdata, i)) {
-                    var ref = GUID();
-                    var pData = defaultValueGenerator(cdata, ref);
-                    // check indexing
-                    var _dataExists = checkTableIndex(pData, ref);
-                    //push data to processData array
-                    //set obj ref GUID
-                    if (!_dataExists) {
-                        autoIncCallback(pData);
-                        processedData.push({
-                            _ref: ref,
-                            _data: pData
-                        });
-                    }
-                }
+        var len = data.length;
+        for (var i = 0; i < len; i++) {
+            var item = data.shift();
+            if (hardInsert && (!item._ref || !item._data)) {
+                _skipped.push(idx);
+                continue;
+            } else if(this.processData){
+                if (!isobject(item))
+                    item = copyDataByIndex(defaultValueGenerator.columnKeys, item);
+                if (!_validator(item, i)) continue;
             }
-        } else {
-            // generate a new mapping dataset to be store
-            processedData = data.map(function(item) {
-                var ref = GUID();
-                checkTableIndex(item, ref);
-                autoIncCallback(item);
-                var pData = defaultValueGenerator(item, ref);
-                return ({
-                    _ref: ref,
-                    _data: pData
-                });
-            });
 
-            setLastInsertID();
+            validateAndProcessData(item);
         }
+            
+        if (hardInsert) {
+            tableInfo.lastInsertId = (tableInfo.lastInsertId + processedData.length);
+        }
+        // empty data variable
+        data = null;
+    }
+
+    if (!processedData.length) {
+        this.setDBError('Empty insert statement, please try again.');
     }
 
 
@@ -182,13 +143,18 @@ function transactionInsert(data, hardInsert, tableName) {
      */
     function updateTable(totalRecords) {
         var totalRecords = processedData.length;
-        if (isarray(processedData) && totalRecords) {
-            privateApi.storageFacade.broadcast(tableInfo.DB_NAME, DB_EVENT_NAMES.TRANSACTION_INSERT, [tableInfo.TBL_NAME, processedData, true]);
+        if (totalRecords) {
+            privateApi.storageFacade.broadcast(
+                tableInfo.DB_NAME,
+                DB_EVENT_NAMES.TRANSACTION_INSERT, 
+                [tableInfo.TBL_NAME, processedData, true]
+            );
         }
 
         //return success after push
-        var lastInsertId = (tableInfo.primaryKey ? processedData[0]._data[tableInfo.primaryKey] : tableInfo.lastInsertId)
-        processedData = [];
+        var lastInsertId = getLastInsertId();
+        processedData.length = 0;
+        refs.length = 0;
         columns = null;
         return new InsertQueryEvent(
             tableInfo.TBL_NAME,
@@ -199,18 +165,18 @@ function transactionInsert(data, hardInsert, tableName) {
             });
     }
 
-    this.executeState.push(["insert", function(disableOfflineCache) {
+    this.executeState.push(["insert", (disableOfflineCache) => {
         //errorLog Must be empty
-        if (_this.hasError()) {
+        if (this.hasError()) {
             //clear processed Data
-            processedData = [];
-            _skipped = [];
-            throw new Error(_this.getError());
+            processedData.length = 0;
+            _skipped.length = 0;
+            throw new TransactionErrorEvent('insert', this.getError(fieldErrors));
         }
 
         // update offline
         if (!disableOfflineCache) {
-            _this.updateOfflineCache('insert', _this.getAllRef(processedData), tableInfo.TBL_NAME);
+            this.updateOfflineCache('insert', refs, tableInfo.TBL_NAME);
         }
 
         //push records to our resolver

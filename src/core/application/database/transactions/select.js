@@ -54,12 +54,14 @@ function transactionSelect(selectFields, definition) {
     }, definition || {});
 
     // check for duplicate definition
-    if (queryDefinition.groupByStrict && queryDefinition.groupBy) {
-        this.setDBError("Clause: groupByStrict cannot be used with groupBy");
-    }
-
-    if (queryDefinition.groupByStrict && queryDefinition.groupByStrict.indexOf(",") < 0) {
-        this.setDBError("Clause: groupByStrict requires two fields for matching");
+    if (queryDefinition.groupByStrict) {
+        if (queryDefinition.groupBy){
+            this.setDBError("Clause: groupByStrict cannot be used with groupBy");
+        }
+            
+        if (queryDefinition.groupByStrict.indexOf(",") < 0) {
+            this.setDBError("Clause: groupByStrict requires two fields for matching");
+        }
     }
 
     if (queryDefinition.join && !isarray(queryDefinition.join)) {
@@ -68,34 +70,30 @@ function transactionSelect(selectFields, definition) {
 
     //@Function Name processQueryData
     //@Arguments nill
-    // 
-    if (queryDefinition.fields) {
-        //Split through the queryColumn
-        var queryColumn = queryDefinition.fields.split(",");
+    //
+    if (queryDefinition.join && isequal(selectFields, '*')) {
+        this.setDBError('Invalid Select Statment');
+    }
 
-        if (queryDefinition.join && isequal(selectFields, '*')) {
-            _this.setDBError('Invalid Select Statment.');
-        }
-
-        //Loop through queryColumn
-        queryColumn.forEach(function(query) {
-            if (inarray(query, ".")) {
-                if (_this.isMultipleTable && query) {
-                    query = query.replace(/\((.*?)\)/, "|$1").split("|");
-                    var tblName;
-                    if (isequal(query[0].toLowerCase(), 'case')) {
-                        tblName = query[1].split(new RegExp("when", "gi"))[1].split(".")[0];
-                    } else {
-                        tblName = (query[1] || query[0]).split(".")[0];
+    function validateFields(){
+        var queryFields = queryDefinition.fields.split(/(\w+\((.*?)\)+,|,)/).filter(item => (item && item !== ','));
+        //Loop through queryFields
+        for(var field of queryFields) {
+            if (field.includes('.')) {
+                if (this.isMultipleTable && field) {
+                    field = field.replace(/\((.*?)\)/, '|$1').split('|');
+                    var tblName = (field[1] || field[0]).split('.')[0];
+                    if (isequal(field[0].toLowerCase(), 'case')) {
+                        tblName = field[1].split(new RegExp('when', 'gi'))[1].split('.')[0];
                     }
 
                     //reference to the tables
-                    if (!_this.tableInfoExists(tblName.trim())) {
-                        _this.setDBError(tblName + " was not found, Include table in transaction Array eg: db.transaction(['table_1','table_2'])");
+                    if (!this.tableInfoExists(tblName.trim())) {
+                        this.setDBError(tblName + ' was not found, Include table in transaction Array eg: db.transaction([table_1,table_2])');
                     }
                 }
             }
-        });
+        }
     }
 
     /**
@@ -132,7 +130,7 @@ function transactionSelect(selectFields, definition) {
          * perform where query on joinClause
          */
         if (joinObj.where) {
-            rightTable = _queryPerformer(rightTable, joinObj.where, null, joinObj.limit);
+            rightTable = queryPerformer(rightTable, joinObj.where, null, joinObj.limit);
         }
 
         // select fields if required
@@ -330,9 +328,7 @@ function transactionSelect(selectFields, definition) {
          */
         var fields = (queryInstance.field || queryInstance.fields || queryInstance.select || "");
         if (fields && !isequal(fields, '*')) {
-            var hasSingleResultQuery = ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].some(function(key) {
-                return inarray(key, fields);
-            });
+            var hasSingleResultQuery = ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].some(key => inarray(key, fields));
             var valueMethods = new ValueMethods(fields, tableData);
             if (!queryInstance.isArrayResult && hasSingleResultQuery) {
                 return valueMethods.first();
@@ -360,15 +356,27 @@ function transactionSelect(selectFields, definition) {
         return data;
     }
 
-    function performInClauseQuery() {
-        queryDefinition.where.forEach(function(item) {
-            Object.keys(item).forEach(function(key) {
-                if (item[key].type && inarray(item[key].type.toLowerCase(), ["inclause", "notinclause"])) {
+    function performQueryCheck() {
+        for(var item of queryDefinition.where) {
+            for(var key in item) {
+                if (!isobject(item[key])) continue
+                var type = (item[key] ? item[key].type : '').toLowerCase();
+                if (type && ['inclause', 'notinclause'].includes(type)) {
                     runClause(item, key);
+                } else if(type  == 'datediff' && !isarray(item[key].value)){
+                    var match = /(\d+)([a-zA-Z]+)/.exec(item[key].value);
+                    if(match && match[1] && match[2]){
+                        item[key].value = [parseInt(match[1].trim()), match[2].trim()];
+                    }
                 }
-            });
-        });
-
+            }
+        }
+        /**
+         * 
+         * @param {*} item 
+         * @param {*} key 
+         * @returns 
+         */
         function runClause(item, key) {
             var clause = item[key];
             var value = clause.value;
@@ -383,7 +391,7 @@ function transactionSelect(selectFields, definition) {
                 }
 
                 clause.isArrayResult = true;
-                value = _queryPerformer(clauseTable, clause.where);
+                value = queryPerformer(clauseTable, clause.where);
                 value = performSelect(value, clause);
             }
 
@@ -402,7 +410,7 @@ function transactionSelect(selectFields, definition) {
          */
         _sData = getTableData(_this.rawTables[0], true);
         if (queryDefinition.filterBefore) {
-            _sData = _queryPerformer(_sData, queryDefinition.where);
+            _sData = queryPerformer(_sData, queryDefinition.where);
         }
 
         //Table matcher
@@ -410,37 +418,37 @@ function transactionSelect(selectFields, definition) {
         //returns both Match and unMatched Result
         queryDefinition.join.forEach(matchTableFn);
         if (!queryDefinition.filterBefore && queryDefinition.where) {
-            _sData = _queryPerformer(_sData, queryDefinition.where);
+            _sData = queryPerformer(_sData, queryDefinition.where);
         }
     }
 
     function performMainQuery() {
         if (_this.isMultipleTable) {
             for (var i = 0; i < _this.rawTables.length; i++) {
-                var result = _queryPerformer(getTableData(_this.rawTables[i]), queryDefinition.where);
+                var result = queryPerformer(getTableData(_this.rawTables[i]), queryDefinition.where);
                 _sData.push.apply(_sData, result);
             }
         } else {
-            _sData = _queryPerformer(getTableData(_this.rawTables[0]), queryDefinition.where)
+            _sData = queryPerformer(getTableData(_this.rawTables[0]), queryDefinition.where)
         }
     }
 
     //Push our executeState Function into Array
-    this.executeState.push(["select", function() {
+    this.executeState.push(["select", () => {
         // convert where query to an object
         if (queryDefinition.where) {
             if (isstring(queryDefinition.where)) {
                 queryDefinition.where = _parseCondition(queryDefinition.where);
             } else if (isobject(queryDefinition.where)) {
-                console.warn("WHERE clause type(Object) support will be removed in next version, please use type(Array)");
+                console.warn("WHERE clause of type (Object) support will be removed in next version, please use type (Array<Object>)");
                 queryDefinition.where = [queryDefinition.where];
             }
-            performInClauseQuery();
+            performQueryCheck();
         }
 
-        if (_this.hasError()) {
+        if (this.hasError()) {
             //Throw new error
-            throw new Error(_this.getError());
+            throw new TransactionErrorEvent('select', this.getError());
         }
 
         var resultSet = [];
@@ -456,14 +464,8 @@ function transactionSelect(selectFields, definition) {
         return new SelectQueryEvent(resultSet, (performance.now() - time));
     }]);
 
-    /**
-     * Select Public Api
-     */
-    var publicApi = new SelectQueryFacade(queryDefinition, function(condition) {
-        return _this.execute(condition);
-    });
 
-    return publicApi;
+    return new SelectQueryFacade(queryDefinition, (condition) => this.execute(condition));
 }
 
 /**

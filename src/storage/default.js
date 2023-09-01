@@ -1,7 +1,3 @@
-function mockStorage() {
-    this.setItem
-}
-
 /**
  * 
  * @param {*} config 
@@ -138,7 +134,7 @@ function DefaultStorage(config, storageUtils, callback) {
             if (resource.resourceManager) {
                 Object.keys(resource.resourceManager).forEach(function(tbl) {
                     _privateStore[tbl] = getItem(tbl);
-                    _privateStore[tbl + ":data"] = getItem(tbl + ":data");
+                    _privateStore[tbl + ':data'] = getItem(tbl + ':data') || [];
                 });
             }
         }
@@ -199,6 +195,7 @@ function DefaultStorage(config, storageUtils, callback) {
         if (!name) {
             return storageUtils.generateStruct(_privateStore);
         }
+
         return _privateStore[name];
     };
 
