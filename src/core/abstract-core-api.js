@@ -612,15 +612,17 @@ var privateApi = (function () {
         var ignoreSync = privateApi.getNetworkResolver('ignoreSync', appName);
         if (!ignoreSync || !inarray(tbl, ignoreSync)) {
             var recordResolver = this.getActiveDB(appName).get(constants.RECORDRESOLVERS);
+            var hasDataToProcess = true;
             //process the request
             //Synchronize PUT STATE
             if (!data && type) {
                 var dataToSync = recordResolver.get(tbl, null, 'data');
                 data = dataToSync.data;
+                hasDataToProcess = Object.keys(data).some(key => (data[key].length > 0));
             }
 
             // make sure there is data to push
-            if (data) {
+            if (hasDataToProcess) {
                 var requestParams = this.buildHttpRequestOptions(appName, { tbl: tbl, path: '/database/push' });
                 requestParams.data = data;
                 return this.processRequest(requestParams, tbl, appName, !!type);
