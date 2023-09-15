@@ -135,13 +135,11 @@ function transactionSelect(selectFields, definition) {
 
         // select fields if required
         if (joinObj.fields) {
-            rightTable = performSelect(rightTable, joinObj);
+            rightTable = performSelect(rightTable, joinObj, true);
         }
 
 
-        var rightTableIndex = rightTable.map(function(item) {
-            return item[rightTableCol];
-        });
+        var rightTableIndex = rightTable.map(item => item[rightTableCol]);
 
         //start process
         //query the leftTable Data
@@ -312,9 +310,10 @@ function transactionSelect(selectFields, definition) {
      * 
      * @param {*} tableData 
      * @param {*} queryInstance 
+     * @param {*} fromJoinReq 
      * @returns 
      */
-    function performSelect(tableData, queryInstance) {
+    function performSelect(tableData, queryInstance, fromJoinReq) {
         /**
          * empty or invalid dataSet
          */
@@ -330,9 +329,9 @@ function transactionSelect(selectFields, definition) {
         if (fields && !isequal(fields, '*')) {
             var hasSingleResultQuery = ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].some(key => inarray(key, fields));
             var valueMethods = new ValueMethods(fields, tableData);
-            if (!queryInstance.isArrayResult && hasSingleResultQuery) {
+            if (!queryInstance.isArrayResult && hasSingleResultQuery && !fromJoinReq)
                 return valueMethods.first();
-            }
+
             tableData = valueMethods.getAll(queryInstance.isArrayResult);
         } else {
             tableData = tableData.splice(0);

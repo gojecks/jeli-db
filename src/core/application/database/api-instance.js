@@ -21,8 +21,14 @@
 function DatabaseInstanceApi(path, data) {
     var options = isobject(path) ? path : { path, data };
     var httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
+    // no request Match found
+    if (httpRequestOptions.isErrorState) {
+        console.log('Invalid or missing api: '+ options.path);
+        return Promise.reject({ message: "There was an error please try again later" });
+    }
+
     // set the postData
-    if (options.data && !httpRequestOptions.isErrorState) {
+    if (options.data) {
         if (httpRequestOptions.type && isequal(httpRequestOptions.type.toLowerCase(), 'get')) {
             httpRequestOptions.data = options.data;
         } else if (options.data instanceof FormData) {
