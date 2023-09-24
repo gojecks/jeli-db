@@ -112,6 +112,8 @@ TableTransaction.prototype.getTableIncCallback = function (tableInfo) {
                data[field] = inc;
            });
        }
+
+       return data;
    };
 }
 

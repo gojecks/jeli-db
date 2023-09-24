@@ -41,8 +41,7 @@ function TransactionInsertReplace(records, updateRef) {
         } else {
             // insert record
             var _ref = GUID();
-            record = defaultValueGenerator(record, _ref);
-            autoIncCallback(record);
+            record = autoIncCallback(defaultValueGenerator(record, _ref));
             rowsToInsert.push({
                 _ref,
                 _data: record

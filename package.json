@@ -4,8 +4,7 @@
     "description": "Javascript Database for front-end development",
     "main": "dist/jdb.min.js",
     "files": [
-        "dist/jdb.min.js",
-        "dist/jdb.min.js.map",
+        "dist/",
         "@types"
     ],
     "types": "@types/index.d.ts",
