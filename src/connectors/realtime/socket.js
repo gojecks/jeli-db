@@ -13,9 +13,10 @@ function SocketService(parentContext) {
     this.retryTime = 0;
     this.timerId = null;
     this.parentContext = parentContext;
+    this.eventList = ['error', 'open', 'close', 'message'];
 
     Object.defineProperty(this, 'options', {
-        get: function() {
+        get: function () {
             return parentContext.options
         }
     });
@@ -28,66 +29,49 @@ function SocketService(parentContext) {
     });
 }
 
-SocketService.prototype.connect = function() {
+SocketService.prototype.connect = function () {
     if (this.socket) return;
     var _this = this;
-    var eventList = ['error', 'open', 'close', 'message'];
-
-    /**
-     * 
-     * @param {*} response 
-     */
-    function createAndConnectSocket(socketServerEndpoint) {
+    
+    this.parentContext.events.on('socket.connect', socketServerEndpoint => {
         if (socketServerEndpoint) {
             console.log('Connecting to socket');
-            _this.socket = new WebSocket(socketServerEndpoint, _this.options.socketSubProtocols);
+            this.socket = new WebSocket(socketServerEndpoint, this.options.socketSubProtocols);
             // register core events
-            for (var eventName of eventList) {
-                _this.socket.addEventListener(eventName, socketEventHandler, false);
+            for (var eventName of this.eventList) {
+                this.socket.addEventListener(eventName, socketEventHandler, false);
             }
         }
-    }
+    });
 
-    function onClosedConnection() {
+    var onClosedConnection = () => {
         // User closed the connection
-        if (_this.destroyed) return;
+        if (this.destroyed) return;
         /**
          * Attempt to reconnect to  server
          */
-        clearTimeout(_this.timerId);
+        clearTimeout(this.timerId);
         console.log('connection closed.');
-        eventList.forEach(function(eventName) {
-            _this.socket.removeEventListener(eventName, socketEventHandler, false);
+        this.eventList.forEach(eventName => {
+            this.socket.removeEventListener(eventName, socketEventHandler, false);
         });
         // clear socketServerEndpoint
-        _this.options.socketRedial = true;
+        this.options.socketRedial = true;
         console.log('reconnecting socket..');
-    }
+    };
 
-    function onErrorConnection() {
-        console.log('socket connection Error, socket will be disconnected and destroyed.');
-        _this.disconnect();
-    }
-
-    function socketHeartBeat() {
-        clearTimeout(_this.timerId);
-        _this.pingSent = !_this.pingSent;
-        _this.retryTime = 0;
-        _this.timerId = setTimeout(function() {
-            if (_this.socket.readyState === _this.socket.OPEN) {
-                _this.send("ping", +new Date);
+    var socketHeartBeat = () => {
+        if (!this.socket) return;
+        clearTimeout(this.timerId);
+        this.pingSent = !this.pingSent;
+        this.retryTime = 0;
+        this.timerId = setTimeout(() => {
+            if (this.socket.readyState === this.socket.OPEN) {
+                this.send('ping', +new Date);
             }
-        }, _this.options.socketPingTime);
-    }
+        }, this.options.socketPingTime);
+    };
 
-    /**
-     * 
-     * @param {*} eventData 
-     */
-    function onSocketDataReceived(eventData) {
-        updatePromiserHandler(_this.parentContext, eventData);
-        socketHeartBeat();
-    }
 
     /**
      * 
@@ -101,41 +85,36 @@ SocketService.prototype.connect = function() {
         }
     }
 
-    /**
-     * 
-     * @param {*} eventData 
-     * @param {*} socket 
-     */
-    function onChannelEventReceived(eventData) {
-        var channel = _this.createChannel(eventData, true);
-        channel.events.emit(eventData.type, [eventData]);
-        socketHeartBeat();
-    }
-
-    this.parentContext.events.on('socket.connect', function(socketServerEndpoint) {
-        createAndConnectSocket(socketServerEndpoint);
-    });
-
     // register socket event listeners
     this.events
-        .on('error', onErrorConnection)
-        .on('open', function() {
+        .on('error', () => {
+            console.log('socket connection Error, socket will be disconnected and destroyed.');
+            this.disconnect();
+        })
+        .on('open', () => {
             console.log('socket connected');
             socketHeartBeat();
         })
-        .on('close', onClosedConnection)
-        .on('authentication', function(authData) {
+        .on('close', () => onClosedConnection())
+        .on('authentication', (authData) => {
             if (!authData.success) {
                 // kill socket process
-                _this.disconnect();
+                this.disconnect();
             }
         })
-        .on('db:update', onSocketDataReceived)
-        .on('pong', socketHeartBeat)
-        .on('channel', onChannelEventReceived);
+        .on('db:update', (eventData) => {
+            updatePromiserHandler(this.parentContext, eventData);
+            socketHeartBeat();
+        })
+        .on('pong', () => socketHeartBeat())
+        .on('channel', (eventData) => {
+            var channel = this.createChannel(eventData, true);
+            channel.events.emit(eventData.type, [eventData]);
+            socketHeartBeat();
+        });
 }
 
-SocketService.prototype.disconnect = function() {
+SocketService.prototype.disconnect = function () {
     if (!this.socket) return;
     this.destroyed = true;
     this.socket.close();
@@ -153,7 +132,7 @@ SocketService.prototype.disconnect = function() {
  * @param {*} channelObj 
  * @returns 
  */
-SocketService.prototype.createChannel = function(channelObj, disableSending) {
+SocketService.prototype.createChannel = function (channelObj, disableSending) {
     if (!this.channelsRepository.has(channelObj.channel)) {
         this.channelsRepository.set(channelObj.channel, new SocketChannel(channelObj.channel, this));
         if (!disableSending)
@@ -163,7 +142,7 @@ SocketService.prototype.createChannel = function(channelObj, disableSending) {
     return this.channelsRepository.get(channelObj.channel);
 };
 
-SocketService.prototype.getChannel = function(channelName) {
+SocketService.prototype.getChannel = function (channelName) {
     return this.channelsRepository.get(channelName);
 };
 
@@ -172,12 +151,12 @@ SocketService.prototype.getChannel = function(channelName) {
  * @param {*} event 
  * @param {*} data 
  */
-SocketService.prototype.send = function(event, data) {
+SocketService.prototype.send = function (event, data) {
     if (!this.socket) return;
     this.socket.send(JSON.stringify([event, data]));
 }
 
-SocketService.prototype.push = function(data, recipients) {
+SocketService.prototype.push = function (data, recipients) {
     this.send('message', {
         recipients: recipients,
         data: data

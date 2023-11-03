@@ -203,11 +203,11 @@ TableTransaction.prototype.execute = function(disableOfflineCache) {
                                 }
 
                                 complete(true, res);
-                            }, function(error) {
+                            }, err => {
                                 complete(false, {
                                     state: ex[0],
                                     message: 'transaction complete but failed to sync to server',
-                                    $ajax: error
+                                    $ajax: err
                                 });
                             });
                     } else {

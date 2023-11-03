@@ -6,6 +6,7 @@ function RealtimeConnector(options) {
     this.options = Object.assign({
         url: "/database/updates",
         trial: 1,
+        maximumTrial: 10, // once thredshold is reched we destroy realtime connectivity
         maximumConcurrentFailure: 3,
         timer: 1000,
         withRef: false,
@@ -118,10 +119,11 @@ function updatePromiserHandler(context, records) {
  * @returns Number
  */
 function getSleepTimer(options) {
+    var inc = 1;
     if (options.trial >= options.maximumConcurrentFailure) {
-        options.trial *= options.maximumConcurrentFailure;
+        inc = options.trial;
     }
-    return (options.timer * options.trial);
+    return (options.timer * inc);
 };
 
 /**
@@ -202,7 +204,7 @@ function startPolling(context) {
             }
 
             if (res.type == 'message') {
-                return errorPolling();
+                return errorPolling(false);
             } else if (res.destroy) {
                 return context.disconnect();
             }
@@ -217,7 +219,18 @@ function startPolling(context) {
         /**
          * error polling
          */
-        function errorPolling() {
+        function errorPolling(fromError) {
+            if (fromError && context.options.trial >= context.options.maximumTrial){
+                context.paused = true;
+                console.log('[Realtime] syncing paused due to maximumTrial threshold reached.');
+                context.events.emit('paused', {
+                    message: 'Maximum trial thredshold reached'
+                });
+
+                return;
+            }
+            // increment error count
+            context.options.trial++;
             return intiatePolling(getSleepTimer(context.options));
         }
 
@@ -225,8 +238,8 @@ function startPolling(context) {
          * perform request
          */
         RealtimeConnector.$privateApi.$http(getRequestData(context))
-            .then(processResponse, errorPolling)
-            .catch(errorPolling);
+            .then(processResponse, () => errorPolling(true))
+            .catch(() => errorPolling(true));
     }
 
 

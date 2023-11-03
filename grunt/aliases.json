@@ -1,5 +1,5 @@
 {
     "test": ["karma"],
     "default": ["clean", "jeli-template-loader", "uglify", "clean:jAfterBuild", "watch"],
-    "build-pack": ["clean", "jeli-template-loader", "uglify", "clean:jAfterBuild"]
+    "build-pack": ["clean", "concat", "uglify", "clean:jAfterBuild"]
 }

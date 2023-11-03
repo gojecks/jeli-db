@@ -25,7 +25,7 @@ function UserService(dbInstance) {
 };
 
 UserService.prototype.add = function(uInfo) {
-    var newInfo = ({ _ref: GUID(), _data: extend(true, { time: (+new Date) }, uInfo) });
+    var newInfo = ({ _ref: GUID(), _data: Object.assign({ time: (+new Date) }, uInfo) });
     //Put the Data
     //use the db API Method
     return this.dbInstance.api({ path: '/user', data: [newInfo], method: 'POST' })

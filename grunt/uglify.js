@@ -40,8 +40,7 @@ module.exports = {
             footer: ''
         },
         files: {
-            './dist/jdb.min.js': ['./dist/jdb.js'],
-            './dist/jdblite.min.js': ['./dist/jdblite.js']
+            './dist/jdb.min.js': ['./dist/jdb.js']
         }
     }
 }

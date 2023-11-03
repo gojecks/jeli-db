@@ -414,11 +414,9 @@ var privateApi = (function () {
                         this.storageFacade.broadcast(db, type, [tbl, eventValue, false]);
                     }
                 }
+            } 
 
-                resolve(copy(_ret, true));
-            } else {
-                reject();
-            }
+            resolve(copy(_ret, true));
         });
     };
 
@@ -444,7 +442,7 @@ var privateApi = (function () {
              * configure request options
              */
             options = Object({
-                url: (networkResolver.serviceHost || '') + requestState.URL,
+                url: (reqOptions.URL || networkResolver.serviceHost || '') + requestState.URL,
                 __appName__: dbName,
                 type: requestState.METHOD,
                 dataType: "json",
@@ -610,22 +608,28 @@ var privateApi = (function () {
      */
     CorePrivateApi.prototype.autoSync = function (appName, tbl, type, data) {
         var ignoreSync = privateApi.getNetworkResolver('ignoreSync', appName);
+        var handleResult = res => {
+            recordResolver.handleFailedRecords(tbl, res.failed);
+            return res;
+        };
+        
         if (!ignoreSync || !inarray(tbl, ignoreSync)) {
             var recordResolver = this.getActiveDB(appName).get(constants.RECORDRESOLVERS);
-            var hasDataToProcess = true;
+            var haveDataToProcess = true;
             //process the request
             //Synchronize PUT STATE
             if (!data && type) {
                 var dataToSync = recordResolver.get(tbl, null, 'data');
                 data = dataToSync.data;
-                hasDataToProcess = Object.keys(data).some(key => (data[key].length > 0));
+                haveDataToProcess = Object.keys(data).some(key => (data[key].length > 0));
             }
 
             // make sure there is data to push
-            if (hasDataToProcess) {
+            if (haveDataToProcess) {
                 var requestParams = this.buildHttpRequestOptions(appName, { tbl: tbl, path: '/database/push' });
                 requestParams.data = data;
-                return this.processRequest(requestParams, tbl, appName, !!type);
+                return this.processRequest(requestParams, tbl, appName, !!type)
+                .then(handleResult, handleResult);
             }
         }
 
