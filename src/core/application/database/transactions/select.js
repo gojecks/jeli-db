@@ -37,6 +37,7 @@ function transactionSelect(selectFields, definition) {
     var _this = this;
     var _sData = [];
     var time = performance.now();
+    var lookupTableCache = {};
 
     //reference our select query
     if (!selectFields) {
@@ -186,9 +187,7 @@ function transactionSelect(selectFields, definition) {
                 result.push(resObject);
             }
 
-            if (isarray(joinObj.resolve)) {
-                performResolve(joinObj.resolve, resObject, rightTable, rightTableIndex);
-            }
+            performResolve(joinObj.resolve, resObject, rightTable, rightTableIndex);
 
             ++idx;
         }
@@ -244,7 +243,37 @@ function transactionSelect(selectFields, definition) {
             });
         }
 
-        resolver(resolveQuery);
+        if(resolveQuery){
+            resolver(resolveQuery);
+        }
+    }
+
+    /**
+     * 
+     * @param {*} lookupTable 
+     * @param {*} tableName 
+     * @param {*} on 
+     * @param {*} fields 
+     * @returns 
+     */
+    function getLookUpTableIndex(lookupTable, tableName, on, fields){
+        var name = tableName + ':' + on;
+        if (!lookupTableCache[name]) {
+            lookupTableCache[name] = lookupTable.map(function(item) { return item[on]; })
+        }
+
+        return (foreignKey, total) => {
+            var thenValue = null;
+            var foundIndex = lookupTableCache[name].indexOf(foreignKey);
+            if (foundIndex > -1) {
+                thenValue = lookupTable[foundIndex];
+                if (fields) {
+                    thenValue = ValueMethods.staticInstance.setField(fields).getData(thenValue);
+                }
+            }
+
+            return thenValue;
+        };
     }
 
     /**
@@ -253,32 +282,25 @@ function transactionSelect(selectFields, definition) {
      * @param {*} data 
      */
     function performLookup(lookup, data, hasGroupBy) {
-        if (data && lookup.table) {
+        if (lookup && data && lookup.table) {
             if (lookup.when && !externalQuery(lookup.when)(data)) {
                 data = null;
             }
-            var lookupTable = getTableData(lookup.table);
-            var indexes = lookupTable.map(function(item) { return item[lookup.on]; });
-
-            function getValue(foreignKey, total) {
-                var thenValue = null;
-                var foundIndex = indexes.indexOf(foreignKey);
-                if (foundIndex > -1) {
-                    thenValue = lookupTable[foundIndex];
-                    if (lookup.fields) {
-                        thenValue = ValueMethods.staticInstance.setField(lookup.fields).getData(thenValue);
-                    }
-                }
-
-                return thenValue;
-            };
-
+            var tableName = ValueMethods.callMethod(lookup.table, data);
+            var on = ValueMethods.callMethod(lookup.on, data);
+            var lookupTable = getTableData(tableName, true);
+            // no table table to look stop proce
+            if (!lookupTable) return;
+            
+            var key = ValueMethods.callMethod(lookup.key, data);
+            var fields = ValueMethods.callMethod(lookup.fields, data);
+            var valueByIndex = getLookUpTableIndex(lookupTable, tableName, on, fields);
             // we expect data to be array of foreignKeys to resolve
             if (isarray(data) && hasGroupBy) {
                 var total = data.length;
                 for (var i = 0; i < total; i++) {
                     var value = data[i];
-                    var thenValue = getValue(lookup.key ? value[lookup.key] : value, total);
+                    var thenValue = valueByIndex(key ? value[key] : value, total);
                     if (thenValue) {
                         if (lookup.merge) {
                             data[i] = Object.assign(value, thenValue);
@@ -290,7 +312,7 @@ function transactionSelect(selectFields, definition) {
                     }
                 }
             } else {
-                var thenValue = getValue(lookup.key ? value[lookup.key] : value, 1);
+                var thenValue = valueByIndex(key ? data[key] : data, 1);
                 if (thenValue) {
                     if (lookup.merge) {
                         Object.assign(data, thenValue);
@@ -353,6 +375,17 @@ function transactionSelect(selectFields, definition) {
         }
 
         return data;
+    }
+
+    /**
+     * 
+     * @param {*} tableName 
+     * @param {*} refId 
+     * @returns 
+     */
+    function getTableDataWithIndexes(tableName, refId){
+        var data = _this.getTableData(tableName);
+        return data.reduce(function(accum, item) { return (accum.data.push(item._data),accum.indexes.push(item_data[refId]), accum) }, {data:[], indexes: []});
     }
 
     function performQueryCheck() {
@@ -422,13 +455,19 @@ function transactionSelect(selectFields, definition) {
     }
 
     function performMainQuery() {
+        var resolveAndLookup = (result) => {
+            var data = result._data;
+            performResolve(queryDefinition.resolve, data);
+            performLookup(queryDefinition.lookup, data);
+            _sData.push(data);
+        };
+
         if (_this.isMultipleTable) {
             for (var i = 0; i < _this.rawTables.length; i++) {
-                var result = queryPerformer(getTableData(_this.rawTables[i]), queryDefinition.where);
-                _sData.push.apply(_sData, result);
+                queryPerformer(getTableData(_this.rawTables[i]), queryDefinition.where, resolveAndLookup);
             }
         } else {
-            _sData = queryPerformer(getTableData(_this.rawTables[0]), queryDefinition.where)
+            queryPerformer(getTableData(_this.rawTables[0]), queryDefinition.where, resolveAndLookup)
         }
     }
 
@@ -458,7 +497,7 @@ function transactionSelect(selectFields, definition) {
         }
 
         resultSet = performSelect(_sData, queryDefinition);
-
+        lookupTableCache = null;
         //return the processed Data
         return new SelectQueryEvent(resultSet, (performance.now() - time));
     }]);

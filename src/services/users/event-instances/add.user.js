@@ -28,7 +28,7 @@ function AddUserEventInstance(res, userInfo) {
 
     Object.defineProperty(this, 'postData', {
         get: function() {
-            return copy(userInfo, true);
+            return Object.assign({}, userInfo);
         }
     });
 }

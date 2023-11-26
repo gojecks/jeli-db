@@ -253,7 +253,15 @@ var ValueMethods = (function() {
     ValueMethodsApis.staticInstance = new ValueMethodsApis('');
     ValueMethodsApis.writeToContext = function(resolveAs, resObject, thenValue) {
         deepArrayChecker(true, resolveAs, resObject, thenValue);
-    }
+    };
+    ValueMethodsApis.callMethod = function(field, data){
+        var expr = replacer(field);
+        if (expr[1] && SelectMethods[expr[0]]){
+            return SelectMethods[expr[0]](data, expr[1]);
+        }
+
+        return expr[0];
+    };
 
 
     return ValueMethodsApis;
