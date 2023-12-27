@@ -92,3 +92,12 @@ UserService.prototype.removeAuthority = function(postData) {
 UserService.prototype.addAuthority = function(postData) {
     return this.dbInstance.api({ path: '/database/user/add', data: postData })
 }
+
+/**
+ * 
+ * @param {*} authInfo 
+ * returns AuthorizeUserInstance
+ */
+UserService.prototype.createAuthorizeInstance = function(authInfo){
+    return new AuthorizeUserInstance(authInfo)
+}

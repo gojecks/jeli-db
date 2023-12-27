@@ -9,8 +9,8 @@ function DatabaseInstanceBatchTransaction(transactions) {
             throw new TransactionErrorEvent('BatchTransaction', 'nothing to commit or invalid transaction format');
         }
 
-        var tables = transactions.map(isstring);
-        this.transaction(tables, "write").then(startBatchTransaction);
+        var tables = transactions.map(tx => tx.table);
+        this.transaction(tables, "write").then(startBatchTransaction, err => reject(err));
 
         function startBatchTransaction(tx) {
             transactions.forEach(performTransaction);

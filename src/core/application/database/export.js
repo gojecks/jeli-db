@@ -1,38 +1,51 @@
 /**
- * @param {*} table
- * @param {*} type
+ * 
+ * @param {*} table 
+ * @param {*} type 
+ * @param {*} title 
+ * @returns 
  */
-function DatabaseInstanceExport(type, table) {
+function DatabaseInstanceExport(table, type, title) {
     var type = type || 'csv';
-    var exp = new jExport(type);
-    var tableSchema = privateApi.getTable(this.name, table);
-    var tableData = privateApi.getTableData(this.name, table);
+    var exp = new jExport(type, title, table == 'all');
+    var name = this.name;
 
-    //getValue
-    function getValueInArray(cdata) {
-        return Object.values(cdata).map(item => (isobject(item) ? JSON.stringify(item) : item));
+    function extractTableSchema(tableName){
+        var tableSchema = privateApi.getTable(name, tableName);
+        if (!tableSchema) return false;
+        var tableData = privateApi.getTableData(name, tableName);
+        //if export type was a JSON format
+        if (['json', 'jql'].includes(type)) {
+            //put the json data
+            exp.put(tableSchema, tableData);
+        } else {
+            //set label
+            exp.put(tableName, Object.keys((tableSchema.columns[0] || {})), tableData);
+        }
+
+        return true;
     }
 
     return ({
-        initialize: function(title) {
-            //Parse the data of its not an OBJECT
-            if (!tableSchema) {
-                return dbErrorPromiseObject("unable to generate export, empty or invalid table provided");
+        initialize: () => {
+           var notFound = false;
+            // export all table schematics and data
+            if (table =='all') {
+                var tableNames = privateApi.getDbTablesNames(name);
+                for(var tableName of tableNames) {
+                    if(!extractTableSchema(tableName)){
+                        notFound = true;
+                        console.log('Failed to extract '+ tableName + ', schema configuration not found');
+                        break;
+                    }
+                }
+            } else {
+                notFound = !extractTableSchema(table);
             }
 
-            //if export type was a JSON format
-            if (inarray(type, ['json', 'jql'])) {
-                //put the json data
-                exp.put(tableSchema);
-            } else {
-                //Open the exporter
-                exp.open(title);
-                //set label
-                exp.row(Object.keys(tableSchema.columns[0]));
-                //set the data
-                for (var i = 0; i < tableData.length; i++) {
-                    exp.row(getValueInArray(tableData[i]._data));
-                }
+            //Parse the data of its not an OBJECT
+            if (notFound) {
+                return dbErrorPromiseObject("unable to generate export, empty or invalid table provided");
             }
 
             //close the exporter

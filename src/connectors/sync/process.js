@@ -84,9 +84,7 @@ ChildProcess.prototype.getSet = function(name, value) {
 ChildProcess.prototype.preparePostSync = function(resource, deletedRecords) {
     var tables = [];
     if (resource && resource.resourceManager && !deletedRecords.database[this.appName]) {
-        tables = Object.keys(resource.resourceManager).filter(function(tbl) {
-            return (!deletedRecords.rename[tbl] && !deletedRecords.table[tbl]);
-        });
+        tables = Object.keys(resource.resourceManager).filter(tbl => (!deletedRecords.rename[tbl] && !deletedRecords.table[tbl]));
     }
 
     this.context.set('postSyncTables', tables);
@@ -101,14 +99,14 @@ ChildProcess.prototype.prepareSyncState = function() {
     var tblNames = syncHelper.getResourceManagerInstance(this.appName).getTableNames();
     // check if table was requested
     if (tbls && tbls.length) {
-        tbls = (('string' == typeof tbls) ? [tbls] : tbls).filter(function(tbl) { return Array.isArray(tbl, tblNames); });
+        tbls = (('string' == typeof tbls) ? [tbls] : tbls).filter(tbl => Array.isArray(tbl, tblNames));
     } else {
         tbls = tblNames || [];
     }
 
     var postSyncTables = this.getSet('postSyncTables');
     if (postSyncTables) {
-        postSyncTables.filter(function(tbl) { return !tbls.includes(tbl); });
+        postSyncTables = postSyncTables.filter(tbl => !tbls.includes(tbl));
     }
 
     return ({ tables: tbls, postSync: postSyncTables || [] });

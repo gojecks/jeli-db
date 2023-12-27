@@ -2,7 +2,7 @@
  * 
  * @param {*} importModule 
  */
-function AutoSelectFile(importModules) {
+function AutoSelectFile(ImportClass) {
     var handler = {
         onselect: function() {},
         onSuccess: function() {},
@@ -20,10 +20,10 @@ function AutoSelectFile(importModules) {
      */
     function processData(content) {
         //initialize the file
-        var fileType = handler.selectedFile.name.split('.')[1],
-            importModule = new importModules(fileType);
-        if (fileType && importModule[fileType]) {
-            handler.onSuccess(importModule[fileType](content));
+        var fileType = handler.selectedFile.name.split('.')[1];
+        var importFormatFn = ImportClass(fileType);
+        if (fileType && importFormatFn) {
+            handler.onSuccess(importFormatFn(content));
         } else {
             handler.onError("Unsupported File Format");
         }

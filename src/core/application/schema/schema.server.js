@@ -43,12 +43,12 @@ function ServerSchemaLoader(appName, version) {
              * @param {*} dbResource 
              * @param {*} isNewMode
              */
-            function loadSchema(_loadServerData, dbResource, isNewMode) {
-                if (!_loadServerData.length) {
+            function loadSchema(tableNames, dbResource, isNewMode) {
+                if (!tableNames.length) {
                     return resolve();
                 }
 
-                var request = privateApi.buildHttpRequestOptions(appName, { path: '/database/schema', tbl: _loadServerData || [] });
+                var request = privateApi.buildHttpRequestOptions(appName, { path: '/database/schema', tbl: tableNames || [] });
                 privateApi.$http(request)
                     .then(function (mergeResponse) {
                         // Create a new version of the DB
@@ -60,9 +60,9 @@ function ServerSchemaLoader(appName, version) {
                                 /**
                                  * empty the hash so as to get latest 
                                  */
-                                if (isNewMode) {
-                                    dbTables[tbl]._hash = "";
-                                }
+                                // if (isNewMode) {
+                                //     dbTables[tbl]._hash = "";
+                                // }
                             }
                         }
                         // register DB to QueryDB
@@ -70,7 +70,7 @@ function ServerSchemaLoader(appName, version) {
                         resolve();
                     }, handleNetworkError('schema', "Unable to load schema, please try again.", function () {
                         // reload the schema when network is stable
-                        loadSchema(_loadServerData, dbResource);
+                        loadSchema(tableNames, dbResource);
                     }));
             }
 

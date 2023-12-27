@@ -48,7 +48,7 @@ DatabaseInstanceTransaction.async = function(dbName, table, mode) {
     if (table) {
         //required table is an array
         if (isarray(table)) {
-            table.forEach(function(tbl) {
+            for (var tbl of table) {
                 tbl = tbl.split(' as ').map(trim);
                 if (tbl.length > 1) {
                     tableJoinMapping[tbl[1]] = tbl[0];
@@ -57,7 +57,8 @@ DatabaseInstanceTransaction.async = function(dbName, table, mode) {
                 }
 
                 validateTableSchema(tbl[0], tbl);
-            });
+            }
+
             //change mode to read
             isMultipleTable = true;
         } else {
@@ -79,5 +80,7 @@ DatabaseInstanceTransaction.async = function(dbName, table, mode) {
         });
     }
 
-    return null;
+    return {
+        message: 'Invalid Transaction request'
+    };
 }

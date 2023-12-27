@@ -169,7 +169,7 @@ CoreDataResolver.prototype.resolveSyncData = function(tbl) {
  */
 CoreDataResolver.prototype.handleFailedRecords = function(tbl, failedRecords) {
     var syncRecords = this._records[tbl];
-    Object.keys(failedRecords).forEach(handleFailedError);
+    Object.keys(failedRecords || {}).forEach(handleFailedError);
     function handleFailedError(key) {
         if (failedRecords[key].length) {
             switch(key) {

@@ -148,19 +148,19 @@ var _operatorMethods = new (function () {
     this.gt = function (queryValue, recordValue) {
         return queryValue > recordValue;
     };
-    this.inclause = function (queryValue, recordValue) {
+    this.inclause = this.inarray = function (queryValue, recordValue) {
         return inarray(queryValue, recordValue);
     };
-    this.inarray = function (queryValue, recordValue) {
+    this.inarrayr = function (queryValue, recordValue) {
         return inarray(recordValue, queryValue);
     };
     this.lk = function (queryValue, recordValue) {
         return (String(queryValue || "").toLowerCase()).search((recordValue || '').toLowerCase()) > -1;
     };
-    this.notinclause = function (queryValue, recordValue) {
+    this.notinclause =  this.notinarray = function (queryValue, recordValue) {
         return !inarray(queryValue, recordValue);
     };
-    this.notinarray = function (queryValue, recordValue) {
+    this.notinarrayr = function (queryValue, recordValue) {
         return !inarray(recordValue, queryValue);
     };
     this.is = function (queryValue, recordValue) {

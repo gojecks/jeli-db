@@ -86,9 +86,7 @@ function DatabaseSyncConnector(config) {
         networkResolver = Object.assign({}, networkResolver, config || {});
         $process.getSet('forceSync', forceSync);
         $process.getSet('networkResolver', networkResolver);
-        $process.getSet('onMessage', function(msg) {
-            syncHelper.setMessage(msg);
-        });
+        $process.getSet('onMessage', syncHelper.setMessage);
 
         //check for production state
         return ({

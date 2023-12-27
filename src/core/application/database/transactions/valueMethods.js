@@ -38,7 +38,7 @@ var ValueMethods = (function() {
     }
 
     function replacer(str) {
-        return str.replace(/\((.*?)\)/, "|$1").split("|");
+        return (str || '').replace(/\((.*?)\)/, "|$1").split("|");
     }
 
     var SelectMethods = {

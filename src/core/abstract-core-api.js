@@ -609,7 +609,7 @@ var privateApi = (function () {
     CorePrivateApi.prototype.autoSync = function (appName, tbl, type, data) {
         var ignoreSync = privateApi.getNetworkResolver('ignoreSync', appName);
         var handleResult = res => {
-            recordResolver.handleFailedRecords(tbl, res.failed);
+            recordResolver.handleFailedRecords(tbl, (res && res.failed));
             return res;
         };
         

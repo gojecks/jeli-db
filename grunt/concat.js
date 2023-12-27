@@ -49,11 +49,21 @@ module.exports = {
         dest: './dist/services/users.js',
         src: [
             './src/core/helpers/common.core.js',
-            './src/services/**/*.js'
+            './src/services/users/**/*.js'
         ],
         options: {
             banner: "(function (root, factory) { if (typeof define === 'function' && define.amd) { define([], factory); } else if (typeof module === 'object' && module.exports) { module.exports = factory(); } else { root.UserService = factory(); } }(typeof self !== 'undefined' ? self : this, function () {",
             footer: '\n\nreturn UserService; \n\n}))'
+        }
+    },
+    SessionService: {
+        dest: './dist/services/sessions.js',
+        src: [
+            './src/services/sessions/*.js'
+        ],
+        options: {
+            banner: "(function (root, factory) { if (typeof define === 'function' && define.amd) { define([], factory); } else if (typeof module === 'object' && module.exports) { module.exports = factory(); } else { root.SessionService = factory(); } }(typeof self !== 'undefined' ? self : this, function () {",
+            footer: '\n\nreturn SessionService; \n\n}))'
         }
     }
 }

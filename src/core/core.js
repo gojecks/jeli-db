@@ -258,10 +258,7 @@ function Database(name, version) {
              * trigger our create and update mode
              */
             if (dbConfig.useFrontendOnlySchema) {
-                serverSchemaLoader(true)
-                    .then(next, function (response) {
-                        reject(response);
-                    });
+                serverSchemaLoader(true).then(next, reject);
             } else {
                 schemaManager.create(next, function () {
                     _activeDBApi.get(constants.RESOURCEMANAGER).setResource({

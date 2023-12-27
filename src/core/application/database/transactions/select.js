@@ -360,7 +360,7 @@ function transactionSelect(selectFields, definition) {
         }
 
         //return the tableData
-        return QueryLimitMethods(queryInstance, tableData);
+        return QueryLimitMethods.process(queryInstance, tableData);
     }
 
     /**
