@@ -171,9 +171,9 @@ function AjaxSetup(interceptor) {
             options = url;
         }
 
-        var response = {};
         var dbPromiseExtension = new DBPromise.extension(function(e) {}, ['progress']);
         var request = null;
+        var response = {};
 
         /**
          * make sure request is not in errorState before processing 
@@ -243,6 +243,12 @@ function AjaxSetup(interceptor) {
                 var cacheResult = CacheMechanism.get(cacheId);
                 var now = Date.now();
                 if (cacheResult && cacheResult.expiresAt > now) {
+                    //intercept response
+                    if (interceptor) interceptor.resolveInterceptor('response', {
+                        status: 200,
+                        fromCache: true,
+                        path: options.url
+                    });
                     return resolve(cacheResult.data);
                 } else {
                     // remove the cache

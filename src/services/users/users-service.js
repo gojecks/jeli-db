@@ -56,7 +56,7 @@ UserService.prototype.authorize = function(queryData) {
         .then(function(res) {
             //resolve the promise
             return (new AuthorizeUserInstance(res.result));
-        });
+        }, err => err);
 }
 
 /**
