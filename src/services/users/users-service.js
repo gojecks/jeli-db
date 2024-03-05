@@ -101,3 +101,13 @@ UserService.prototype.addAuthority = function(postData) {
 UserService.prototype.createAuthorizeInstance = function(authInfo){
     return new AuthorizeUserInstance(authInfo)
 }
+
+/**
+ * 
+ * @param {*} data 
+ * @returns Promise
+ */
+UserService.prototype.getOidcToken = function(data) {
+    return this.dbInstance.api({ path: '/user/openid/token', data })
+        .then(res => this.createAuthorizeInstance(res.result));
+}

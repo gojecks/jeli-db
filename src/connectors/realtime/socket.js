@@ -24,42 +24,16 @@ function SocketService(parentContext) {
     /**
      * attach event for disconnect
      */
-    parentContext.events.on('disconnected', () => {
-        this.disconnect();
-    });
+    parentContext.events.on('disconnected', () => this.disconnect());
+    this.connect();
 }
 
 SocketService.prototype.connect = function () {
     if (this.socket) return;
-    var _this = this;
-    
-    this.parentContext.events.on('socket.connect', socketServerEndpoint => {
-        if (socketServerEndpoint) {
-            console.log('Connecting to socket');
-            this.socket = new WebSocket(socketServerEndpoint, this.options.socketSubProtocols);
-            // register core events
-            for (var eventName of this.eventList) {
-                this.socket.addEventListener(eventName, socketEventHandler, false);
-            }
-        }
-    });
-
-    var onClosedConnection = () => {
-        // User closed the connection
-        if (this.destroyed) return;
-        /**
-         * Attempt to reconnect to  server
-         */
-        clearTimeout(this.timerId);
-        console.log('connection closed.');
-        this.eventList.forEach(eventName => {
-            this.socket.removeEventListener(eventName, socketEventHandler, false);
-        });
-        // clear socketServerEndpoint
-        this.options.socketRedial = true;
-        console.log('reconnecting socket..');
-    };
-
+    /**
+     * 
+     * @param {*} event
+     */
     var socketHeartBeat = () => {
         if (!this.socket) return;
         clearTimeout(this.timerId);
@@ -71,19 +45,25 @@ SocketService.prototype.connect = function () {
             }
         }, this.options.socketPingTime);
     };
-
-
-    /**
-     * 
-     * @param {*} event
-     */
-    function socketEventHandler(event) {
+    
+    var socketEventHandler = (event) => {
         var eventData = JSON.parse(event.data || '["' + event.type + '"]');
         if (eventData && typeof Array.isArray(eventData) && eventData.length) {
-            _this.events.emit(eventData.shift(), eventData);
+            this.events.emit(eventData.shift(), eventData);
             socketHeartBeat();
         }
-    }
+    };
+
+    this.parentContext.events.on('socket.connect', socketServerEndpoint => {
+        if (socketServerEndpoint) {
+            console.log('Connecting to socket');
+            this.socket = new WebSocket(socketServerEndpoint, this.options.socketSubProtocols);
+            // register core events
+            for (var eventName of this.eventList) {
+                this.socket.addEventListener(eventName, socketEventHandler, false);
+            }
+        }
+    });
 
     // register socket event listeners
     this.events
@@ -92,18 +72,32 @@ SocketService.prototype.connect = function () {
             this.disconnect();
         })
         .on('open', () => {
-            console.log('socket connected');
             socketHeartBeat();
+            this.parentContext.events.emit('socket.connected');
         })
-        .on('close', () => onClosedConnection())
+        .on('close', () => {
+            // User closed the connection
+            if (this.destroyed) return;
+            /**
+             * Attempt to reconnect to  server
+             */
+            clearTimeout(this.timerId);
+            console.log('connection closed.');
+            this.eventList.forEach(eventName => {
+                this.socket.removeEventListener(eventName, socketEventHandler, false);
+            });
+            
+            // tell the realtime connector socket is disconnected
+            this.parentContext.events.emit('socket.disconnected');
+        })
         .on('authentication', (authData) => {
             if (!authData.success) {
                 // kill socket process
                 this.disconnect();
             }
         })
-        .on('db:update', (eventData) => {
-            updatePromiserHandler(this.parentContext, eventData);
+        .on('db:update', eventData => {
+            this.parentContext._handleIncomingData(eventData);
             socketHeartBeat();
         })
         .on('pong', () => socketHeartBeat())

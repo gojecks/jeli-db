@@ -18,6 +18,10 @@ function AuthorizeUserInstance(res) {
     };
 
     this.isPasswordReset = function() {
-        return res.hasOwnProperty('forcePasswordReset');
+        return res.forcePasswordReset;
     };
+
+    this.isDisabled = function() {
+        return res.userInfo.disabled;
+    }
 }
