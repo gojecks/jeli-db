@@ -3,15 +3,14 @@
  * @param {*} transactions 
  * @returns 
  */
-function ApplicationInstanceBatchTransaction(transactions) {
-    var _this = this;
-    return new DBPromise(function(resolve, reject) {
+function DatabaseInstanceBatchTransaction(transactions) {
+    return new Promise((resolve, reject) => {
         if (!transactions || !isarray(transactions)) {
-            throw new Error('BatchTransaction: nothing to commit or invalid transaction format');
+            throw new TransactionErrorEvent('BatchTransaction', 'nothing to commit or invalid transaction format');
         }
 
-        var tables = transactions.map(isstring);
-        _this.transaction(tables, "write").then(startBatchTransaction);
+        var tables = transactions.map(tx => tx.table);
+        this.transaction(tables, "write").then(startBatchTransaction, err => reject(err));
 
         function startBatchTransaction(tx) {
             transactions.forEach(performTransaction);
@@ -43,7 +42,7 @@ function ApplicationInstanceBatchTransaction(transactions) {
                 tx.result.cleanup();
             } else {
                 tx.result.execute()
-                    .onSuccess(function(res) {
+                    .then(function(res) {
                         ret.result.transactions = res;
                         ret.timing = performance.now() - time;
                         resolve(ret);

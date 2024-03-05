@@ -4,7 +4,7 @@ function _querySortPerformer() {
     var sortArguments = arguments;
     var data = this;
     if (isarray(data)) {
-        return data.sort(function(obj1, obj2) {
+        return data.sort(function (obj1, obj2) {
             /*
              * save the arguments object as it will be overwritten
              * note that arguments object is an array-like object
@@ -28,7 +28,7 @@ function _querySortPerformer() {
 
     function compare(property) {
         var sortOrder = 1;
-        return function(a, b) {
+        return function (a, b) {
             var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
             return result * sortOrder;
         };
@@ -37,30 +37,6 @@ function _querySortPerformer() {
     return data;
 }
 
-/**
- * 
- * @param {*} data 
- * @param {*} logic 
- * @param {*} callback 
- * @returns 
- */
-function _queryWherePerformer(data, logic, callback) {
-    if (isarray(data) && logic) {
-        var filter = removewhitespace(logic).split(/(?:like):/gi);
-
-        return data.filter(function(item, idx) {
-            var found = ((filter.length > 1) ? (String(item[filter[0]] || '').toLowerCase().search(String(filter[1]).toLowerCase()) !== -1) : $logicChecker(logic, item));
-
-            if (callback && found) {
-                callback.call(item, idx);
-            }
-            //set the data if found
-            return found;
-        });
-    }
-
-    return data;
-}
 
 /**
  * 
@@ -70,17 +46,13 @@ function _queryWherePerformer(data, logic, callback) {
  * @param {*} limit 
  * @returns 
  */
-function _queryPerformer(data, logic, callback, limit) {
+function queryPerformer(data, logic, callback, limit) {
     /**
      * return data when logic is undefined
      */
-    if (!logic) {
-        return data.map(function(item) { return item._data || item; });
-    }
-
     var searchResult = [];
     var logicPerformer = externalQuery(logic);
-    callback = callback || function(item) {
+    callback = callback || function (item) {
         searchResult.push(item._data || item);
     };
     //Query the required Data
@@ -108,25 +80,24 @@ var cachedLogics = new Map();
  */
 function externalQuery(logic, replacer) {
     function objectQueryTaskPerformer(item) {
-        var found = false;
-        //Loop through the logic
-        //match found item
-        var matcher = item._data || item;
-        for (var param of logic) {
-            if (found) {
-                return true;
-            }
-            var keys = Object.keys(param);
-            var matched = 0;
-            for (var key of keys) {
-                if (_matcher(param[key], modelGetter(key, matcher), matcher)) {
-                    matched++;
-                }
-            }
-            found = keys.length == matched;
+        if (logic.byRefs) {
+            return logic.byRefs.includes(item._ref);
         }
 
-        return found;
+        //Loop through the logic
+        //match found item
+        var conditionValue = item._data || item;
+        var checkConditions = function (condition) {
+            var keys = Object.keys(condition);
+            for (var key of keys) {
+                if (!_matcher(condition[key], modelGetter(key, conditionValue), conditionValue))
+                    return false;
+            }
+
+            return true;
+        };
+
+        return logic.some(checkConditions);
     }
 
     if (logic) {
@@ -140,23 +111,27 @@ function externalQuery(logic, replacer) {
          * user defined logic as object
          * convert to array
          */
-        else if (isobject(logic)) {
+        else if (isobject(logic) && !logic.byRefs) {
             logic = [logic];
         }
         // create or expect instance
         return objectQueryTaskPerformer;
     }
+
+    // fallback if no logic found
+    return function () {
+        return true;
+    }
 }
 
-var _operatorMethods = (function() {
-    var operatorMethods = {};
-    operatorMethods['lte'] = function(queryValue, recordValue) {
+var _operatorMethods = new (function () {
+    this.lte = function (queryValue, recordValue) {
         return queryValue <= recordValue;
     };
-    operatorMethods['gte'] = function(queryValue, recordValue) {
+    this.gte = function (queryValue, recordValue) {
         return queryValue >= recordValue;
     };
-    operatorMethods['lt'] = function(queryValue, recordValue) {
+    this.lt = function (queryValue, recordValue) {
         return queryValue < recordValue;
     };
     /**
@@ -165,52 +140,61 @@ var _operatorMethods = (function() {
      * @param {*} recordValue 
      * @returns 
      */
-    operatorMethods['lgte'] = function(queryValue, recordValue) {
+    this.lgte = function (queryValue, recordValue) {
         if (!isarray(queryValue)) return false;
         return (queryValue[0] >= recordValue || ((queryValue[1] || 0) <= recordValue));
     };
 
-    operatorMethods['gt'] = function(queryValue, recordValue) {
+    this.gt = function (queryValue, recordValue) {
         return queryValue > recordValue;
     };
-    operatorMethods['inClause'] = function(queryValue, recordValue) {
+    this.inclause = this.inarray = function (queryValue, recordValue) {
         return inarray(queryValue, recordValue);
     };
-    operatorMethods['inArray'] = function(queryValue, recordValue) {
+    this.inarrayr = function (queryValue, recordValue) {
         return inarray(recordValue, queryValue);
     };
-    operatorMethods['lk'] = function(queryValue, recordValue) {
+    this.lk = function (queryValue, recordValue) {
         return (String(queryValue || "").toLowerCase()).search((recordValue || '').toLowerCase()) > -1;
     };
-    operatorMethods['notInClause'] = function(queryValue, recordValue) {
+    this.notinclause =  this.notinarray = function (queryValue, recordValue) {
         return !inarray(queryValue, recordValue);
     };
-    operatorMethods['notInArray'] = function(queryValue, recordValue) {
+    this.notinarrayr = function (queryValue, recordValue) {
         return !inarray(recordValue, queryValue);
     };
-    operatorMethods['is'] = function(queryValue, recordValue) {
+    this.is = function (queryValue, recordValue) {
         return isequal(recordValue, queryValue);
     };
-    operatorMethods['not'] = function(queryValue, recordValue) {
+    this.not = function (queryValue, recordValue) {
         return !isequal(recordValue, queryValue);
     };
-    operatorMethods['isDefined'] = function(queryValue, recordValue) {
+    this.isdefined = function (queryValue, recordValue) {
         return isequal(recordValue, !isempty(queryValue));
     };
-    operatorMethods['isNot'] = function(queryValue, recordValue) {
+    this.isnot = function (queryValue, recordValue) {
         return recordValue != queryValue;
     };
-    operatorMethods['eq'] = function(queryValue, recordValue) {
+    this.eq = function (queryValue, recordValue) {
         return recordValue == queryValue;
     };
-    operatorMethods['truthy'] = function(queryValue, recordValue) {
+    this.truthy = function (queryValue, recordValue) {
         return (!!queryValue == recordValue);
     };
-    operatorMethods['struthy'] = function(queryValue, recordValue) {
+    this.struthy = function (queryValue, recordValue) {
         return !queryValue;
     };
 
-    return operatorMethods;
+    this.datediff = function (queryValue, recordValue) {
+        if (!isarray(recordValue) || !queryValue) return false;
+        var dateDiff = (+new Date  - queryValue);
+        return ({
+            m: (diff) => Math.round(dateDiff / (60 * 60 * 24 * 30 * 1000)) <= diff,
+            mn: (diff) => Math.round(dateDiff / (60 * 60 * 1000)) <= diff,
+            d: (diff) => Math.round(dateDiff / (60 * 60 * 24 * 1000)) <= diff,
+            y: (diff) => Math.round(dateDiff / (60 * 60 * 24 * 30.42 * 12 * 1000)) <= diff
+        })[recordValue[1]](recordValue[0]);
+    }
 })();
 
 /**
@@ -223,7 +207,7 @@ var _operatorMethods = (function() {
 function _matcher($query, fieldValue, item) {
     if (isobject($query)) {
         var recordValue = modelGetter($query.value, item) || $query.value;
-        return _operatorMethods[$query.type](fieldValue, recordValue)
+        return _operatorMethods[$query.type.toLowerCase()](fieldValue, recordValue)
     } else if (isobject(fieldValue)) {
         return jsonMatcher($query, fieldValue);
     }

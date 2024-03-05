@@ -16,7 +16,7 @@ Database.plugins.jQl('api', {
 
 function apiPluginFn(query, handler) {
     return function(db) {
-        db.api(query[1], query[2], query[3] || '')
+        db.api(query[1], query[2])
             .then(function(res) {
                 handler.onSuccess.apply(handler.onSuccess, [res]);
             }, function(err) {

@@ -138,6 +138,28 @@ function AjaxSetup(interceptor) {
         return (isobject(options.cache) && options.cache.id) ? options.cache.id : options.url;
     }
 
+    /**
+     * store the cache data to cache mechanism
+     * @param {*} data 
+     * @param {*} cacheId 
+     * @param {*} cache 
+     */
+    function storeCache(data, cacheId, cache) {
+        if (!cacheId) return;
+        var ttl = ((isobject(cache) && cache.ttl) ? cache.ttl : (isnumber(cache)) ? cache : 15);
+        var expiresAt = new Date().setMilliseconds(60 * ttl * 1000);
+        CacheMechanism.set(cacheId, {
+            data: data,
+            expiresAt: expiresAt
+        });
+        var now = Date.now();
+        CacheMechanism.forEach(function(item, key) {
+            if (now > item.expiresAt) {
+                CacheMechanism.delete(key);
+            }
+        });
+    }
+
 
     /**
      * 
@@ -149,46 +171,28 @@ function AjaxSetup(interceptor) {
             options = url;
         }
 
-        if (options.isErrorState) {
-            return Promise.reject({
-                message: options.isErrorState
-            });
-        }
-
-        var response = {};
         var dbPromiseExtension = new DBPromise.extension(function(e) {}, ['progress']);
-        options = extend(true, defaultOptions, options);
-        options.url = options.url || url;
-        options.type = options.type.toLowerCase();
-        var request = options.xhr || new XMLHttpRequest();
-        /**
-         * $httpProvider Interceptor
-         * Request Interceptor
-         **/
-        if (interceptor) {
-            options = interceptor.resolveInterceptor('request', options);
-            if (!options) {
-                throw new Error('$HTTP: Interceptor should return a value');
-            }
-        }
+        var request = null;
+        var response = {};
 
         /**
-         * default ttl is 15mins
-         * @param {*} data 
+         * make sure request is not in errorState before processing 
          */
-        function storeCache(data, cacheId) {
-            var ttl = ((isobject(options.cache) && options.cache.ttl) ? options.cache.ttl : (isnumber(options.cache)) ? options.cache : 15);
-            var expiresAt = new Date().setMilliseconds(60 * ttl * 1000);
-            CacheMechanism.set(cacheId || getCacheId(options), {
-                data: data,
-                expiresAt: expiresAt
-            });
-            var now = Date.now();
-            CacheMechanism.forEach(function(item, key) {
-                if (now > item.expiresAt) {
-                    CacheMechanism.delete(key);
+        if (!options.isErrorState) {
+            options = extend(true, defaultOptions, options);
+            options.url = options.url || url;
+            options.type = options.type.toLowerCase();
+            request = options.xhr || new XMLHttpRequest();
+            /**
+             * $httpProvider Interceptor
+             * Request Interceptor
+             **/
+            if (interceptor) {
+                options = interceptor.resolveInterceptor('request', options);
+                if (!options) {
+                    throw new Error('$HTTP: Interceptor should return a value');
                 }
-            });
+            }
         }
 
         function cleanup() {
@@ -226,12 +230,25 @@ function AjaxSetup(interceptor) {
         }
 
         return new DBPromise(function(resolve, reject) {
+            if (options.isErrorState) {
+                return reject({
+                    message: options.isErrorState
+                });
+            }
+
             // check for cacheOptions
+            var cacheId = null;
             if (options.cache) {
-                var cacheId = getCacheId(options);
+                cacheId = getCacheId(options);
                 var cacheResult = CacheMechanism.get(cacheId);
                 var now = Date.now();
                 if (cacheResult && cacheResult.expiresAt > now) {
+                    //intercept response
+                    if (interceptor) interceptor.resolveInterceptor('response', {
+                        status: 200,
+                        fromCache: true,
+                        path: options.url
+                    });
                     return resolve(cacheResult.data);
                 } else {
                     // remove the cache
@@ -264,15 +281,14 @@ function AjaxSetup(interceptor) {
                         $cookie('X-CSRF-TOKEN', _csrfToken);
                     }
 
-                    //resolve our response
+                    var result = parseJSON((request.responseText || '').trim(), false);
                     if (response.success) {
-                        var result = parseJSON(request.responseText, false);
                         resolve(result);
                         if (options.cache) {
-                            storeCache(result, cacheId);
+                            storeCache(result, cacheId, options.cache);
                         }
                     } else {
-                        reject(response);
+                        reject(result);
                     }
 
                     cleanup();

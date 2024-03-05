@@ -7,10 +7,9 @@ function ServerSchemaLoader(appName, version) {
     var activeDB = privateApi.getActiveDB(appName);
 
     function initializeDBSuccess(isNewMode) {
-        return new DBPromise(function(resolve, reject) {
-            syncHelper
-                .pullResource(appName)
-                .then(function(syncResponse) {
+        return new Promise(function (resolve, reject) {
+            privateApi.$http(privateApi.buildHttpRequestOptions(appName, { path: '/database/resource' }))
+                .then(function (syncResponse) {
                     if (syncResponse.resource) {
                         /**
                          * Database BE return the exists flag set to false
@@ -44,14 +43,14 @@ function ServerSchemaLoader(appName, version) {
              * @param {*} dbResource 
              * @param {*} isNewMode
              */
-            function loadSchema(_loadServerData, dbResource, isNewMode) {
-                if (!_loadServerData.length) {
+            function loadSchema(tableNames, dbResource, isNewMode) {
+                if (!tableNames.length) {
                     return resolve();
                 }
 
-                syncHelper
-                    .getSchema(appName, _loadServerData)
-                    .then(function(mergeResponse) {
+                var request = privateApi.buildHttpRequestOptions(appName, { path: '/database/schema', tbl: tableNames || [] });
+                privateApi.$http(request)
+                    .then(function (mergeResponse) {
                         // Create a new version of the DB
                         var dbTables = {};
                         for (var tbl in mergeResponse.schemas) {
@@ -61,17 +60,17 @@ function ServerSchemaLoader(appName, version) {
                                 /**
                                  * empty the hash so as to get latest 
                                  */
-                                if (isNewMode) {
-                                    dbTables[tbl]._hash = "";
-                                }
+                                // if (isNewMode) {
+                                //     dbTables[tbl]._hash = "";
+                                // }
                             }
                         }
                         // register DB to QueryDB
                         privateApi.storageFacade.broadcast(appName, DB_EVENT_NAMES.RESOLVE_SCHEMA, [version, dbTables]);
                         resolve();
-                    }, handleNetworkError('schema', "Unable to load schema, please try again.", function() {
+                    }, handleNetworkError('schema', "Unable to load schema, please try again.", function () {
                         // reload the schema when network is stable
-                        loadSchema(_loadServerData, dbResource);
+                        loadSchema(tableNames, dbResource);
                     }));
             }
 
@@ -114,7 +113,7 @@ function ServerSchemaLoader(appName, version) {
                 errorInstance.mode = "AJAXErrorMode";
                 errorInstance.message = "[AJAXErrorMode]: " + msg;
 
-                return function(res) {
+                return function (res) {
                     if (res && res.message) {
                         errorInstance.message += ", " + res.message
                     }
@@ -131,5 +130,5 @@ function ServerSchemaLoader(appName, version) {
         });
     }
 
-    this.get = initializeDBSuccess;
+    return initializeDBSuccess;
 };

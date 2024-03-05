@@ -38,7 +38,7 @@ var ValueMethods = (function() {
     }
 
     function replacer(str) {
-        return str.replace(/\((.*?)\)/, "|$1").split("|");
+        return (str || '').replace(/\((.*?)\)/, "|$1").split("|");
     }
 
     var SelectMethods = {
@@ -209,16 +209,15 @@ var ValueMethods = (function() {
          * @returns selectedField values
          */
         this.getData = function(cData) {
-            var _this = this;
             var odata = {};
             //set the data
-            requiredFields.forEach(function(field) {
+            for(var field of requiredFields) {
                 if (isequal(field.field, '*')) {
                     resolveAsterixQuery(field);
                 } else {
-                    odata[field._as] = _this.getValue(field.custom, cData);
+                    odata[field._as] = this.getValue(field.custom, cData);
                 }
-            });
+            }
 
             function resolveAsterixQuery(curField) {
                 if (curField.asx) {
@@ -232,13 +231,11 @@ var ValueMethods = (function() {
         };
 
         this.getAll = function(customOnly) {
-            var _this = this;
-            return queryResult.map(function(item) {
+            return queryResult.map(item => {
                 if (customOnly) {
-                    return _this.getValue(requiredFields[0].custom, item);
+                    return this.getValue(requiredFields[0].custom, item);
                 }
-                return _this.getData(item);
-
+                return this.getData(item);
             });
         };
 
@@ -256,7 +253,15 @@ var ValueMethods = (function() {
     ValueMethodsApis.staticInstance = new ValueMethodsApis('');
     ValueMethodsApis.writeToContext = function(resolveAs, resObject, thenValue) {
         deepArrayChecker(true, resolveAs, resObject, thenValue);
-    }
+    };
+    ValueMethodsApis.callMethod = function(field, data){
+        var expr = replacer(field);
+        if (expr[1] && SelectMethods[expr[0]]){
+            return SelectMethods[expr[0]](data, expr[1]);
+        }
+
+        return expr[0];
+    };
 
 
     return ValueMethodsApis;

@@ -2,103 +2,115 @@
  * 
  * @param {*} type 
  */
-function importModules(type) {
-    var okeys;
-    this.fileData = { columns: [], data: [], skippedData: [], _type: type, schema: {} };
+function JImport(type) {
+    function generateColumns(data) {
+        return data.reduce((accum, col) => {
+            accum[col] = {
+                type:'VARCHAR'
+            };
+            return accum
+        }, {});
+    }
+
     /**
      * 
-     * @param {*} cdata 
+     * @param {*} data 
+     * @param {*} column 
      */
-    this.setValue = function(cdata) {
-        var ret = {};
-        if (okeys.length === cdata.length) {
-            for (var i in cdata) {
-                ret[okeys[i]] = ((!isNaN(Number(cdata[i]))) ? Number(cdata[i]) : cdata[i]);
-            }
-
-            this.fileData.data.push(ret);
-        } else {
-            this.fileData.skippedData.push(cdata);
-        }
-    }
-
-    this.setData = function(data) {
-        okeys = this.fileData.columns = data[0][0].split(",");
-        for (var i = 1; i <= data.length; i++) {
-            if (data[i] && !isempty(data[i][0])) {
-                var value = data[i][0].split(",");
-                this.setValue(value);
-            }
-        }
-    };
-}
-
-importModules.prototype.json = function(content) {
-    if (content) {
-        var parsedContent = JSON.parse(content);
-        if (isarray(parsedContent)) {
-            this.fileData.data = parsedContent
-            this.fileData.columns = Object.keys(this.fileData.data[0]);
-        } else {
-            this.fileData.schema = parsedContent;
-        }
-    }
-    return this.fileData;
-};
-
-importModules.prototype.html = function(content) {
-    var div = document.createElement('div');
-    div.innerHTML = content;
-    var tr = div.querySelectorAll('tr'),
-        lines = [];
-
-    //Function to remove td 
-    function removeTD(row) {
-        var td = row.childNodes,
-            tarr = [],
-            data = [];
-        expect(td).each(function(_td) {
-            data.push(_td.textContent);
-        });
-
-        tarr.push(data.join(','));
-        //return tarr
-        return tarr;
-    }
-
-    if (tr.length) {
-        expect(tr).each(function(trow) {
-            if (trow.tagName) {
-                lines.push(removeTD(trow));
-            }
+    function constructData(data, columns){
+        var ref = data.unshift();
+        return columns.reduce((accum, column, idx) => (accum._data[column] = JSON.parse(data[idx] || 'null'), accum), {
+            _ref: ref,
+            _data: {}
         });
     }
 
-    this.setData(lines);
-    return this.fileData;
-};
+    return ({
+        json:function(content) {
+            return JSON.parse(content || 'null');
+        },
+        html:function(content) {
+            var div = document.createElement('div');
+            div.innerHTML = content;
+            var tables = div.querySelectorAll('table');
+            var jdbSchemaData = {};
+            var getTrData = tds => Array.from(tds).map(col => col.textContent);
+            tables.forEach(table => {
+                var tableName = table.id;
+                jdbSchemaData[tableName] = {};
+                var trs = Array.from(table.querySelectorAll('tr'));
+                var columns = getTrData(trs.shift().childNodes);
+                // remove the ref column
+                columns.shift();
+                jdbSchemaData[tableName] = {
+                    type: "create",
+                    definition: generateColumns(columns)
+                };
 
-importModules.prototype.csv = function(content) {
-    var allTextLines = content.split(/\r\n|\n/);
-    var lines = [];
-    for (var i = 0; i < allTextLines.length; i++) {
-        var data = allTextLines[i].split(';');
-        var tarr = [];
-        for (var j = 0; j < data.length; j++) {
-            tarr.push(data[j]);
+                // extract data
+                if (trs.length){
+                    jdbSchemaData[tableName].crud = {
+                        transactions: [{
+                            type: 'insert',
+                            data: trs.map(tr => constructData(getTrData(tr.childNodes)), columns)
+                        }]
+                    };
+                }
+            })
+            
+            return jdbSchemaData;
+        },
+        csv:function(content) {
+            var jdbSchemaData = {};
+            var tableEntries = content.split('--table entries--');
+            tableEntries.forEach(tableEntry => {
+                var rows = tableEntry.split(/\r\n|\n/);
+                var tableName = '';
+                var columns = null;
+                var data = [];
+                while(rows.length){
+                    var row = rows.pop().trim();
+                    if (!row) continue;
+                    row = row.split(',');
+                    // entry
+                    if (row.length == 1) {
+                        tableName = row[0];
+                        jdbSchemaData[tableName] = {};
+                    } else if (rows.length > 1) {
+                        // collect column from next row
+                        if (!columns) {
+                            // remove the ref column
+                            row.shift();
+                            columns = row;
+                            jdbSchemaData[tableName] = {
+                                type: "create",
+                                definition: generateColumns(columns)
+                            };
+                        } else {
+                            // collect data
+                            data.push(constructData(row), columns)
+                        }
+                    }
+                }
+
+                if (data.length) {
+                    if (!jdbSchemaData[tableName].crud) {
+                        jdbSchemaData[tableName].crud = {
+                            transactions: [{
+                                type: 'insert',
+                                data
+                            }] 
+                        };
+                    }
+                    data.length = 0;
+                }
+            });
+            return jdbSchemaData;
+        },
+        jql: function(content) {
+            return content.split(/\r\n|\n/).filter(function(text) {
+                return text.trim().substr(0, 2) !== "/*"
+            });
         }
-
-        lines.push(tarr);
-    }
-
-    this.setData(lines);
-    return this.fileData;
-};
-
-importModules.prototype.jql = function(content) {
-    this.fileData.data = content.split(/\r\n|\n/).filter(function(text) {
-        return text.trim().substr(0, 2) !== "/*"
-    });
-
-    return this.fileData;
+    })[type];
 }

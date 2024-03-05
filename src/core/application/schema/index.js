@@ -12,7 +12,7 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
      */
     function loadSchema(version) {
         var path = schemaFilePath + "version_" + version + '.json';
-        return privateApi.$http(path);
+        return fetch(path).then(res => res.json());
     }
 
     this.create = function(next, preEvent) {
@@ -25,15 +25,14 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
         }
 
         preEvent();
-        var _this = this;
         loadSchema(1)
-            .then(function(schema) {
-                schemaProcess.process(schema, function() {
+            .then(schema => {
+                schemaProcess.process(schema, () => {
                     /**
                      * Trigger the upgrade on create mode
                      * As this fixes the issue of lost data when table is altered in websql
                      */
-                    _this.upgrade(next);
+                    this.upgrade(next);
                 });
             }, next);
     };

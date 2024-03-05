@@ -2,10 +2,10 @@
  * 
  * @param {*} newName 
  */
-function ApplicationInstanceRename(newName) {
+function DatabaseInstanceRename(newName) {
     var dbName = this.name;
     var _this = this;
-    return new DBPromise(function(resolve, reject) {
+    return new Promise(function(resolve, reject) {
         var resourceInstance = privateApi.getActiveDB(dbName).get(constants.RESOURCEMANAGER);
         if (isequal(dbName, newName)) {
             failed({ message: newName + ' cannot be same as ' + dbName });

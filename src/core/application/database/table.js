@@ -2,11 +2,11 @@
  * @param {*} name
  * @param {*} mode 
  */
-function ApplicationInstanceTable(name, mode) {
+function DatabaseInstanceTable(name, mode) {
     //get the requested table
     var dbName = this.name;
     return new DBPromise(function(resolve, reject) {
-        var instance = ApplicationInstanceTable.async(dbName, name, mode);
+        var instance = DatabaseInstanceTable.async(dbName, name, mode);
         if (instance) {
             resolve({ result: instance });
         } else {
@@ -22,7 +22,7 @@ function ApplicationInstanceTable(name, mode) {
  * @param {*} mode 
  * @returns 
  */
-ApplicationInstanceTable.async = function(dbName, tableName, mode) {
+DatabaseInstanceTable.async = function(dbName, tableName, mode) {
     if (tableName && privateApi.tableExists(dbName, tableName)) {
         var instance = TableInstance.factory.add(dbName, tableName, mode);
         return instance;
@@ -39,10 +39,10 @@ ApplicationInstanceTable.async = function(dbName, tableName, mode) {
  * @param {*} ignoreInstance 
  * @returns 
  */
-function ApplicationInstanceCreateTable(name, columns, additionalConfig, ignoreInstance) {
+function DatabaseInstanceCreateTable(name, columns, additionalConfig, ignoreInstance) {
     var dbName = this.name;
     return new DBPromise(function(resolve, reject) {
-        var response = ApplicationInstanceCreateTable.async(dbName, name, columns, additionalConfig, ignoreInstance);
+        var response = DatabaseInstanceCreateTable.async(dbName, name, columns, additionalConfig, ignoreInstance);
         if (!response.errorCode) {
             resolve(response);
         } else {
@@ -73,7 +73,7 @@ function checkColumns(columns) {
  * @param {*} additionalConfig 
  * @param {*} ignoreInstance 
  */
-ApplicationInstanceCreateTable.async = function(dbName, tableName, columns, additionalConfig, ignoreInstance) {
+DatabaseInstanceCreateTable.async = function(dbName, tableName, columns, additionalConfig, ignoreInstance) {
     var response = { state: "create", result: null, errorCode: null, message: null };
     var _opendedDBInstance = privateApi.getActiveDB(dbName);
     if (tableName && _opendedDBInstance && !privateApi.tableExists(dbName, tableName)) {

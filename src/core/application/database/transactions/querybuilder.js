@@ -1,10 +1,10 @@
 /**
  * 
- * @param {*} _super 
+ * @param {*} context 
  */
-function generateQuickSearchApi(_super) {
-    if (!_super.isMultipleTable) {
-        var tableColumns = Object.keys(_super.getTableInfo().columns[0])
+function generateQuickSearchApi(context) {
+    if (!context.isMultipleTable) {
+        var tableColumns = Object.keys(context.getTableInfo().columns[0])
         for (var i = 0; i < tableColumns.length; i++) {
             this['findby' + tableColumns[i]] = buildQuery(tableColumns[i]);
         }
@@ -33,7 +33,7 @@ function generateQuickSearchApi(_super) {
              */
             query[columnName].value = value;
 
-            return _super.select('*', { where: query }).execute();
+            return context.select('*', { where: query }).execute();
         }
     }
 }

@@ -1,61 +1,66 @@
 /**
  * 
- * @param {*} ret 
- * @param {*} objectStore 
+ * @param {*} records 
  * @param {*} timing 
  */
-function SelectQueryEvent(objectStore, timing) {
+function SelectQueryEvent(records, timing) {
     this.state = "select";
     this.timing = timing;
     this.getResult = function() {
-        return objectStore;
+        return records.splice(0, records.length);
     };
 
     this.first = function() {
-        return objectStore[0];
+        return records[0];
     };
 
+    this.last = function () {
+        return records[records.length - 1];
+    }
+
     this.limit = function(start, end) {
-        return copy(objectStore).slice(start, end);
+        return records.slice(start, end);
     };
 
     this.jDBNumRows = function() {
-        return objectStore.length;
+        return records.length;
     };
 
     this.getRow = function(row) {
-        return objectStore[row];
+        return records[row];
     };
 }
 
 SelectQueryEvent.prototype.openCursor = function(fn) {
-    var start = 0,
-        data = this.getResult(),
-        cursorEvent = ({
-            result: {
-                value: [],
-            },
-            continue: function() {
-                //increment the start cursor point
-                if (data.length > start) {
-                    cursorEvent.result.value = data[start];
-                    start++;
-                    fn(cursorEvent);
-                }
-
-            },
-            prev: function() {
-                //decrement the start point
-                if (start) {
-                    start--;
-                }
-
-                cursorEvent.continue();
-            },
-            index: function() {
-                return start;
+    var start = 0;
+    var total = this.jDBNumRows();
+    var cursorEvent = ({
+        result: {
+            value: [],
+        },
+        continue: () => {
+            //increment the start cursor point
+            if (total > start) {
+                cursorEvent.result.value = this.getRow(start);
+                start++;
+                fn(cursorEvent);
             }
-        });
+        },
+        prev: function() {
+            //decrement the start point
+            if (start) {
+                start--;
+            }
+
+            cursorEvent.continue();
+        },
+        index: function() {
+            return start;
+        },
+        hasNext: function(){
+            return total > start;
+        }
+    });
 
     //initialize the cursor event
     cursorEvent.continue();

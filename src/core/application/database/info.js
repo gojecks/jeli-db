@@ -4,22 +4,22 @@
  * generate a new table Object containing the information of each tables
  */
 
-function ApplicationInstanceInfo() {
+function DatabaseInstanceInfo() {
     var tableSet = [],
         tables = privateApi.get(this.name, 'tables');
     if (tables) {
-        findInList.call(tables, function(tblName, tbl) {
+        for(var tblName in tables){
             tableSet.push(copy({
                 name: tblName,
-                records: tbl._records,
-                columns: tbl.columns,
-                primaryKey: tbl.primaryKey,
-                foreignKey: tbl.foreignKey,
+                records: tables[tblName]._records,
+                columns: tables[tblName].columns,
+                primaryKey: tables[tblName].primaryKey,
+                foreignKey: tables[tblName].foreignKey,
                 allowedMode: 'readwrite',
-                lastModified: tbl.lastModified,
-                index: tbl.index
+                lastModified: tables[tblName].lastModified,
+                index: tables[tblName].index
             }, true));
-        });
+        }
     }
 
     return tableSet;

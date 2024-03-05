@@ -4,7 +4,7 @@
  * @param {*} handler
  */
 
-function ApplicationInstanceImport(table, isSchema, handler) {
+function DatabaseInstanceImport(table, isSchema, handler) {
     var createTable = false,
         db = this,
         _def = ({
@@ -18,18 +18,6 @@ function ApplicationInstanceImport(table, isSchema, handler) {
 
     //check if handler
     handler = extend(true, _def, handler || {});
-    if (!isSchema) {
-        if (table && isstring(table)) {
-            if (!privateApi.tableExists(this.name, table)) {
-                createTable = true;
-                handler.logService('Table(' + table + ') was not found!!');
-            }
-        } else {
-            handler.logService('Table is required');
-            return false;
-        }
-    }
-
     /**
      * import Handler
      */
@@ -50,67 +38,27 @@ function ApplicationInstanceImport(table, isSchema, handler) {
                 var query = data[start];
                 start++;
 
-                db.jQl(query, {
-                    onSuccess: function(ret) {
-                        handler.logService(ret.result.message);
-                        process();
-                    },
-                    onError: function(err) {
-                        handler.logService(err.message + " on line : " + start);
-                        process();
-                    }
+                db.jQl(query).then(function(ret) {
+                    handler.logService(ret.result.message);
+                    process();
+                },
+                function(err) {
+                    handler.logService(err.message + " on line : " + start);
+                    process();
                 });
             }
         }
 
-        this.onSuccess = function(data) {
-            handler.logService('Imported ' + data.data.length + " records");
-            if (data.skippedData.length) {
-                handler.logService('Skipped ' + data.skippedData.length + " records");
+        this.onSuccess = function(jdbSchemaData) {
+            handler.logService('Writing DB schemas');
+            // start JQL imortation
+            if (typeof jdbSchemaData == 'string') {
+                return processJQL(jdbSchemaData)
             }
 
-            if (isequal(data._type, "jql")) {
-                return processJQL(data.data)
-            }
-
-            if (!isSchema) {
-                data.schema[table] = {
-                    type: "create",
-                    crud: {
-                        transaction: [{
-                            type: "insert",
-                            data: data.data
-                        }]
-                    }
-                };
-
-                if (createTable) {
-                    handler.logService('Creating table: ' + table);
-                    data.schema[table].definition = [data.columns.reduce(function(accum, name) {
-                        accum[name] = {
-                            type: (typeof data.data[0][data.columns[name]])
-                        };
-
-                        return accum;
-                    }, {})];
-                } else {
-                    data.schema[table].type = "alter";
-                    data.schema[table].columns = data.columns.map(function(name) {
-                        return {
-                            type: "column",
-                            name: name,
-                            definition: {
-                                type: (typeof data.data[0][data.columns[name]])
-                            }
-                        };
-                    });
-                }
-            }
-
-
-
+            handler.logService('SchemaData:' + JSON.stringify(jdbSchemaData, null, 3));
             var schemaProcess = new CoreSchemaProcessService(db);
-            schemaProcess.process(data.schema, function() {
+            schemaProcess.process(jdbSchemaData, function() {
                 handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
             });
         };
@@ -125,5 +73,5 @@ function ApplicationInstanceImport(table, isSchema, handler) {
         }
     }
 
-    return new AutoSelectFile(importModules).start(new importHandler());
+    return new AutoSelectFile(JImport).start(new importHandler());
 };

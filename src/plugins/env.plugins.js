@@ -1,7 +1,7 @@
 //Cutom Plugins
 //Environment Plugin 
 Database.plugins.jQl('env', {
-    help: 'env -[usage|appkey -key]',
+    help: 'env -[usage]',
     requiresParam: true,
     fn: envPluginFn
 });

@@ -20,19 +20,14 @@ function buildSelectQuery(query, entryPoint, regexp) {
             // splice our query
             // set definition
             [].concat.call(query).splice(entryPoint).map(function(qKey) {
-                qKey = qKey.replace(/\((.*)\)/, "~$1").split("~");
+                qKey = qKey.replace(/\((.*)\)/, "?$1").split("?");
                 // function Query
                 if (qKey.length > 1) {
-                    if (isjsonstring(qKey[1])) {
-                        definition[qKey[0]] = JSON.parse(qKey[1]);
+                    if ('join' == qKey[0]) {
+                        definition[qKey[0]] = [buildSelectQuery(qKey[1], 0, /[@]/)];
                     } else {
-                        if (inarray(qKey[0], ["join"])) {
-                            definition[qKey[0]] = [buildSelectQuery(qKey[1], 0, /[@]/)];
-                        } else {
-                            definition[qKey[0]] = qKey[1];
-                        }
+                        definition[qKey[0]] = jSonParser(qKey[1]);
                     }
-
                 }
             });
         } else {
@@ -63,25 +58,19 @@ function _parseCondition(condition, replacer) {
         if (condition[len]) {
             var params = {};
             condition[len].forEach(function(cond) {
-                cCheck = cond.replace(/\((.*)\)/, "~$1").split("~");
+                cCheck = cond.replace(/\((.*)\)/, "?$1").split('?');
                 //Like Condition found
                 if (cCheck.length > 1) {
                     var clause = buildSelectQuery(cCheck[1], 0, /[@]/);
-                    switch (cCheck[0].toLowerCase()) {
-                        case ("like"):
-                            params[clause.field] = {
-                                type: "lk",
-                                value: clause.value
-                            };
-                            break;
-                        case ("in"):
-                            params[clause.field] = clause;
-                            clause.type = "inClause";
-                            break;
-                        case ("notin"):
-                            params[clause.field] = clause;
-                            clause.type = "notInClause";
-                            break;
+                    var caseValue = cCheck[0].toLowerCase();
+                    if (caseValue == 'like') {
+                        params[clause.field] = {
+                            type: "lk",
+                            value: clause.value
+                        };
+                    } else  {
+                        params[clause.field] = clause;
+                        clause.type = (caseValue == 'in') ? "inClause": "notInClause";
                     }
                 } else {
                     _convertExpressionStringToObject(cond, replacer, params);
@@ -190,4 +179,81 @@ function _convertExpressionStringToObject(expression, replacer, params) {
         value: value
     };
     return params;
+}
+
+function parseValue(replacer) {
+    function stringfy(val) {
+        return typeof val === "object" ? JSON.stringify(val) : val;
+    };
+
+    return function (entry) {
+        var exec = /\%(.*?)\%/.exec(entry);
+        if (!exec) return entry;
+        // straight match
+        if (exec && exec.input == exec[0]) {
+            return replacer[exec[1]];
+        }
+
+        entry = entry.replace(/\%(.*?)\%/g, function (_, key) {
+            return replacer.hasOwnProperty(key) ? stringfy(replacer[key]) : key;
+        });
+
+        return jSonParser(entry);
+    };
+}
+
+/**
+* 
+* @param {*} serverQuery 
+* @param {*} replacer 
+* @returns 
+*/
+function parseServerQuery(serverQuery, replacer) {
+    /**
+     * 
+     * @param {*} query 
+     */
+    function _parse(query) {
+        var parsed = queryParser(query, replacer);
+        var tQuery = Object.assign({ fields: parsed[0] }, buildSelectQuery(parsed, 1));
+        tQuery.where = _parseCondition(tQuery.where, replacer);
+        tQuery.tables = parsed[1].split(',').reduce(function (accum, tbl) {
+            tbl = tbl.split(' as ').map(trim);
+            accum[tbl[1] || tbl[0]] = tbl[0];
+            return accum;
+        }, {});
+        if (tQuery.join) {
+            tQuery.join.forEach(function (jQuery) {
+                if (jQuery.where) {
+                    jQuery.where = _parseCondition(jQuery.where, replacer);
+                }
+            });
+        }
+
+        return tQuery;
+    }
+
+    if (isarray(serverQuery)) {
+        return Object.reduce(function (accum, query) {
+            accum.push(_parse(query));
+            return accum;
+        }, []);
+    } else if (isobject(serverQuery)) {
+        return parseValue(replacer)(JSON.stringify(serverQuery));
+    }
+
+    return _parse(serverQuery);
+}
+
+
+/**
+* 
+* @param {*} query 
+* @param {*} replacer 
+*/
+function queryParser(query, replacer) {
+    replacer = replacer ? replacer : {};
+    var parseValueFn = parseValue(replacer);
+    return query.split(/\s+(?:-)/gi)
+        .map(q => parseValueFn(q.trim()));
 }

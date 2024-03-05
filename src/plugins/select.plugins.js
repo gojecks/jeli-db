@@ -9,7 +9,7 @@
     //-join -CLAUSE -on -EXPRESSION
     //-Where -column -like -expression 
     function selectPluginFn(query, handler) {
-        var table = query[2].split(',');
+        var table = (query[2] || '').split(',');
         return function(db) {
             if (query.length > 1) {
                 //build table
@@ -19,8 +19,8 @@
                         e.result
                             .select(query[1], buildSelectQuery(query, 3))
                             .execute()
-                            .onSuccess(handler.onSuccess)
-                            .onError(handler.onError);
+                            .then(handler.onSuccess, handler.onError)
+                            .catch(handler.onError)
                     })
                     .onError(handler.onError);
             }

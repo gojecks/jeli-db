@@ -1,15 +1,13 @@
-var QueryLimitMethods = (function() {
+var QueryLimitMethods = (function () {
     'use strict';
 
     /**
-     * 
-     * @param {*} data 
-     * @param {*} definition 
-     * @returns 
+     * @param {*} limit 
+     * parse query limit
      */
-    function limitTask(data, definition) {
-        if (isnumber(definition.limit)) {
-            definition.limit = definition.limit.toString();
+    function parseLimit(limit) {
+        if (isnumber(limit)) {
+            return [0, limit];
         }
 
         // check for FL char
@@ -21,18 +19,29 @@ var QueryLimitMethods = (function() {
          * eg (F50, L50)
          */
         var regex = /[FLfl]/;
-        if (regex.test(definition.limit)) {
-            var t = definition.limit.charAt(0).toUpperCase();
-            var num = parseInt(definition.limit.split(regex)[1], 10);
-            if (t == 'L') {
-                definition.limit = (data.length - num) + ',' + data.length;
-            } else if (t == 'F') {
-                definition.limit = '0,' + num;
-            }
+        if (regex.test(limit)) {
+            var t = limit.charAt(0).toUpperCase();
+            var num = parseInt(limit.split(regex)[1], 10);
+            return [t == 'L' ? -1 : 0, num];
         }
 
-        var spltLimit = definition.limit.split(',');
-        return data.splice(parseInt(spltLimit[1] ? spltLimit[0] : '0'), parseInt(spltLimit[1] ? spltLimit[1] : spltLimit[0]));
+        var spltLimit = limit.split(',');
+        return [parseInt(spltLimit[1] ? spltLimit[0] : '0'), parseInt(spltLimit[1] ? spltLimit[1] : spltLimit[0])];
+    }
+
+    /**
+     * 
+     * @param {*} data 
+     * @param {*} definition 
+     * @returns 
+     */
+    function limitTask(data, definition) {
+        var limit = parseLimit(definition.limit);
+        // L(n) limit type
+        if (0 > limit[0]){
+            limit = [(data.length - limit[1]), data.length];
+        }
+        return data.splice(limit[0], limit[1]);
     }
 
     /**
@@ -44,15 +53,12 @@ var QueryLimitMethods = (function() {
      */
     function groupByTask(cData, definition, strict) {
         var _groupSplit = (definition.groupBy || definition.groupByStrict).split(',');
-        var ret = cData.reduce(function(accum, item) {
-            var cMatch = _groupSplit.map(function(key) { return item[key]; });
+        var ret = cData.reduce(function (accum, item) {
+            var cMatch = _groupSplit.map((key) => item[key]);
             var cMatch2 = cMatch.reverse().join(':');
             cMatch = cMatch.join(':');
-
-            if (strict) {
-                if (!accum[cMatch] && accum[cMatch2]) {
-                    cMatch = cMatch2;
-                }
+            if (strict && !accum[cMatch] && accum[cMatch2]) {
+                cMatch = cMatch2;
             }
 
             if (!accum[cMatch]) {
@@ -64,11 +70,11 @@ var QueryLimitMethods = (function() {
         }, {});
 
         // map through the ret and return the result
-        return Object.keys(ret).map(function(key) {
+        return Object.values(ret).map(function (value) {
             if (definition.limit) {
-                return limitTask(ret[key], definition);
+                return limitTask(value, definition);
             }
-            return ret[key];
+            return value;
         });
     }
 
@@ -76,10 +82,10 @@ var QueryLimitMethods = (function() {
      * Query Limit methods
      */
     var staticMethods = {
-        groupBy: function(cdata, definition) {
+        groupBy: function (cdata, definition) {
             return groupByTask(cdata, definition);
         },
-        orderBy: function(cdata, _, propertyName) {
+        orderBy: function (cdata, _, propertyName) {
             var checkParam = (_[propertyName] || 'ASC').split(':')
             var order = checkParam.pop();
             /**
@@ -100,13 +106,13 @@ var QueryLimitMethods = (function() {
 
             return cdata;
         },
-        limit: function(cdata, definition) {
+        limit: function (cdata, definition) {
             if (!definition.groupBy && !definition.groupByStrict) {
                 return limitTask(cdata, definition);
             }
             return cdata;
         },
-        groupByStrict: function(cdata, definition) {
+        groupByStrict: function (cdata, definition) {
             return groupByTask(cdata, definition, true);
         }
     };
@@ -117,13 +123,16 @@ var QueryLimitMethods = (function() {
      * @param {*} cdata 
      * @returns 
      */
-    return function(definition, cdata) {
-        ['groupBy', 'groupByStrict', 'orderBy', 'limit'].forEach(function(key) {
-            if (definition[key]) {
-                cdata = staticMethods[key](cdata, definition, key);
-            };
-        });
-
-        return JSON.parse(JSON.stringify(cdata));
+    return {
+        parseLimit,
+        process: function (definition, cdata) {
+            ['groupBy', 'groupByStrict', 'orderBy', 'limit'].forEach(function (key) {
+                if (definition[key]) {
+                    cdata = staticMethods[key](cdata, definition, key);
+                };
+            });
+    
+            return copy(cdata, true);
+        }
     };
 })();

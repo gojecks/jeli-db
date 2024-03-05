@@ -40,11 +40,12 @@ function alterPluginFn(query, handler) {
 
     return function(db) {
         if (query.length > 2) {
+            var noop = function() { msg = "unable to find command(" + query[2] + ")"; };
             //alter the table
             db
                 .table(query[1])
                 .onSuccess(function(dbResponse) {
-                    (actions[query[2]] || function() { msg = "unable to find command(" + query[2] + ")"; })(dbResponse.result);
+                    (actions[query[2]] || noop)(dbResponse.result);
                     handler.onSuccess(dbSuccessPromiseObject("alter", msg));
                 })
                 .onError(handler.onError);

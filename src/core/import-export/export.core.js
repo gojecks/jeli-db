@@ -1,156 +1,23 @@
+
 /**
  * 
  * @param {*} type 
+ * @param {*} title 
+ * @param {*} isMultipleTable 
+ * @returns 
  */
-function jExport(type) {
-    return new exportersModule(type);
-}
-
-function exportersModule(type) {
-    if (type && this[type]) {
-        return this[type]();
-    }
-}
-
-exportersModule.prototype.csv = function() {
-    var workbook = "",
-        closed = false;
-
-    return ({
-        open: function(title) {
-            if (title) {
-                this.row([title]);
-            }
-
-            return ({
-                row: this.row,
-                close: this.close
-            });
-        },
-        row: function(data) {
-            if (data && isarray(data)) {
-                workbook += data.join(',');
-            }
-            //end row
-            workbook += '\n';
-
-            return ({
-                row: this.row,
-                close: this.close
-            });
-        },
-        close: function() {
-            if (!isempty(workbook) && !closed) {
-                closed = true;
-            }
-
-            return new exportGenerator(workbook, 'csv');
-        }
-    });
-};
-
-exportersModule.prototype.html = function() {
-    var html = "",
-        closed = false;
-
-    return ({
-        open: function(title) {
-            html += '<html><head><title>' + ((title) ? title : "jELi HTML Export") + '</title></head><body>';
-            html += '<table border="1" cellpadding="0" cellspacing="0" width="100%">';
-
-            return ({
-                row: this.row,
-                close: this.close
-            });
-        },
-        row: function(data) {
-            var row = "<tr>";
-            if (data && typeof data === "object") {
-                for (var cell in data) {
-                    row += '<td>' + JSON.stringify(data[cell]) + '</td>';
-                }
-            }
-
-            row += '</tr>';
-
-            if (!isempty(html)) {
-                html += row;
-            }
-
-            return ({
-                row: this.row,
-                close: this.close
-            });
-        },
-        close: function() {
-            if (!isempty(html) && !closed) {
-                html += '</table></body></html>';
-                closed = true;
-            }
-
-            return new exportGenerator(html, 'html');
-        }
-    });
-};
-
-exportersModule.prototype.json = function() {
-    var jsonExporter = [];
-    return ({
-        put: function(table) {
-            jsonExporter = JSON.stringify((table.data || data).slice().map(function(item) {
-                return item._data
-            }));
-        },
-        close: function() {
-            return new exportGenerator(jsonExporter, 'json')
-        }
-    });
-};
-
-exportersModule.prototype.jql = function() {
-    var queries = '/** JQL **/\n/** generated ' + new Date().toLocaleString() + ' **/\n';
-    return ({
-        put: function(table) {
-            // create table query
-            try {
-                queries += "create -" + table.TBL_NAME + " -" + JSON.stringify(table.columns) + '\n';
-                if (!isemptyobject(table.index)) {
-                    expect(table.index).each(function(obj, indx) {
-                        queries += "alter -" + table.TBL_NAME + " -a -u -" + indx + " -" + JSON.stringify(obj) + '\n';
-                    });
-                }
-
-                if (table.data.length) {
-                    queries += "insert -" + JSON.stringify(table.data) + " -" + table.TBL_NAME + "  -hard \n";
-                }
-            } catch (e) {
-                queries = "/** unable to process files please try again  **/";
-            }
-        },
-        close: function() {
-            return new exportGenerator(queries, 'jql');
-        }
-    })
-};
-
-/**
- * 
- * @param {*} doc 
- * @param {*} fileType 
- * @param {*} fileExtension 
- */
-function exportGenerator(doc, fileType) {
+function jExport(type, title, isMultipleTable) {
     function getFileName(fileName) {
-        return fileName + "." + fileType;
+        return fileName + "." + type;
     }
 
-    return ({
-        download: function(fileName) {
+    var exporterAction = doc => ({
+        download: (fileName) => {
             if (isobject(doc)) {
                 doc = JSON.stringify(doc, null, 3);
             }
 
-            var uri = encodeURI('data:text/' + fileType + ';charset=utf-8,' + doc),
+            var uri = encodeURI('data:text/' + type + ';charset=utf-8,' + doc),
                 anchor = document.createElement('a');
             anchor.setAttribute('href', uri);
             anchor.setAttribute('download', getFileName(fileName || GUID()));
@@ -163,11 +30,109 @@ function exportGenerator(doc, fileType) {
             //print a message
             return 'downloading file';
         },
-        print: function() {
+        print: () => {
             if (typeof doc === 'object') {
                 doc = JSON.stringify(doc, null, 3);
             }
             return doc;
         }
     });
+
+    //getValue
+    function getValueInArray(cdata) {
+        return [cdata._ref].concat(Object.values(cdata._data).map(item => (isobject(item) ? JSON.stringify(item) : item)));
+    }
+
+    return ({
+        csv: function (title) {
+            var documents = [];
+            return ({
+                put: function (tableName, columns, tableData) {
+                    var document = [tableName];
+                    document.push(['ref'].concat(columns).join(','));
+                    if (Array.isArray(tableData) && tableData.length) {
+                        for(var data of tableData){
+                            document.push(getValueInArray(data).join(','));
+                        }
+                    }
+                    documents.push(document.join('\n'))
+                },
+                close: () => exporterAction(documents.join('\n--table entries--\n'))
+            });
+        },
+        html: function (title) {
+            var document = ['<html><head><title>' + title + '</title></head><body>'];
+            /**
+             * @param {*} data 
+             */
+            function pushRow(data) {
+                return '<tr>' +  data.map(cData => '<td>' + cData + '</td>').join('') +'</tr>';
+            }
+
+            return ({
+                put: function (tableName, columns, tableData) {
+                    document.push('<h4>Table: '+ tableName + '</h4>');
+                    document.push('<table border="1" cellpadding="0" cellspacing="0" style="margin-bottom:1em" width="100%" id="'+tableName+'">');
+                    document.push(pushRow(['ref'].concat(columns)));
+                    if (Array.isArray(tableData) && tableData.length) {
+                        for(var data of tableData){
+                            document.push(getValueInArray(data));
+                        }
+                    }
+                    document.push('</table>');
+                },
+                close: () => {
+                    document.push('</body></html>');
+                    return exporterAction(document.join('\n'));
+                }
+            });
+        },
+        json: function () {
+            var jsonExporter = {};
+            var additionalConfig = ["primaryKey", "foreignKey", "lastInsertId", "allowedMode", "index", "_hash", "_previousHash", "lastModified", "lastSyncedDate"];
+            return ({
+                put: function (tableSchema, tableData) {
+                    jsonExporter[tableSchema.TBL_NAME] = {
+                        type: "create",
+                        definition: tableSchema.columns,
+                        additionalConfig: additionalConfig.reduce((accum, key) => (accum[key] = tableSchema[key], accum), {})
+                    };
+
+                    if (Array.isArray(tableData) && tableData.length) {
+                        jsonExporter[tableSchema.TBL_NAME].crud = {
+                            transactions: [{
+                                type: 'insert',
+                                data: tableData,
+                            }]
+                        }
+                    }
+                },
+                close: () => exporterAction(jsonExporter)
+            });
+        },
+        jql: function () {
+            var queries = ['/** JQL **/\n/** generated ' + new Date().toLocaleString() + ' **/'];
+            return ({
+                put: function (tableSchema, tableData) {
+                    queries.push('/** Start Table '+ tableSchema.TBL_NAME + ' schema entry **/');
+                    // create table query
+                    try {
+                        queries.push("create -" + tableSchema.TBL_NAME + " -" + JSON.stringify(tableSchema.columns));
+                        if (!isemptyobject(tableSchema.index)) {
+                            queries.push("alter -" + tableSchema.TBL_NAME + " -a -u -" + JSON.stringify(tableSchema.index));
+                        }
+
+                        if (Array.isArray(tableData) && tableData.length) {
+                            queries.push("insert -" + JSON.stringify(tableData) + " -" + tableSchema.TBL_NAME + "  -hard");
+                        }
+                        queries.push('/** End Table '+ tableSchema.TBL_NAME + ' schema entry **/');
+                    } catch (e) {
+                        queries = ["/** unable to process files please try again  **/"];
+                    }
+                },
+                close: () => exporterAction(queries.join('\n'))
+            })
+        }
+    })[type](title);
 }
+

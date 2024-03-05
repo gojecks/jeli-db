@@ -25,7 +25,6 @@ function indexedDBStorage(config, storageUtils, CB) {
 
         req.onsuccess = function(evt) {
             _db = this.result;
-
             getAllStoreData((CB || noop))
         };
 
@@ -71,7 +70,7 @@ function indexedDBStorage(config, storageUtils, CB) {
         };
     }
 
-    function indexedDbPrivateApi() {
+    var _pApis =  new (function() {
         this.checkStoreName = function(storeName) {
             return _db.objectStoreNames.contains(storeName);
         };
@@ -117,10 +116,7 @@ function indexedDBStorage(config, storageUtils, CB) {
                 req = store.get(rev);
             req.onsuccess = CB(req);
         };
-    }
-
-    var _pApis = new indexedDbPrivateApi();
-
+    })();
     /**
      * 
      * @param {*} tableName 

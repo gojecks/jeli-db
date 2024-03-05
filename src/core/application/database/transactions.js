@@ -6,10 +6,10 @@ var transactionManager = new TransactionManager();
  * @param {*} table 
  * @param {*} mode 
  */
-function ApplicationInstanceTransaction(table, mode) {
+function DatabaseInstanceTransaction(table, mode) {
     var dbName = this.name;
     return new DBPromise(function(resolve, reject) {
-        var instance = ApplicationInstanceTransaction.async(dbName, table, mode);
+        var instance = DatabaseInstanceTransaction.async(dbName, table, mode);
         if (!instance || instance.message) {
             reject(instance);
         } else {
@@ -24,7 +24,7 @@ function ApplicationInstanceTransaction(table, mode) {
  * @param {*} table 
  * @param {*} mode 
  */
-ApplicationInstanceTransaction.async = function(dbName, table, mode) {
+DatabaseInstanceTransaction.async = function(dbName, table, mode) {
     var err = [];
     var isMultipleTable = false;
     var tableJoinMapping = {};
@@ -48,7 +48,7 @@ ApplicationInstanceTransaction.async = function(dbName, table, mode) {
     if (table) {
         //required table is an array
         if (isarray(table)) {
-            table.forEach(function(tbl) {
+            for (var tbl of table) {
                 tbl = tbl.split(' as ').map(trim);
                 if (tbl.length > 1) {
                     tableJoinMapping[tbl[1]] = tbl[0];
@@ -57,7 +57,8 @@ ApplicationInstanceTransaction.async = function(dbName, table, mode) {
                 }
 
                 validateTableSchema(tbl[0], tbl);
-            });
+            }
+
             //change mode to read
             isMultipleTable = true;
         } else {
@@ -79,5 +80,7 @@ ApplicationInstanceTransaction.async = function(dbName, table, mode) {
         });
     }
 
-    return null;
+    return {
+        message: 'Invalid Transaction request'
+    };
 }

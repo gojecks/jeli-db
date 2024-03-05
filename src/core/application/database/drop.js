@@ -4,7 +4,7 @@
  * @param {*} db 
  * @param {*} localOnly 
  */
-function ApplicationInstanceDrop(flag, db, localOnly) {
+function DatabaseInstanceDrop(flag, db, localOnly) {
     var dbName = this.name;
     return new DBPromise(function(resolve, reject) {
         if (flag) {

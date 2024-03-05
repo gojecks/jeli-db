@@ -1,49 +1,10 @@
   /*** Common Method ***/
   /*** Methods are Private **/
-  var window = window || {
-      location: {
-          host: null
-      }
-  };
-
   //@Function trim
   var trim = ''.trim ? function(s) { return s.trim(); } : function(s) {
       return s.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
   };
 
-
-  /**
-   * converts  valid JSON string to an Object
-   * values of each key can be determined by the replacerObj
-   *  It can only generate one level JSON not multi-dimensional 
-   * 
-   * @param {*} str 
-   * @param {*} replacerObj 
-   * 
-   * @return Object (new Object)
-   */
-  function stringToObject(str, replacerObj) {
-      var newObj;
-      try {
-          newObj = maskedEval(str, replacerObj || {});
-      } catch (e) {
-          var splitedStr = str.match(new RegExp("\\" + str.charAt(0) + "(.*?)" + "\\" + str.charAt(str.length - 1))),
-              newObj = (("{" === str.charAt(0)) ? {} : []);
-
-          splitedStr = (splitedStr && splitedStr[1] || '').split(',');
-
-          for (var j in splitedStr) {
-              var xSplitedStr = splitedStr[j].split(':'),
-                  name = xSplitedStr.shift(),
-                  value = maskedEval(xSplitedStr.join(':'), replacerObj || {}) || xSplitedStr[1];
-
-              //set the value to the key Object
-              newObj[name] = value;
-          }
-      }
-
-      return newObj;
-  }
 
   /**
    * 
@@ -58,7 +19,7 @@
    * @param {*} str 
    */
   function isstring(str) {
-      return typeof str === 'string' && new String(str) instanceof String;
+      return (typeof str === 'string' && !('{['.includes(str.charAt(0))));
   }
 
   /**
@@ -66,7 +27,7 @@
    * @param {*} str 
    */
   function isjsonstring(str) {
-      return (str && isstring(str) && ("{[".indexOf(str.charAt(0)) > -1) && ("}]".indexOf(str.charAt(str.length - 1)) > -1));
+      return (str && typeof str === 'string' && ("{[".includes(str.charAt(0)) && "}]".includes(str.charAt(str.length - 1))));
   }
 
   function noop() {
@@ -190,7 +151,7 @@
   function jSonParser(str) {
       if (isjsonstring(str)) {
           try {
-              str = JSON.parse(str.replace(/[\']/g, '"'));
+              str = JSON.parse(str);
           } catch (e) {}
       }
       return str;
@@ -288,23 +249,6 @@
 
   /**
    * 
-   * @param {*} fn 
-   */
-  function findInList(fn) {
-      var found = false,
-          checker;
-      for (var i in this) {
-          checker = fn(i, this[i]);
-          if (checker) {
-              found = checker;
-          }
-      }
-
-      return found;
-  }
-
-  /**
-   * 
    * @param {*} str 
    */
   function removewhitespace(str) {
@@ -315,18 +259,26 @@
       return str.replace(/\s+/g, '');
   }
 
-  var isbooleanValue = 'true | false | 1 | 0';
-
   /**
    * 
    * @param {*} str 
    */
   function removeSingleQuote(str) {
-      if ($isBooleanValue.indexOf(str) > -1 || isundefined(str)) return str;
+      if ('true|false|1|0'.indexOf(str) > -1 || isundefined(str)) return str;
 
       return String(str).replace(/[']/g, "");
   }
 
   function jsonDiff(a, b) {
-      return JSON.stringify(a) === JSON.stringify(b);
+    if (Object.is(a, b)) return true;
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  function stringEqualToObject(str) {
+    var splitComma = removeSingleQuote(str).split(',').map(v => v.split('='));
+    return splitComma.reduce((accum, value) => {
+        //set the new Object Data
+        accum[value[0].trim()] = jSonParser(value[1].trim());
+        return accum
+    }, {});
   }
