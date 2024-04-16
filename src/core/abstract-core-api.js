@@ -449,7 +449,7 @@ var privateApi = (function () {
                 contentType: "application/json",
                 headers: {
                     Authorization: "Bearer *",
-                    'X-REQ-OPTS': Base64Fn.encode(networkResolver.organisation + ':' + dbName + ':' + (tbl || '') + ':' + +new Date + ':' + networkResolver.nonce)
+                    'X-REQ-OPTS': Base64Fn.encode(networkResolver.organisation + ':' + dbName + ':' + (tbl || '') + ':' + (Math.floor(+new Date / 1000) * 1000) + ':' + networkResolver.nonce)
                 },
                 requestState: requestState,
                 cache: cache

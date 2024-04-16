@@ -57,14 +57,18 @@ function RequestMapping(appName) {
 }
 
 RequestMapping.prototype.getAllByClass = function(className) {
-    return this.customApiRepository.filter(function(api) {
-        return api.CTRL_NAME === className;
-    });
+    return this.getAllBy('CTRL_NAME', className);
 };
 
 RequestMapping.prototype.getByClass = function(className) {
-    return this.getAllByClass(className)[0];
+    return this.getAllBy('CTRL_NAME', className);
 };
+
+RequestMapping.prototype.getAllBy = function(name, value) {
+    return this.customApiRepository.filter(function(api) {
+        return api[name] === value;
+    });
+}
 
 RequestMapping.prototype.getAllClientApis = function() {
     return copy(Database.API.get(), true);
@@ -84,12 +88,11 @@ RequestMapping.prototype.resolveCustomApis = function() {
     }
 
     this.isResolvedCustom = true;
-    var _this = this;
     var requestOptions = privateApi.buildHttpRequestOptions(this.appName, { path: '/application/api' });
     return privateApi.$http(requestOptions)
-        .then(function(res) {
+        .then(res => {
             if (isarray(res)) {
-                _this.customApiRepository = res;
+                this.customApiRepository = copy(res);
             }
         });
 };
