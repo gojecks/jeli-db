@@ -136,5 +136,4 @@ function CoreSchemaProcessService(core) {
     this.processCrud = function(cb) {
         crudProcess.process(cb);
     };
-
 }

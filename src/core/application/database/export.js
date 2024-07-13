@@ -7,7 +7,7 @@
  */
 function DatabaseInstanceExport(table, type, title) {
     var type = type || 'csv';
-    var exp = new jExport(type, title, table == 'all');
+    var exp = jExport.handlers[type](title, table == 'all');
     var name = this.name;
 
     function extractTableSchema(tableName){

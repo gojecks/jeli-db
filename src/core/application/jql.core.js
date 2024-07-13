@@ -5,9 +5,8 @@
    * @param {*} params 
    */
   function DatabaseInstanceJQL(tasks, handler, params) {
-      if (handler) {
-          console.warn('Support for handler is deprecated and will be removed in next release.');
-      }
+      if (handler) 
+        console.warn('Support for handler is deprecated and will be removed in next release.');
 
       handler = handler || {};
       return new Promise((resolve, reject) => {
@@ -17,7 +16,7 @@
            * convert to tasks to allow
            */
           if (Array.isArray(tasks)) {
-              tasks = tasks.filter(function(task) { return !!task; });
+              tasks = tasks.filter(task => !!task);
               startMultipleTask(this);
           } else {
               performTask(tasks, handler, this);

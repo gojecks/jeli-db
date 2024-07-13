@@ -11,7 +11,8 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
      * @param {*} res 
      */
     function cleanUp(task, res) {
-        var delRecordManager = DatabaseSyncConnector.$privateApi.storageFacade.get(DatabaseSyncConnector.$privateApi.storeMapping.delRecordName, appName);
+        var delRecordName = DatabaseSyncConnector.$privateApi.storeMapping.delRecordName;
+        var delRecordManager = DatabaseSyncConnector.$privateApi.storageFacade.get(delRecordName, appName);
         var resData = res.renamed || res.removed;
         var totalTask = Object.keys(deleteRecords[task]);
         var inc = 0;
@@ -39,7 +40,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         }
 
         //update the storage
-        DatabaseSyncConnector.$privateApi.storageFacade.set(DatabaseSyncConnector.$privateApi.storeMapping.delRecordName, delRecordManager, appName);
+        DatabaseSyncConnector.$privateApi.storageFacade.set(delRecordName, delRecordManager, appName);
         /**
          * reset deletedRecords
          */

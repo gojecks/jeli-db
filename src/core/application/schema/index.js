@@ -5,29 +5,31 @@
  * @param {*} previousVersion 
  * @param {*} schemaFilePath 
  */
-function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
-    var schemaProcess = new CoreSchemaProcessService(core);
-    /**
-     * load schema
-     */
-    function loadSchema(version) {
+class SchemaManager{
+    static loadSchema(version, schemaFilePath) {
         var path = schemaFilePath + "version_" + version + '.json';
         return fetch(path).then(res => res.json());
     }
+    constructor(core, currentVersion, previousVersion, schemaFilePath){
+        this.schemaProcess = new CoreSchemaProcessService(core);
+        this.currentVersion = currentVersion;
+        this.previousVersion = previousVersion;
+        this.schemaFilePath = schemaFilePath;
+    }
 
-    this.create = function(next, preEvent) {
+
+    create(next, preEvent) {
         /**
          * check if schemaFilePath is Defined
          * 
          */
-        if (!schemaFilePath || !isstring(schemaFilePath)) {
+        if (!this.schemaFilePath || !isstring(this.schemaFilePath))
             return next();
-        }
 
         preEvent();
-        loadSchema(1)
+        SchemaManager.loadSchema(1, this.schemaFilePath)
             .then(schema => {
-                schemaProcess.process(schema, () => {
+                this.schemaProcess.process(schema, () => {
                     /**
                      * Trigger the upgrade on create mode
                      * As this fixes the issue of lost data when table is altered in websql
@@ -37,22 +39,22 @@ function SchemaManager(core, currentVersion, previousVersion, schemaFilePath) {
             }, next);
     };
 
-    this.upgrade = function(cb) {
-        function performUpgrade() {
-            previousVersion++;
-            loadSchema(previousVersion)
-                .then(function(schema) {
-                    schemaProcess.process(schema, next);
+    upgrade(cb) {
+        var performUpgrade = () => {
+            this.previousVersion++;
+            SchemaManager.loadSchema(previousVersion, this.schemaFilePath)
+                .then((schema) => {
+                    this.schemaProcess.process(schema, next);
                 }, next);
-        }
+        };
 
-        function next() {
-            if (currentVersion > previousVersion) {
+        var next = () => {
+            if (this.currentVersion > this.previousVersion) {
                 performUpgrade();
             } else {
-                schemaProcess.processCrud(cb);
+                this.schemaProcess.processCrud(cb);
             }
-        }
+        };
 
         next();
     };

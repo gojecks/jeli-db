@@ -12,7 +12,7 @@ function jImportPluginFn(query, handler) {
     var result = { state: query[0], result: { message: null } };
     return function(db) {
         var logService = privateApi.getNetworkResolver('logService', db.name);
-        db.import(query[1], query[3], extend({
+        db.import(query[1], query[3], Object.assign({
             logService: logService,
             onselect: function(fileName, file) {
                 logService("Processing selected file :" + fileName);

@@ -156,7 +156,7 @@ function startSyncState(appName, serverResource,  pullState) {
                     });
             }
 
-            if (!serverResource || (serverResource && !serverResource.resourceManager[currentProcessTbl])) {
+            if (!serverResource || (serverResource && (!serverResource.resourceManager || !serverResource.resourceManager[currentProcessTbl]))) {
                 /**
                  * check if current processing table has been deleted from server
                  * if true
@@ -184,10 +184,10 @@ function startSyncState(appName, serverResource,  pullState) {
                     allowPushState(false);
                 }
             } else {
-                SyncConflictChecker(appName, currentProcessTbl)
+                SyncConflictChecker(appName, currentProcessTbl, $process, networkResolver)
                     .then(function(response) {
-                        //if columns was updated
-                        //Push all records to the server
+                        // if columns was updated
+                        // Push all records to the server
                         if (response.changes) {
                             allowPushState(false);
                         } else {
@@ -314,7 +314,7 @@ function startSyncState(appName, serverResource,  pullState) {
         if (syncState.tables.length) {
             processQueue(queue, 'push');
         } else {
-            DatabaseSyncConnector.$privateApi.updateDB(appName, null, null, +new Date);
+            DatabaseSyncConnector.$privateApi.updateDB(appName, null, null, Date.now());
             finishQueue('push', { state: 'success' });
         }
     }
@@ -330,7 +330,6 @@ function startSyncState(appName, serverResource,  pullState) {
             processQueue(queue, 'pull');
             return;
         }
-
 
         startProcess();
     });

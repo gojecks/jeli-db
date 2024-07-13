@@ -24,8 +24,7 @@ function DatabaseInstanceTable(name, mode) {
  */
 DatabaseInstanceTable.async = function(dbName, tableName, mode) {
     if (tableName && privateApi.tableExists(dbName, tableName)) {
-        var instance = TableInstance.factory.add(dbName, tableName, mode);
-        return instance;
+        return TableInstance.factory.add(dbName, tableName, mode);
     }
 
     return null;

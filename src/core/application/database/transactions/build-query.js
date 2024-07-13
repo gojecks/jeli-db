@@ -191,11 +191,12 @@ function parseValue(replacer) {
         if (!exec) return entry;
         // straight match
         if (exec && exec.input == exec[0]) {
-            return replacer[exec[1]];
+            return modelGetter(exec[1], replacer);
         }
 
         entry = entry.replace(/\%(.*?)\%/g, function (_, key) {
-            return replacer.hasOwnProperty(key) ? stringfy(replacer[key]) : key;
+            var value = modelGetter(key, replacer);
+            return undefined !== value ? stringfy(value) : key;
         });
 
         return jSonParser(entry);

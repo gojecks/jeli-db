@@ -95,19 +95,19 @@ ChildProcess.prototype.preparePostSync = function(resource, deletedRecords) {
  * @param {*} resource 
  */
 ChildProcess.prototype.prepareSyncState = function() {
-    var tbls = this.getSet('entity');
-    var tblNames = syncHelper.getResourceManagerInstance(this.appName).getTableNames();
+    var tables = this.getSet('entity');
+    var tableNameLists = syncHelper.getResourceManagerInstance(this.appName).getTableNames();
     // check if table was requested
-    if (tbls && tbls.length) {
-        tbls = (('string' == typeof tbls) ? [tbls] : tbls).filter(tbl => Array.isArray(tbl, tblNames));
+    if (tables && tables.length) {
+        tables = (('string' == typeof tables) ? [tables] : tables).filter(tbl => tableNameLists.includes(tbl));
     } else {
-        tbls = tblNames || [];
+        tables = tableNameLists || [];
     }
 
-    var postSyncTables = this.getSet('postSyncTables');
-    if (postSyncTables) {
-        postSyncTables = postSyncTables.filter(tbl => !tbls.includes(tbl));
+    var postSync = this.getSet('postSync') || [];
+    if (postSync) {
+        postSync = postSync.filter(tbl => !tables.includes(tbl));
     }
 
-    return ({ tables: tbls, postSync: postSyncTables || [] });
+    return ({ tables, postSync });
 }

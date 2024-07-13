@@ -64,7 +64,7 @@ function DatabaseSyncConnector(config) {
                     $process.preparePostSync(resourceChecker.resource, $deleteManager.getRecords());
                     if ($deleteManager.isExists()) {
                         //start deleted Sync State
-                        deleteSyncState(config.name, $deleteManager.getRecords(), resourceChecker.resource);
+                        deleteSyncState.mainProcess(config.name, $deleteManager.getRecords(), resourceChecker.resource);
                     } else {
                         //start sync state
                         startSyncState(config.name, resourceChecker.resource);
