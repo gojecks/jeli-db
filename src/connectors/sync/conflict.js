@@ -2,13 +2,13 @@
  * Checks for conflict between server and client records
  * @param {*} appName 
  * @param {*} tbl 
+ * @param {*} $process 
+ * @param {*} networkResolver 
  * @returns 
  */
-function SyncConflictChecker(appName, tbl) {
-    var $process = syncHelper.process.getProcess(appName);
-    var networkResolver = $process.getSet('networkResolver');
+function SyncConflictChecker(appName, tbl, $process, networkResolver) {
     var clientTbl = DatabaseSyncConnector.$privateApi.getTable(appName, tbl);
-    //getLatest from server
+    // getLatest from server
     if (!syncHelper.entity) {
         syncHelper.entity = [tbl];
     }
@@ -56,8 +56,8 @@ function SyncConflictChecker(appName, tbl) {
     }
 
     return new Promise(function(resolve, reject) {
-        //Perform Merge
-        //client table was found
+        // Perform Merge
+        // client table was found
         syncHelper.getSchema(appName, [tbl])
             .then(function(schema) {
                 handleSchemaSuccess(schema, resolve, reject);

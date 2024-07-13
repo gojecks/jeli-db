@@ -10,6 +10,15 @@ var QueryLimitMethods = (function () {
             return [0, limit];
         }
 
+        var JDB_LIMITS = {
+            "JDB_SINGLE":"0,1",
+            "JDB_MAX":"0,100",
+            "JDB_MIN":"0,50",
+        };
+
+        // check if JDB_LIMITS type was passed
+        limit = JDB_LIMITS[limit] || limit;
+
         // check for FL char
         /**
          * check for FL char

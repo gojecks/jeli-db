@@ -124,68 +124,69 @@ function externalQuery(logic, replacer) {
     }
 }
 
-var _operatorMethods = new (function () {
-    this.lte = function (queryValue, recordValue) {
+var _operatorMethods = Object.create({
+    lte:function (queryValue, recordValue) {
         return queryValue <= recordValue;
-    };
-    this.gte = function (queryValue, recordValue) {
+    },
+    gte:function (queryValue, recordValue) {
         return queryValue >= recordValue;
-    };
-    this.lt = function (queryValue, recordValue) {
+    },
+    lt:function (queryValue, recordValue) {
         return queryValue < recordValue;
-    };
+    },
     /**
      * Min-Max
      * @param {*} queryValue 
      * @param {*} recordValue 
      * @returns 
      */
-    this.lgte = function (queryValue, recordValue) {
+    lgte:function (queryValue, recordValue) {
         if (!isarray(queryValue)) return false;
         return (queryValue[0] >= recordValue || ((queryValue[1] || 0) <= recordValue));
-    };
+    },
 
-    this.gt = function (queryValue, recordValue) {
+    gt:function (queryValue, recordValue) {
         return queryValue > recordValue;
-    };
-    this.inclause = this.inarray = function (queryValue, recordValue) {
-        return inarray(queryValue, recordValue);
-    };
-    this.inarrayr = function (queryValue, recordValue) {
+    },
+    inclause: inarray,
+    inarray: inarray,
+    inarrayr:function (queryValue, recordValue) {
         return inarray(recordValue, queryValue);
-    };
-    this.lk = function (queryValue, recordValue) {
+    },
+    lk:function (queryValue, recordValue) {
         return (String(queryValue || "").toLowerCase()).search((recordValue || '').toLowerCase()) > -1;
-    };
-    this.notinclause =  this.notinarray = function (queryValue, recordValue) {
+    },
+    notinclause:function (queryValue, recordValue) {
         return !inarray(queryValue, recordValue);
-    };
-    this.notinarrayr = function (queryValue, recordValue) {
+    },
+    notinarray: function(){
+        return !inarray(queryValue, recordValue);
+    },
+    notinarrayr:function (queryValue, recordValue) {
         return !inarray(recordValue, queryValue);
-    };
-    this.is = function (queryValue, recordValue) {
+    },
+    is:function (queryValue, recordValue) {
         return isequal(recordValue, queryValue);
-    };
-    this.not = function (queryValue, recordValue) {
+    },
+    not:function (queryValue, recordValue) {
         return !isequal(recordValue, queryValue);
-    };
-    this.isdefined = function (queryValue, recordValue) {
+    },
+    isdefined:function (queryValue, recordValue) {
         return isequal(recordValue, !isempty(queryValue));
-    };
-    this.isnot = function (queryValue, recordValue) {
+    },
+    isnot:function (queryValue, recordValue) {
         return recordValue != queryValue;
-    };
-    this.eq = function (queryValue, recordValue) {
+    },
+    eq:function (queryValue, recordValue) {
         return recordValue == queryValue;
-    };
-    this.truthy = function (queryValue, recordValue) {
+    },
+    truthy:function (queryValue, recordValue) {
         return (!!queryValue == recordValue);
-    };
-    this.struthy = function (queryValue, recordValue) {
+    },
+    struthy:function (queryValue, recordValue) {
         return !queryValue;
-    };
-
-    this.datediff = function (queryValue, recordValue) {
+    },
+    datediff:function (queryValue, recordValue) {
         if (!isarray(recordValue) || !queryValue) return false;
         var dateDiff = (+new Date  - queryValue);
         return ({
@@ -195,7 +196,7 @@ var _operatorMethods = new (function () {
             y: (diff) => Math.round(dateDiff / (60 * 60 * 24 * 30.42 * 12 * 1000)) <= diff
         })[recordValue[1]](recordValue[0]);
     }
-})();
+});
 
 /**
  * 

@@ -5,51 +5,51 @@
  */
 
 function DatabaseInstanceImport(table, isSchema, handler) {
-    var createTable = false,
-        db = this,
-        _def = ({
-            logService: function(msg) {
-                errorBuilder(msg)
-            },
-            onSelect: function() {},
-            onSuccess: function() {},
-            onError: function() {}
-        });
-
+    var createTable = false;
+    var db = this;
     //check if handler
-    handler = extend(true, _def, handler || {});
-    /**
-     * import Handler
-     */
-    function importHandler() {
-        function processJQL(data) {
-            var total = data.length,
-                start = 0,
-                result = {
-                    messages: []
-                };
-            process();
+    handler = Object.assign({
+        logService: function (msg) {
+            errorBuilder(msg)
+        },
+        onSelect: function () { },
+        onSuccess: function () { },
+        onError: function () { }
+    }, handler || {});
 
-            function process() {
-                if (isequal(total, start)) {
-                    return handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
-                }
+    function processJQL(data) {
+        var total = data.length;
+        var start = 0;
+        var result = {
+            messages: []
+        };
 
-                var query = data[start];
-                start++;
+        function process() {
+            if (isequal(total, start)) {
+                return handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
+            }
 
-                db.jQl(query).then(function(ret) {
-                    handler.logService(ret.result.message);
-                    process();
-                },
-                function(err) {
+            var query = data[start];
+            start++;
+
+            db.jQl(query).then(function (ret) {
+                handler.logService(ret.result.message);
+                process();
+            },
+                function (err) {
                     handler.logService(err.message + " on line : " + start);
                     process();
                 });
-            }
         }
+        
+        process();
+    }
 
-        this.onSuccess = function(jdbSchemaData) {
+    /**
+     * import Handler
+     */
+    var coreImportHandler = {
+        onSuccess: function (jdbSchemaData) {
             handler.logService('Writing DB schemas');
             // start JQL imortation
             if (typeof jdbSchemaData == 'string') {
@@ -58,20 +58,22 @@ function DatabaseInstanceImport(table, isSchema, handler) {
 
             handler.logService('SchemaData:' + JSON.stringify(jdbSchemaData, null, 3));
             var schemaProcess = new CoreSchemaProcessService(db);
-            schemaProcess.process(jdbSchemaData, function() {
-                handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
+            schemaProcess.process(jdbSchemaData, function () {
+                schemaProcess.processCrud(() => {
+                    handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
+                })
             });
-        };
+        },
 
-        this.onError = function(err) {
+        onError: function (err) {
             handler.logService(err);
             handler.onError(dbErrorPromiseObject("Completed with errors"));
-        };
-
-        if (handler.onselect) {
-            this.onselect = handler.onselect;
         }
+    };
+
+    if (handler.onselect) {
+        coreImportHandler.onselect = handler.onselect;
     }
 
-    return new AutoSelectFile(JImport).start(new importHandler());
+    return AutoSelectFile.start(coreImportHandler);
 };

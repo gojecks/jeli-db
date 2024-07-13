@@ -224,7 +224,7 @@ function generatePayload(context) {
     var requestData = {};
     // update type is DB
     if (context.ref == 'db') {
-        if (!payload) {
+        if (!payload || payload.id) {
             RealtimeConnector.$privateApi.getDbTablesNames(dbName).forEach(function (name) {
                 _queryPayload[name] = {};
             });
@@ -233,7 +233,7 @@ function generatePayload(context) {
         }
     } else {
         _queryPayload[context.tbl] = {
-            query: payload
+            query: payload.id ? undefined : payload
         };
     }
     /**
@@ -250,9 +250,12 @@ function generatePayload(context) {
     }
 
     Object.keys(_queryPayload).forEach(writeCheckSumAndSyncId);
+    // check for server side queryId
+    if (payload.id) Object.assign(requestData, payload);
     requestData.payload = _queryPayload;
     requestData.ref = context.ref;
     requestData.type = context.types;
+
     if (context.options.syncId) {
         requestData.syncId = context.options.syncId;
     }

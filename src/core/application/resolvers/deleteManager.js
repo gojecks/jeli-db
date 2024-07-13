@@ -3,41 +3,46 @@
  * @param {*} appName 
  * @param {*} context 
  */
-function deleteManager(appName, context) {
-    this.init = function() {
+class deleteManager {
+    constructor(appName, context){
+        this.appName = appName;
+        this.context = context;
+    }
+    
+    init() {
         var $delRecords = privateApi.storageFacade.get(privateApi.storeMapping.delRecordName);
-        if ($delRecords && $delRecords.hasOwnProperty(appName)) {
+        if ($delRecords && $delRecords.hasOwnProperty(this.appName)) {
             //update deleted records
-            context.register('deletedRecords', $delRecords[appName]);
+            context.register('deletedRecords', $delRecords[this.appName]);
         }
 
         return this;
-    };
+    }
 
-    this.isDeletedDataBase = function() {
-        return context.getResolvers('deletedRecords').database.hasOwnProperty(appName);
-    };
+    isDeletedDataBase() {
+        return this.context.getResolvers('deletedRecords').database.hasOwnProperty(this.appName);
+    }
 
-    this.isDeletedTable = function(name) {
-        return context.getResolvers('deletedRecords').table.hasOwnProperty(name);
-    };
+    isDeletedTable(name) {
+        return this.context.getResolvers('deletedRecords').table.hasOwnProperty(name);
+    }
 
-    this.reset = function() {
-        context.register('deletedRecords', {
+    reset() {
+        this.context.register('deletedRecords', {
             table: {},
             database: {},
             rename: {}
         });
 
         return this;
-    };
+    }
 
-    this.isExists = function() {
-        var $delRecords = privateApi.storageFacade.get(privateApi.storeMapping.delRecordName);
-        return $delRecords && $delRecords.hasOwnProperty(appName);
-    };
+    isExists() {
+        var delRecords = privateApi.storageFacade.get(privateApi.storeMapping.delRecordName);
+        return delRecords && delRecords.hasOwnProperty(this.appName);
+    }
 
-    this.getRecords = function() {
-        return context.getResolvers('deletedRecords');
+    getRecords() {
+        return this.context.getResolvers('deletedRecords');
     };
 }

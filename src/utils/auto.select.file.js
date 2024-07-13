@@ -2,54 +2,49 @@
  * 
  * @param {*} importModule 
  */
-function AutoSelectFile(ImportClass) {
-    var handler = {
-        onselect: function() {},
-        onSuccess: function() {},
-        onError: function() {},
-        onload: function loadHandler(event) {
-            processData(event.target.result);
-        },
-        selectedFile: null
-    };
+class AutoSelectFile {
+
+    static handleSelectedFile(handlers) {
+        if (handlers.selectedFile) {
+            var reader = new FileReader();
+            // Read file into memory as UTF-8      
+            reader.readAsText(handlers.selectedFile);
+            // Handle errors load
+            reader.onload = handlers.onload;
+            reader.onerror = handlers.onError;
+        }
+    }
 
 
     /**
      * 
      * @param {*} content 
      */
-    function processData(content) {
+    static processData(content, handlers) {
         //initialize the file
-        var fileType = handler.selectedFile.name.split('.')[1];
-        var importFormatFn = ImportClass(fileType);
+        var fileType = handlers.selectedFile.name.split('.')[1];
+        var importFormatFn = JImportHelper[fileType];
         if (fileType && importFormatFn) {
-            handler.onSuccess(importFormatFn(content));
+            handlers.onSuccess(importFormatFn(content));
         } else {
-            handler.onError("Unsupported File Format");
+            handlers.onError("Unsupported File Format");
         }
     }
 
-    function handleSelectedFile() {
-        if (handler.selectedFile) {
-            var reader = new FileReader();
-            // Read file into memory as UTF-8      
-            reader.readAsText(handler.selectedFile);
-            // Handle errors load
-            reader.onload = handler.onload;
-            reader.onerror = handler.onError;
-        }
-
-    }
-
-    this.start = function(handlers) {
-        if (handlers) {
-            handler = extend(handler, handlers);
-        }
+    static start(handlers) {
+        handlers = Object.assign({
+            onselect: function() {},
+            onSuccess: function() {},
+            onError: function() {},
+            onload: function loadHandler(event) {
+                AutoSelectFile.processData(event.target.result, handlers);
+            }
+        }, handlers);
 
         function eventBinder(e) {
-            handler.onselect(this.files[0].name, this.files);
-            handler.selectedFile = this.files[0];
-            handleSelectedFile();
+            handlers.onselect(this.files[0].name, this.files);
+            handlers.selectedFile = this.files[0];
+            AutoSelectFile.handleSelectedFile(handlers);
             input.remove();
         }
 
@@ -69,12 +64,8 @@ function AutoSelectFile(ImportClass) {
         input.click();
 
         return ({
-            getFile: function() {
-                return handler.selectedFile;
-            },
-            getData: function() {
-                return fileData;
-            }
+            getFile: () =>  handlers.selectedFile,
+            getData: () => fileData
         });
     };
 }

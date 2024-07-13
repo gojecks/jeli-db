@@ -53,7 +53,20 @@ DatabaseInstance.prototype.rename = DatabaseInstanceRename;
 DatabaseInstance.prototype.jQl = DatabaseInstanceJQL;
 DatabaseInstance.prototype.info = DatabaseInstanceInfo;
 DatabaseInstance.prototype.import = DatabaseInstanceImport;
-DatabaseInstance.prototype.helpers = new jCMDHelpers();
+DatabaseInstance.prototype.helpers = Object.create({
+    list:[],
+    add: function(help){
+        this.list.push(help);
+    },
+    get: function() {
+        return this.list;
+    },
+    overwrite: function(helps) {
+        if (isarray(helps) && helps.length) {
+            this.list = helps;
+        }
+    }
+});
 DatabaseInstance.prototype.export = DatabaseInstanceExport;
 DatabaseInstance.prototype.drop = DatabaseInstanceDrop;
 DatabaseInstance.prototype.createTbl = DatabaseInstanceCreateTable;
@@ -64,39 +77,44 @@ DatabaseInstance.prototype.api = DatabaseInstanceApi;
  * Application login instance
  * used only when login is required
  */
-function DatabaseLoginInstance(name, version) {
-    this.name = name;
-    this.version = version;
+class DatabaseLoginInstance {
+    constructor(name, version){
+        this.name = name;
+        this.version = version;
+        this.api = DatabaseInstanceApi;
+    }
+    
+    /**
+     * 
+     * @param {*} flag 
+     */
+    close(flag) {
+        //drop the DB if allowed
+        privateApi.closeDB(this.name, flag);
+    };
 }
 
-/**
- * 
- * @param {*} flag 
- */
-DatabaseLoginInstance.prototype.close = function(flag) {
-    //drop the DB if allowed
-    privateApi.closeDB(this.name, flag);
-};
 
-DatabaseLoginInstance.prototype.api = DatabaseInstanceApi;
 
 /**
  * Application deleted instance
  * used only when applicated is deleted
  */
-function DatabaseDeletedInstance(name, version) {
-    this.name = name;
-    this.version = version;
+class DatabaseDeletedInstance {
+    constructor(name, version) {
+        this.name = name;
+        this.version = version;
+        this.jQl = DatabaseInstanceJQL;
+        this.info = DatabaseInstanceInfo;
+    }
+   
+    /**
+     * 
+     * @param {*} flag 
+     */
+    close(flag) {
+        //drop the DB if allowed
+        privateApi.closeDB(this.name, flag);
+    }
 }
 
-/**
- * 
- * @param {*} flag 
- */
-DatabaseDeletedInstance.prototype.close = function(flag) {
-    //drop the DB if allowed
-    privateApi.closeDB(this.name, flag);
-};
-
-DatabaseDeletedInstance.prototype.jQl = DatabaseInstanceJQL;
-DatabaseDeletedInstance.prototype.info = DatabaseInstanceInfo;

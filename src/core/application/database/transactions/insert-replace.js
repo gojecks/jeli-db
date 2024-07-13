@@ -17,7 +17,7 @@ function TransactionInsertReplace(records, updateRef) {
     var columns = tableInfo.columns[0];
     var fieldErrors = [];
     var validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var defaultValueGenerator = columnObjFn(columns);
+    var defaultValueGenerator = columnObjFn(tableInfo);
     var rowsToUpdate = [];
     var rowsToInsert = [];
     var tableData = this.getTableData(tableName);
@@ -67,6 +67,7 @@ function TransactionInsertReplace(records, updateRef) {
         rowsToInsert.length = 0;
         updateRefMapper.length = 0;
         rowsToUpdate.length = 0;
+        defaultValueGenerator.cleanup();
     }
 
 
@@ -80,10 +81,8 @@ function TransactionInsertReplace(records, updateRef) {
 
         //push records to our sync resolver
         if (!disableOfflineCache) {
-            this.updateOfflineCache('insertReplace', {
-               update: this.getAllRef(rowsToUpdate),
-               insert: this.getAllRef(rowsToInsert)
-            }, tableName);
+            this.updateOfflineCache('insert', this.getAllRef(rowsToInsert), tableName);
+            this.updateOfflineCache('update', this.getAllRef(rowsToUpdate), tableName);
         }
 
         var totalUpd = rowsToUpdate.length;

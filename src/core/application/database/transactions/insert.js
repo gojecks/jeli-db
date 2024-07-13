@@ -17,7 +17,7 @@ function transactionInsert(data, hardInsert, tableName) {
     var columns = tableInfo.columns[0];
     var objectType = isobject(data);
     var _validator = this.validator(tableInfo.TBL_NAME, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var defaultValueGenerator = columnObjFn(columns);
+    var defaultValueGenerator = columnObjFn(tableInfo);
     var refs = [];
     /**
      * Data must an Array or Object format
@@ -85,15 +85,22 @@ function transactionInsert(data, hardInsert, tableName) {
 
     if (data.length && !this.hasError()) {
         var autoIncCallback = this.getTableIncCallback(tableInfo);
-        var validateAndProcessData  = (_data) => {
+        /**
+         * @param {*} record 
+         * @returns 
+         */
+        var validateAndProcessData  = (record, index) => {
             if (hardInsert){
-                refs.push(_data._ref);
-                processedData.push(_data);
+                refs.push(record._ref);
+                processedData.push(record);
                 return;
             }
 
             var _ref = GUID();
-            _data = defaultValueGenerator(_data, _ref);
+            var _data = defaultValueGenerator(record, _ref, tableInfo);
+            
+            // validate data entry
+            if (!_validator(_data, index)) return;
             var dataExists = checkTableIndex(_data, _ref);
             if (!this.processData || (this.processData && !dataExists)) {
                 refs.push(_ref);
@@ -115,13 +122,11 @@ function transactionInsert(data, hardInsert, tableName) {
             if (hardInsert && (!item._ref || !item._data)) {
                 _skipped.push(idx);
                 continue;
-            } else if(this.processData){
-                if (!isobject(item))
-                    item = copyDataByIndex(defaultValueGenerator.columnKeys, item);
-                if (!_validator(item, i)) continue;
+            } else if(this.processData && !isobject(item)){
+                item = copyDataByIndex(defaultValueGenerator.columnKeys, item);
             }
 
-            validateAndProcessData(item);
+            validateAndProcessData(item, i);
         }
             
         if (hardInsert) {
@@ -156,6 +161,7 @@ function transactionInsert(data, hardInsert, tableName) {
         processedData.length = 0;
         refs.length = 0;
         columns = null;
+        defaultValueGenerator.cleanup();
         return new InsertQueryEvent(
             tableInfo.TBL_NAME,
             lastInsertId, {

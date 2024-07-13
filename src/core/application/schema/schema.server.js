@@ -83,7 +83,7 @@ function ServerSchemaLoader(appName, version) {
                 var resource = activeDB.get(constants.RESOURCEMANAGER);
                 var localResource = resource.getResource();
                 if (localResource) {
-                    if (Array.isArray(serverResource.resourceManager)) {
+                    if (!serverResource.resourceManager || Array.isArray(serverResource.resourceManager)) {
                         serverResource.resourceManager = localResource.resourceManager;
                     } else {
                         for (var tbl in localResource.resourceManager) {
