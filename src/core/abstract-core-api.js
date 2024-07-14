@@ -48,7 +48,7 @@ class privateApi {
     };
 
     static get constants(){
-        return privateApi.constants
+        return constants
     }
 
     static get DB_EVENT_NAMES() {
