@@ -2,7 +2,14 @@
  * Synchronization Helper
  */
 class syncHelper{
-    static process = new SyncProcess();
+    static _process = null;
+    static get process(){
+        if (!syncHelper._process)
+            syncHelper._process = new SyncProcess();
+
+        return syncHelper._process;
+    }
+
     static getResourceManagerInstance(appName) {
         return DatabaseSyncConnector
             .$privateApi

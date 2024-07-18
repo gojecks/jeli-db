@@ -4,24 +4,24 @@ class ApplicationEnvInstance{
     }
 
     get dataTypes(){
-        return privateApi.getActiveDB(appName).get(constants.DATATYPES);
+        return privateApi.getActiveDB(this.name).get(constants.DATATYPES);
     }
 
     get requestMapping() {
-        return privateApi.getNetworkResolver('requestMapping', appName);
+        return privateApi.getNetworkResolver('requestMapping', this.name);
     }
 
     logger() {
-        return privateApi.getActiveDB(appName).get(constants.RESOLVERS).getResolvers('logger');
+        return privateApi.getActiveDB(this.name).get(constants.RESOLVERS).getResolvers('logger');
     };
 
     resource() {
-        return privateApi.getActiveDB(appName).get(constants.RESOURCEMANAGER).getResource();
+        return privateApi.getActiveDB(this.name).get(constants.RESOURCEMANAGER).getResource();
     }
 
     usage() {
-        if (appName && privateApi.databaseContainer.has(appName)) {
-            return (((privateApi.getStorage(appName).usage(appName)) * 2) / 1024).toFixed(2) + " KB";
+        if (this.name && privateApi.databaseContainer.has(this.name)) {
+            return (((privateApi.getStorage(this.name).usage(this.name)) * 2) / 1024).toFixed(2) + " KB";
         }
 
         return "unknown usuage";

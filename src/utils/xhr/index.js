@@ -171,7 +171,7 @@ function AjaxSetup(interceptor) {
             options = url;
         }
 
-        var dbPromiseExtension = new DBPromise.extension(function(e) {}, ['progress']);
+        var dbPromiseExtension = new DBPromiseExtension(function(e) {}, ['progress']);
         var request = null;
         var response = {};
 

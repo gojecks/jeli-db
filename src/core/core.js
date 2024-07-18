@@ -43,7 +43,7 @@ function Database(name, version) {
         waitApiToLoad: true
     });
 
-    var dbPromiseExtension = new DBPromise.extension(
+    var dbPromiseExtension = new DBPromiseExtension(
         /**
          * Upgrade and onCreate Registery
          * @param {*} state 

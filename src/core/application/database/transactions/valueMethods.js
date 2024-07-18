@@ -23,7 +23,7 @@ class SelectHelpers {
         var requiredFields = SelectHelpers.cachedFields.get(fields);
         if (!requiredFields) {
             requiredFields = fields.split(',').map(function (select) {
-                var aCol = replacer(select);
+                var aCol = SelectHelpers.replacer(select);
                 aCol = aCol[1] || aCol[0];
 
                 var fieldName = aCol.split(' as ').map(trim),
@@ -43,7 +43,7 @@ class SelectHelpers {
 
                 return {
                     _as: _as,
-                    custom: replacer(select.split(" as ")[0].trim()),
+                    custom: SelectHelpers.replacer(select.split(" as ")[0].trim()),
                     field: field,
                     tCol: tCol,
                     asx: (field === '*' && isequal(_as, field))
@@ -199,7 +199,7 @@ class ValueMethods {
     }
 
     static callMethod(field, data) {
-        var expr = replacer(field);
+        var expr = SelectHelpers.replacer(field);
         if (expr[1] && SelectMethods[expr[0]]) {
             return SelectMethods[expr[0]](data, expr[1]);
         }

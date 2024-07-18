@@ -110,8 +110,10 @@
         this.onError(fail);
         return this;
     }
+}
 
-    static extension(callback, events) {
+class DBPromiseExtension{
+    constructor(callback, events) {
         var eventRegistry = {};
         /**
          *

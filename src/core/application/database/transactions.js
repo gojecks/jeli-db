@@ -1,6 +1,3 @@
-//Query DB
-var transactionManager = new TransactionManager();
-
 /**
  * 
  * @param {*} table 
