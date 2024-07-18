@@ -124,11 +124,12 @@ function FlatFileSupport(config, storageUtils, CB) {
     /**
      * public API to be used 
      */
-    var _publicApi = Object({
-        isExists: function(name) {
+    class _publicApi{
+        static isExists(name) {
             return _privateStore.hasOwnProperty(name);
-        },
-        getItem: function(name) {
+        }
+
+        static getItem(name) {
             if (!name) return null;
             var item = _privateStore[name];
             var isData = name.includes(':');
@@ -142,30 +143,33 @@ function FlatFileSupport(config, storageUtils, CB) {
             }
 
             return item;
-        },
-        setItem: function(name, value) {
+        }
+
+        static setItem(name, value) {
             _privateStore[name] = value || _privateStore[name];
             writeFile(name);
-        },
-        clear: function() {
+        }
+
+        static clear() {
             _clearData(Object.keys(_privateStore));
             _privateStore = {};
-        },
-        removeItem: function(name) {
+        }
+
+        static removeItem(name) {
             delete _privateStore[name];
             _clearData([name]);
-        },
+        }
 
-        save: function(name) {
+        static save(name) {
             this.setItem(name);
-        },
+        }
 
-        broadcast: function(eventName, args) {
+        static broadcast(eventName, args) {
             if (_eventRegistry.has(eventName)) {
                 _eventRegistry.get(eventName).apply(null, args);
             }
-        },
-    });
+        }
+    };
 
 
 

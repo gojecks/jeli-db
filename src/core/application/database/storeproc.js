@@ -2,31 +2,38 @@
  * 
  * @param {*} core 
  */
-function StoreProcedure(core) {
-    var _procedures = new Map();
+class StoreProcedure{
+    constructor(core) {
+        this.databaseContext = core;
+        this._procedures = new Map();
+    }
+  
     /**
      * set a storeProcedure
      * @param name
      * @param definition
      * 
      */
-    this.create = function(procName, query) {
-        _procedures.set(procName, query);
+    create(procName, query) {
+        this._procedures.set(procName, query);
         return this;
-    };
+    }
 
     /**
      * remove a storeProcedure
      */
-    this.remove = _procedures.delete;
-    this.execute = function(name, params) {
-        return new DBPromise(function(resolve, reject) {
-            var query = _procedures.get(name);
+    remove(name){
+        this._procedures.delete(name);
+    }
+
+    execute(name, params) {
+        return new DBPromise((resolve, reject) => {
+            var query = this._procedures.get(name);
             if (query) {
-                core.jQl(query, null, params).then(resolve, reject);
+                this.databaseContext.jQl(query, null, params).then(resolve, reject);
             } else {
                 reject("No store proc found for " + name);
             }
         });
-    };
+    }
 }

@@ -5,7 +5,6 @@
  * @param {*} CB 
  */
 function indexedDBStorage(config, storageUtils, CB) {
-    var publicApis = {};
     var dbName = "_jEliDB_";
     var _storeName = '_jEli_DB_Store_';
     var _version = 1;
@@ -13,69 +12,68 @@ function indexedDBStorage(config, storageUtils, CB) {
     var _privateStore = {};
     var _eventRegistry = new Map();
 
-    /**
+    class publicApis {
+        /**
      * 
-     * @param {*} version 
-     * @param {*} onUpgradeneeded 
+     * @param {*} name 
+     * @param {*} item 
      */
-    function createDB(version, onUpgradeneeded) {
-        // set the reference to our latest version
-        _version = version || _version;
-        var req = window.indexedDB.open(dbName, _version);
+        static setItem(name, item) {
+            _pApis.addStore(name, item);
+        }
 
-        req.onsuccess = function(evt) {
-            _db = this.result;
-            getAllStoreData((CB || noop))
-        };
-
-        req.onerror = function(evt) {
-            console.error("jEliDB:indexedDB:Error:", evt.target.errorCode);
-        };
-
-        req.onupgradeneeded = onUpgradeneeded || noop;
-    }
-
-
-    // create our DB with the default version
-    createDB(config.version, function(ev) {
-        var db = ev.target.result;
-        // Create an objectStore to hold information . We're
-        // going to use "ssn" as our key path because it's guaranteed to be
-        // unique - or at least that's what I was told during the kickoff meeting.
-        db.createObjectStore(_storeName, { keyPath: "_rev" });
-    });
-
-
-    function getAllStoreData(resolve) {
-        var store = getObjectStore(_storeName, "readwrite"),
-            req = store.openCursor();
-
-        req.onsuccess = function(evt) {
-            var cursor = evt.target.result;
-            // If the cursor is pointing at something, ask for the data
-            if (cursor) {
-                // get our data and append to our local store for quick query
-                req = store.get(cursor.key);
-                req.onsuccess = function(evt) {
-                    var value = evt.target.result;
-                    _privateStore[cursor.key] = value._data;
-                };
-
-                // Move on to the next object in store
-                cursor.continue();
-
-            } else {
-                resolve();
+        /**
+         * 
+         * @param {*} name 
+         */
+        static getItem(name) {
+            if (!name) {
+                return storageUtils.generateStruct(_privateStore);
             }
+            return _privateStore[name];
         };
-    }
 
-    var _pApis =  new (function() {
-        this.checkStoreName = function(storeName) {
+        /**
+         * 
+         * @param {*} name 
+         */
+        static removeItem(name) {
+            _pApis.deleteFromStore(name, function () {
+                delete _privateStore[name];
+            });
+        }
+
+        static clear() {
+            _pApis.clearStore(function () {
+                _privateStore = {};
+            });
+        }
+
+        /**
+         * 
+         * @param {*} name 
+         */
+        static usage(name) {
+            return JSON.stringify(this.getItem(name) || '').length;
+        }
+
+        static isExists(key) {
+            return _privateStore.hasOwnProperty(key);
+        }
+
+        static broadcast(eventName, args) {
+            if (_eventRegistry.has(eventName)) {
+                _eventRegistry.get(eventName).apply(null, args);
+            }
+        }
+    };
+
+    class _pApis {
+        static checkStoreName(storeName) {
             return _db.objectStoreNames.contains(storeName);
-        };
+        }
 
-        this.addStore = function(storeName, data) {
+        static addStore(storeName, data) {
             if (this.checkStoreName(_storeName)) {
 
                 // Use transaction oncomplete to make sure the objectStore creation is 
@@ -91,17 +89,17 @@ function indexedDBStorage(config, storageUtils, CB) {
             }
 
             return this;
-        };
+        }
 
-        this.deleteFromStore = function(storeName, CB) {
+        static deleteFromStore(storeName, CB) {
             try {
                 var store = getObjectStore(_storeName, 'readwrite');
                 var req = store.delete(storeName);
                 req.onsuccess = CB || noop;
-            } catch (e) {}
-        };
+            } catch (e) { }
+        }
 
-        this.clearStore = function(cb) {
+        static clearStore(cb) {
             try {
                 var store = getObjectStore(_storeName, 'readwrite');
                 var req = store.clear();
@@ -109,14 +107,72 @@ function indexedDBStorage(config, storageUtils, CB) {
             } catch (e) {
 
             }
-        };
+        }
 
-        this.getStoreItem = function(rev, CB) {
+        static getStoreItem(rev, CB) {
             var store = getObjectStore(_storeName, 'readonly'),
                 req = store.get(rev);
             req.onsuccess = CB(req);
+        }
+    }
+
+    /**
+     * 
+     * @param {*} version 
+     * @param {*} onUpgradeneeded 
+     */
+    function createDB(version, onUpgradeneeded) {
+        // set the reference to our latest version
+        _version = version || _version;
+        var req = window.indexedDB.open(dbName, _version);
+
+        req.onsuccess = function (evt) {
+            _db = this.result;
+            getAllStoreData((CB || noop))
         };
-    })();
+
+        req.onerror = function (evt) {
+            console.error("jEliDB:indexedDB:Error:", evt.target.errorCode);
+        };
+
+        req.onupgradeneeded = onUpgradeneeded || noop;
+    }
+
+
+    // create our DB with the default version
+    createDB(config.version, function (ev) {
+        var db = ev.target.result;
+        // Create an objectStore to hold information . We're
+        // going to use "ssn" as our key path because it's guaranteed to be
+        // unique - or at least that's what I was told during the kickoff meeting.
+        db.createObjectStore(_storeName, { keyPath: "_rev" });
+    });
+
+
+    function getAllStoreData(resolve) {
+        var store = getObjectStore(_storeName, "readwrite"),
+            req = store.openCursor();
+
+        req.onsuccess = function (evt) {
+            var cursor = evt.target.result;
+            // If the cursor is pointing at something, ask for the data
+            if (cursor) {
+                // get our data and append to our local store for quick query
+                req = store.get(cursor.key);
+                req.onsuccess = function (evt) {
+                    var value = evt.target.result;
+                    _privateStore[cursor.key] = value._data;
+                };
+
+                // Move on to the next object in store
+                cursor.continue();
+
+            } else {
+                resolve();
+            }
+        };
+    }
+
     /**
      * 
      * @param {*} tableName 
@@ -147,7 +203,7 @@ function indexedDBStorage(config, storageUtils, CB) {
      */
     function onUpdateTableEvent(tbl, updates) {
         Object.keys(updates)
-            .forEach(function(key) {
+            .forEach(function (key) {
                 _privateStore[tbl][key] = updates[key];
             });
         // set the property to db
@@ -161,7 +217,7 @@ function indexedDBStorage(config, storageUtils, CB) {
      */
     function onResolveSchemaEvent(version, tables) {
         publicApis.setItem('version', version);
-        Object.keys(tables).forEach(function(key) {
+        Object.keys(tables).forEach(function (key) {
             createTable(key, tables[key]);
         });
     }
@@ -174,10 +230,10 @@ function indexedDBStorage(config, storageUtils, CB) {
      */
     function onRenameTableEvent(oldTable, newTable, cb) {
         _privateStore[oldTable].TBL_NAME = newTable;
-        publicApi.setItem(newTable, _privateStore[oldTable]);
-        publicApi.setItem(newTable + ":data", _privateStore[oldTable + ":data"]);
-        publicApi.removeItem(oldTable);
-        publicApi.removeItem(oldTable + ":data");
+        publicApis.setItem(newTable, _privateStore[oldTable]);
+        publicApis.setItem(newTable + ":data", _privateStore[oldTable + ":data"]);
+        publicApis.removeItem(oldTable);
+        publicApis.removeItem(oldTable + ":data");
         (cb || noop)();
     }
 
@@ -201,6 +257,15 @@ function indexedDBStorage(config, storageUtils, CB) {
         publicApis.setItem(tableName + ":data", _privateStore[tableName + ":data"]);
     }
 
+    /**
+     * @param {string} store_name
+     * @param {string} mode either "readonly" or "readwrite"
+     */
+    function getObjectStore(store_name, mode) {
+        var tx = _db.transaction(store_name, mode);
+        return tx.objectStore(store_name);
+    }
+
     _eventRegistry.set('insert', insertEvent);
     _eventRegistry.set('update', saveData);
     _eventRegistry.set('delete', saveData);
@@ -213,69 +278,6 @@ function indexedDBStorage(config, storageUtils, CB) {
     _eventRegistry.set('onRenameTable', onRenameTableEvent);
     _eventRegistry.set('onRenameDataBase', onRenameDataBaseEvent);
 
-
-    /**
-     * @param {string} store_name
-     * @param {string} mode either "readonly" or "readwrite"
-     */
-    function getObjectStore(store_name, mode) {
-        var tx = _db.transaction(store_name, mode);
-        return tx.objectStore(store_name);
-    }
-
-    /**
-     * 
-     * @param {*} name 
-     * @param {*} item 
-     */
-    publicApis.setItem = function(name, item) {
-        _pApis.addStore(name, item);
-    };
-
-    /**
-     * 
-     * @param {*} name 
-     */
-    publicApis.getItem = function(name) {
-        if (!name) {
-            return storageUtils.generateStruct(_privateStore);
-        }
-        return _privateStore[name];
-    };
-
-    /**
-     * 
-     * @param {*} name 
-     */
-    publicApis.removeItem = function(name) {
-        _pApis.deleteFromStore(name, function() {
-            delete _privateStore[name];
-        });
-    };
-
-    publicApis.clear = function() {
-        _pApis.clearStore(function() {
-            _privateStore = {};
-        });
-    };
-
-    /**
-     * 
-     * @param {*} name 
-     */
-    publicApis.usage = function(name) {
-        return JSON.stringify(this.getItem(name) || '').length;
-    };
-
-    publicApis.isExists = function(key) {
-        return _privateStore.hasOwnProperty(key);
-    };
-
-    publicApis.broadcast = function(eventName, args) {
-        if (_eventRegistry.has(eventName)) {
-            _eventRegistry.get(eventName).apply(null, args);
-        }
-    };
 
     return publicApis;
 }

@@ -90,9 +90,10 @@ DatabaseInstanceCreateTable.async = function(dbName, tableName, columns, additio
             proc: null,
             index: {},
             created: curTime,
+            alias: '',
             lastModified: curTime,
             _hash: GUID(),
-            _previousHash: ""
+            _previousHash: ''
         }, additionalConfig || {});
 
         /**

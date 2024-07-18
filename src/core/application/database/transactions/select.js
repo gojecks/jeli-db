@@ -227,7 +227,7 @@ function transactionSelect(selectFields, definition) {
                 if (thenValue && searchIndex > -1) {
                     thenValue = getValue(searchIndex);
                     if (resolve.fields) {
-                        thenValue = ValueMethods.staticInstance.setField(resolve.fields).getData(thenValue);
+                        thenValue = ValueMethods.instance.setField(resolve.fields).getData(thenValue);
                     }
 
                     if (resolve.lookup) {
@@ -268,7 +268,7 @@ function transactionSelect(selectFields, definition) {
             if (foundIndex > -1) {
                 thenValue = lookupTable[foundIndex];
                 if (fields) {
-                    thenValue = ValueMethods.staticInstance.setField(fields).getData(thenValue);
+                    thenValue = ValueMethods.instance.setField(fields).getData(thenValue);
                 }
             }
 

@@ -1,19 +1,17 @@
-var QueryLimitMethods = (function () {
-    'use strict';
-
+class QueryLimitMethods {
     /**
      * @param {*} limit 
      * parse query limit
      */
-    function parseLimit(limit) {
+    static parseLimit(limit) {
         if (isnumber(limit)) {
             return [0, limit];
         }
 
         var JDB_LIMITS = {
-            "JDB_SINGLE":"0,1",
-            "JDB_MAX":"0,100",
-            "JDB_MIN":"0,50",
+            "JDB_SINGLE": "0,1",
+            "JDB_MAX": "0,100",
+            "JDB_MIN": "0,50",
         };
 
         // check if JDB_LIMITS type was passed
@@ -44,10 +42,10 @@ var QueryLimitMethods = (function () {
      * @param {*} definition 
      * @returns 
      */
-    function limitTask(data, definition) {
-        var limit = parseLimit(definition.limit);
+    static limitTask(data, definition) {
+        var limit = QueryLimitMethods.parseLimit(definition.limit);
         // L(n) limit type
-        if (0 > limit[0]){
+        if (0 > limit[0]) {
             limit = [(data.length - limit[1]), data.length];
         }
         return data.splice(limit[0], limit[1]);
@@ -60,7 +58,7 @@ var QueryLimitMethods = (function () {
      * @param {*} strict 
      * @returns 
      */
-    function groupByTask(cData, definition, strict) {
+    static groupByTask(cData, definition, strict) {
         var _groupSplit = (definition.groupBy || definition.groupByStrict).split(',');
         var ret = cData.reduce(function (accum, item) {
             var cMatch = _groupSplit.map((key) => item[key]);
@@ -79,52 +77,8 @@ var QueryLimitMethods = (function () {
         }, {});
 
         // map through the ret and return the result
-        return Object.values(ret).map(function (value) {
-            if (definition.limit) {
-                return limitTask(value, definition);
-            }
-            return value;
-        });
+        return Object.values(ret).map(value => ((definition.limit) ? QueryLimitMethods.limitTask(value, definition) : value));
     }
-
-    /**
-     * Query Limit methods
-     */
-    var staticMethods = {
-        groupBy: function (cdata, definition) {
-            return groupByTask(cdata, definition);
-        },
-        orderBy: function (cdata, _, propertyName) {
-            var checkParam = (_[propertyName] || 'ASC').split(':')
-            var order = checkParam.pop();
-            /**
-             * sort option accepts multiple property
-             * split the properties into array
-             * as method params
-             */
-            if (checkParam.length) {
-                cdata = _querySortPerformer.call(cdata, checkParam[0].split(','));
-            }
-            /**
-             * set reverse options if defined
-             * only when been used as filter options in expressions
-             */
-            if (order === 'DESC') {
-                cdata.reverse();
-            }
-
-            return cdata;
-        },
-        limit: function (cdata, definition) {
-            if (!definition.groupBy && !definition.groupByStrict) {
-                return limitTask(cdata, definition);
-            }
-            return cdata;
-        },
-        groupByStrict: function (cdata, definition) {
-            return groupByTask(cdata, definition, true);
-        }
-    };
 
     /**
      * 
@@ -132,16 +86,35 @@ var QueryLimitMethods = (function () {
      * @param {*} cdata 
      * @returns 
      */
-    return {
-        parseLimit,
-        process: function (definition, cdata) {
-            ['groupBy', 'groupByStrict', 'orderBy', 'limit'].forEach(function (key) {
-                if (definition[key]) {
-                    cdata = staticMethods[key](cdata, definition, key);
-                };
-            });
-    
-            return copy(cdata, true);
-        }
-    };
-})();
+    static process(definition, cdata) {
+        var staticMethods = {
+            groupBy: (cdata, definition) => QueryLimitMethods.groupByTask(cdata, definition),
+            groupByStrict: (cdata, definition) => QueryLimitMethods.groupByTask(cdata, definition, true),
+            orderBy: (cdata, _, propertyName) => {
+                var checkParam = (_[propertyName] || 'ASC').split(':')
+                var order = checkParam.pop();
+                /**
+                 * sort option accepts multiple property
+                 * split the properties into array
+                 * as method params
+                 */
+                if (checkParam.length) {
+                    cdata = _querySortPerformer.call(cdata, checkParam[0].split(','));
+                }
+                /**
+                 * set reverse options if defined
+                 * only when been used as filter options in expressions
+                 */
+                if (order === 'DESC') {
+                    cdata.reverse();
+                }
+
+                return cdata;
+            },
+            limit: (cdata, definition) => ((!definition.groupBy && !definition.groupByStrict) ? QueryLimitMethods.limitTask(cdata, definition) : cdata)
+        };
+
+        cdata = Object.keys(staticMethods).reduce((accum, key) => ((definition[key]) ? staticMethods[key](accum, definition, key) : accum), cdata);
+        return copy(cdata, true);
+    }
+}

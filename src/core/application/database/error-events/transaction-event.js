@@ -3,7 +3,9 @@
  * @param {*} type 
  * @param {*} error 
  */
-function TransactionErrorEvent(type, error) {
-    this.error = error
-    this.type = type;
+class TransactionErrorEvent{
+    constructor(type, error) {
+        this.error = error
+        this.type = type;
+    }
 }
