@@ -12,9 +12,9 @@ class syncHelper{
 
     static getResourceManagerInstance(appName) {
         return DatabaseSyncConnector
-            .$privateApi
+            .coreApi
             .getActiveDB(appName)
-            .get(DatabaseSyncConnector.$privateApi.constants.RESOURCEMANAGER);
+            .get(DatabaseSyncConnector.coreApi.constants.RESOURCEMANAGER);
     };
 
     /**
@@ -90,12 +90,12 @@ class syncHelper{
      * @param {*} tbl 
      */
     static setRequestData(appName, state, ignore, tbl) {
-        var request = DatabaseSyncConnector.$privateApi.buildHttpRequestOptions(appName, { tbl: tbl, path: state });
+        var request = DatabaseSyncConnector.coreApi.buildHttpRequestOptions(appName, { tbl: tbl, path: state });
         //ignore post data
         if (!ignore) {
             switch (state.toLowerCase()) {
                 case ('/database/sync'):
-                    request.data = DatabaseSyncConnector.$privateApi.getTable(appName, tbl, true);
+                    request.data = DatabaseSyncConnector.coreApi.getTable(appName, tbl, true);
                     request.data.action = "overwrite";
                     break;
                 case ('/database/resource/add'):
@@ -118,7 +118,7 @@ class syncHelper{
      */
     static getSchema(appName, requiredTable) {
         var request = syncHelper.setRequestData(appName, '/database/schema', false, requiredTable || [])
-        return DatabaseSyncConnector.$privateApi.$http(request);
+        return DatabaseSyncConnector.coreApi.$http(request);
     };
 
     /**
@@ -126,7 +126,7 @@ class syncHelper{
      * @param {*} appName 
      */
     static pullResource(appName) {
-        return DatabaseSyncConnector.$privateApi.$http(syncHelper.setRequestData(appName, '/database/resource', true));
+        return DatabaseSyncConnector.coreApi.$http(syncHelper.setRequestData(appName, '/database/resource', true));
     };
 
     /**
@@ -136,7 +136,7 @@ class syncHelper{
      */
     static syncResourceToServer(appName) {
         syncHelper.setMessage('Resource synchronization started');
-        return DatabaseSyncConnector.$privateApi.$http(syncHelper.setRequestData(appName, '/database/resource/add', '', ''));
+        return DatabaseSyncConnector.coreApi.$http(syncHelper.setRequestData(appName, '/database/resource/add', '', ''));
     };
 
 
@@ -175,7 +175,7 @@ class syncHelper{
      * @param {*} state 
      */
     static push(appName, tbl, data, state) {
-        var _activeDB = DatabaseSyncConnector.$privateApi.getActiveDB(appName);
+        var _activeDB = DatabaseSyncConnector.coreApi.getActiveDB(appName);
         syncHelper.setMessage('Initializing Push State for table(' + tbl + ')');
         //check state
         state = state || 'push';
@@ -184,11 +184,11 @@ class syncHelper{
         if (data) {
             if (!data.columns.diff) {
                 data._hash = request.data._hash; //update the postData hash before posting
-                request.data = _activeDB.get(DatabaseSyncConnector.$privateApi.constants.RECORDRESOLVERS).get(tbl);
+                request.data = _activeDB.get(DatabaseSyncConnector.coreApi.constants.RECORDRESOLVERS).get(tbl);
             }
         }
 
-        return DatabaseSyncConnector.$privateApi.$http(request);
+        return DatabaseSyncConnector.coreApi.$http(request);
     };
 
     /**
@@ -199,7 +199,7 @@ class syncHelper{
     static pullTable(appName, tbl, requestTableData) {
         syncHelper.setMessage('---Retrieving ' + tbl + ' schema---');
         var request = syncHelper.setRequestData(appName, '/database/pull', false, tbl);
-        return DatabaseSyncConnector.$privateApi.$http(request);
+        return DatabaseSyncConnector.coreApi.$http(request);
     };
 
     /**
@@ -234,8 +234,8 @@ class syncHelper{
                 /**
                  * broadcast event
                  */
-                var eventName = DatabaseSyncConnector.$privateApi.DB_EVENT_NAMES.RESOLVE_SCHEMA;
-                DatabaseSyncConnector.$privateApi.storageFacade.broadcast(appName, eventName, [version, _onSchemaTables]);
+                var eventName = DatabaseSyncConnector.coreApi.DB_EVENT_NAMES.RESOLVE_SCHEMA;
+                DatabaseSyncConnector.coreApi.storageFacade.broadcast(appName, eventName, [version, _onSchemaTables]);
                 _onSchemaTables = null;
             });
     };

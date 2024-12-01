@@ -2,7 +2,13 @@
 //Clause -where -columns -like:expression
 
 Database.plugins.jQl('update', {
-    help: ['-update -[tbl_name] -[data] -expression[ [where] [like]] -pushToServer[yes|no]'],
+    help: ['-update -[tbl_name] -[data] -condition[[where] [like]] -ignoreSync'],
+    map: {
+        table: 1,
+        data: 2,
+        cond: 3,
+        ignoreSync: 4
+    },
     requiresParam: true,
     fn: updatePluginFn
 });
@@ -10,21 +16,11 @@ Database.plugins.jQl('update', {
 //create -tablename -columns
 function updatePluginFn(query, handler) {
     return function (db) {
-        //updating a table
-        if (query.length && query.length > 2) {
-            db
-                .transaction(query[1], 'writeonly')
-                .onSuccess(function (upd) {
-                    upd
-                        .result
-                        .update(query[2], query[3])
-                        .execute(query[4])
-                        .then(handler.onSuccess, handler.onError)
-                        .catch(handler.onError)
-                })
-                .onError(handler.onError);
-            return;
-        }
-        handler.onError({ message: 'Unable to run query' });
+        db
+            .transaction(query.table, 'writeonly')
+            .update(query.data, query.cond)
+            .execute(query.ignoreSync)
+            .then(handler.onSuccess, handler.onError)
+            .catch(handler.onError)
     }
 }

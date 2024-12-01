@@ -6,6 +6,10 @@
  * @param {*} schemaFilePath 
  */
 class SchemaManager{
+    static createInstance(core, currentVersion, previousVersion, schemaFilePath){
+        return new this(core, currentVersion, previousVersion, schemaFilePath);
+    }
+
     static loadSchema(version, schemaFilePath) {
         var path = schemaFilePath + "version_" + version + '.json';
         return fetch(path).then(res => res.json());
@@ -27,7 +31,7 @@ class SchemaManager{
             return next();
 
         preEvent();
-        SchemaManager.loadSchema(1, this.schemaFilePath)
+        SchemaManager.loadSchema(this.currentVersion, this.schemaFilePath)
             .then(schema => {
                 this.schemaProcess.process(schema, () => {
                     /**

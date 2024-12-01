@@ -38,14 +38,14 @@ class clientService {
 
 
     /**
-         * 
-         * @param {*} appName 
-         * @param {*} tbl 
-         * @param {*} requestData 
-         * @param {*} params 
-         * @param {*} byQueryId 
-         * @returns 
-         */
+     * 
+     * @param {*} appName 
+     * @param {*} tbl 
+     * @param {*} requestData 
+     * @param {*} params 
+     * @param {*} byQueryId 
+     * @returns 
+     */
     pull(tbl, requestData, params, byQueryId) {
         var time = performance.now();
         var requestParams = privateApi.buildHttpRequestOptions(this.appName, { tbl, path: '/database/fetch' });
@@ -54,7 +54,7 @@ class clientService {
         // set the query only when required
 
         if (params) {
-            if (byQueryId || ['where', 'limit'].some(key => !!params[key])) {
+            if (byQueryId || ['where', 'limit', 'byRefs', 'id', 'ids'].some(key => !!params[key])) {
                 Object.assign(requestData, params);
             } else {
                 requestData.where = (!Array.isArray(params) ? [params] : params);
@@ -70,7 +70,7 @@ class clientService {
                         .then(ret => {
                             privateApi.updateDB(this.appName, tbl);
                             //resolve promise
-                            resolve(new SelectQueryEvent(ret.insert, (performance.now() - time)));
+                            resolve(new SelectQueryEvent(ret.insert.data, (performance.now() - time)));
                         });
                 }, function (res) {
                     reject(dbErrorPromiseObject("Unable to fetch records"));
@@ -90,7 +90,7 @@ class clientService {
     runQueryRequest(request, query, replacer, cacheOptions) {
         var requestParams = privateApi.buildHttpRequestOptions(this.appName, request)
         if (typeof query === "string" || replacer) {
-            query = parseServerQuery(query, replacer);
+            query = QueryBuilder.parseServerQuery(query, replacer);
         }
         requestParams.data = query;
         requestParams.cache = cacheOptions;

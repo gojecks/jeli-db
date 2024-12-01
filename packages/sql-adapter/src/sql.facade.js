@@ -3,41 +3,56 @@
  * @param {*} sqlInstance 
  */
 class CoreSqlFacade {
-   /**
-    *
-    * @param {*} data
-    * @param {*} setCol
-    * @param {*} addRef
-    */
-   static _setData(data, setCol, addRef) {
-       var col = [], val = [], keys = [];
-       if (addRef) {
-           col.push('?');
-           val.push(data._ref);
-           keys.push('_ref');
-           data = data._data;
-       }
+    /**
+     *
+     * @param {*} data
+     * @param {*} setCol
+     * @param {*} addRef
+     */
+    static _setData(data, setCol, addRef) {
+        var col = [], val = [], keys = [];
+        if (addRef) {
+            col.push('?');
+            val.push(data._ref);
+            keys.push('_ref');
+            data = data._data;
+        }
 
-       for (var i in data) {
-           col.push((setCol ? i + "=" : "") + "?");
-           keys.push(i);
-           if (typeof data[i] === "object") {
-               val.push(JSON.stringify(data[i]));
-           } else {
-               val.push(data[i]);
-           }
-       }
+        for (var i in data) {
+            col.push((setCol ? i + "=" : "") + "?");
+            keys.push(i);
+            if (typeof data[i] === "object") {
+                val.push(JSON.stringify(data[i]));
+            } else {
+                val.push(data[i]);
+            }
+        }
 
-       return ({
-           col: col,
-           val: val,
-           keys: keys
-       });
-   }
+        return ({
+            col: col,
+            val: val,
+            keys: keys
+        });
+    }
+
+    static createInstance(options) {
+        /**
+         * check if name contains .db ext
+         */
+        options.name = options.name + ".db";
+        var sqlInstance = null;
+        if (window.sqlitePlugin) {
+            sqlInstance = window.sqlitePlugin.openDatabase(options);
+        } else if (window.openDatabase) {
+            sqlInstance = window.openDatabase(options.name, options.version || 1, options.name + ' Storage for webSql', 50 * 1024 * 1024)
+        }
+
+        return new CoreSqlFacade(sqlInstance);
+    }
 
     constructor(sqlInstance) {
         if (!sqlInstance)
-            throw new TypeError('No Plugin Support for ' + type);
+            throw new TypeError('No Supported interface found for SqlAdapter');
 
         this.sqlInstance = sqlInstance;
     }
@@ -60,9 +75,9 @@ class CoreSqlFacade {
                 var _cData = CoreSqlFacade._setData(item, false, true), executeQuery = "INSERT OR REPLACE INTO " + table + " (" + _cData.keys.join(',') + ") VALUES (" + _cData.col.join(',') + ")";
                 tx.executeSql(executeQuery, _cData.val, resolve, reject);
             }
-    
-    
-    
+
+
+
             this.sqlInstance.transaction(function (transaction) {
                 data.forEach(function (item) {
                     run(item, transaction);
@@ -89,30 +104,30 @@ class CoreSqlFacade {
         }
 
         return new SqlFacadePromise(data ? data.length : 1, (resolve, reject) => {
-                    /**
-         *
-         * @param {*} item
-         * @param {*} tx
-         */
-        function run(item, tx) {
-            executeQuery = "DELETE FROM " + table;
-            if (where) {
-                executeQuery += " " + where;
-                ex = [item[ex] || item];
-            }
-
-            tx.executeSql(executeQuery, ex || [], resolve, reject);
-        }
-
-        this.sqlInstance.transaction(function (transaction) {
-            if (data) {
-                for(var item of data){
-                    run(item, transaction);
+            /**
+             *
+             * @param {*} item
+             * @param {*} tx
+             */
+            function run(item, tx) {
+                executeQuery = "DELETE FROM " + table;
+                if (where) {
+                    executeQuery += " " + where;
+                    ex = [item[ex] || item];
                 }
-            } else {
-                run({}, transaction);
+
+                tx.executeSql(executeQuery, ex || [], resolve, reject);
             }
-        });
+
+            this.sqlInstance.transaction(function (transaction) {
+                if (data) {
+                    for (var item of data) {
+                        run(item, transaction);
+                    }
+                } else {
+                    run({}, transaction);
+                }
+            });
         });
     }
 
@@ -127,9 +142,9 @@ class CoreSqlFacade {
                 var executeQuery = `UPDATE ${table}  SET ${_cData.col.join(',')} WHERE _ref='${item._ref}'`;
                 tx.executeSql(executeQuery, _cData.val, resolve, reject);
             }
-    
+
             this.sqlInstance.transaction(function (transaction) {
-                for(var item of data){
+                for (var item of data) {
                     run(item, transaction);
                 }
             });
@@ -158,7 +173,7 @@ class CoreSqlFacade {
             } else {
                 executeQuery += `${(addRemoved ? ' ADD ' : ' DROP ')} ${columnName}`;
             }
-    
+
             sqlInstance.transaction(function (transaction) {
                 transaction.executeSql(executeQuery, [], resolve, reject);
             });
@@ -175,7 +190,7 @@ class CoreSqlFacade {
                 executeQuery = "DROP TABLE  IF EXISTS " + tbl;
                 tx.executeSql(executeQuery, [], resolve, reject);
             }
-    
+
             this.sqlInstance.transaction(function (transaction) {
                 tables.forEach(function (tbl) {
                     run(tbl, transaction);
@@ -191,55 +206,4 @@ class CoreSqlFacade {
             });
         });
     }
-}
-
-/**
-         *
-         * @param {*} total
-         */
-class SqlFacadePromise {
-    constructor(total, callback) {
-        this.succ = 0;
-        this.err = 0;
-        this.total = total || 0;
-        this.handlers = [function () { }, function () { }];
-
-        callback((tx, res) => {
-            this.succ++;
-            this.finalize(tx, res);
-        }, (tx, err) => {
-            this.err++;
-            this.finalize(tx, err);
-        });
-    }
-
-    finalize() {
-        if (this.err == this.total) {
-            this.handlers.pop().apply(null, arguments);
-        } else if (this.succ === this.total) {
-            this.handlers.shift().apply(null, arguments);
-        } else if ((this.succ + this.err) == this.total) {
-            this.handlers.shift()({
-                success: this.succ,
-                failed: this.err
-            });
-        }
-    }
-
-    setTotal(val) {
-        this.total = val;
-    };
-
-    /**
-     * @param succ
-     * @param err
-     */
-    then(succ, err) {
-        if (succ)
-            this.handlers[0] = succ;
-        if (err)
-            this.handlers[1] = err;
-        //trigger finalize
-        this.finalize();
-    };
 }

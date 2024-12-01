@@ -43,7 +43,7 @@ class SyncProcess {
         var request = syncHelper.setRequestData(appName, '/application/key', true);
         request.data = { key: "api_key" };
         syncHelper.setMessage('Retrieving API key....');
-        return DatabaseSyncConnector.$privateApi.$http(request).then(res => {
+        return DatabaseSyncConnector.coreApi.$http(request).then(res => {
             syncHelper.setMessage('Retrieved API key');
             appProcess.getSet('applicationKey', res);
             appProcess = null;

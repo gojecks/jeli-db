@@ -8,7 +8,7 @@ class ApplicationEnvInstance{
     }
 
     get requestMapping() {
-        return privateApi.getNetworkResolver('requestMapping', this.name);
+        return privateApi.getConfigData('requestMapping', this.name);
     }
 
     logger() {

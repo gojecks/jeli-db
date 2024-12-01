@@ -18,7 +18,7 @@ function alterPluginFn(query, handler) {
     // @Function drops the required table
     var msg = "Table(" + query[1] + ") have been altered.";
     var actions = {
-        a: function(instance) {
+        a: instance => {
             var taskType = { c: 'column', f: 'foreign', p: 'primary', i: 'index', m: 'mode' };
             var task = taskType[query[3]] || query[3];
             if (instance.alter.add[task]) {
@@ -27,28 +27,18 @@ function alterPluginFn(query, handler) {
                 msg = "Unable to find command " + query[3];
             }
         },
-        d: function(instance) {
-            instance.alter.drop(query[3]);
-        },
-        r: function(instance) {
-            msg = instance.rename(query[3]);
-        },
-        u: function(instance) {
-            instance.update(query[3]);
-        }
+        d: instance => instance.alter.drop(query[3]),
+        r: instance => msg = instance.rename(query[3]),
+        u: instance => instance.update(query[3])
     };
 
-    return function(db) {
+    return function (db) {
         if (query.length > 2) {
-            var noop = function() { msg = "unable to find command(" + query[2] + ")"; };
+            var noop = function () { msg = "unable to find command(" + query[2] + ")"; };
             //alter the table
-            db
-                .table(query[1])
-                .onSuccess(function(dbResponse) {
-                    (actions[query[2]] || noop)(dbResponse.result);
-                    handler.onSuccess(dbSuccessPromiseObject("alter", msg));
-                })
-                .onError(handler.onError);
+            var tableInstance = db.table(query[1]);
+            (actions[query[2]] || noop)(tableInstance);
+            handler.onSuccess(dbSuccessPromiseObject("alter", msg));
         }
     };
 }

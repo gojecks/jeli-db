@@ -6,21 +6,6 @@
  */
 function AjaxSetup(interceptor) {
     var CacheMechanism = new Map();
-    var defaultOptions = {
-        url: "",
-        type: 'GET',
-        processData: true,
-        contentType: true,
-        headers: {
-            'Accept': 'text/javascript, application/json, text/html, application/xml, text/xml, */*'
-        },
-        asynchronous: true,
-        data: '',
-        xhr: null,
-        getResponseHeader: null,
-        cache: null
-    };
-
     var unsafeHeaders = {
         'Accept-Charset': true,
         'Accept-Encoding': true,
@@ -179,7 +164,20 @@ function AjaxSetup(interceptor) {
          * make sure request is not in errorState before processing 
          */
         if (!options.isErrorState) {
-            options = extend(true, defaultOptions, options);
+            options = Object.assign({
+                url: "",
+                type: 'GET',
+                processData: true,
+                contentType: true,
+                headers: {
+                    'Accept': 'text/javascript, application/json, text/html, application/xml, text/xml, */*'
+                },
+                asynchronous: true,
+                data: '',
+                xhr: null,
+                getResponseHeader: null,
+                cache: null
+            }, options);
             options.url = options.url || url;
             options.type = options.type.toLowerCase();
             request = options.xhr || new XMLHttpRequest();

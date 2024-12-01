@@ -89,9 +89,9 @@ class Scheduler {
 
         var process = () => {
             var queue = this._queue.shift();
-            var request = Scheduler.$privateApi.buildHttpRequestOptions(this.appName, { path: queue.url });
+            var request = Scheduler.coreApi.buildHttpRequestOptions(this.appName, { path: queue.url });
             request.data = queue.payload;
-            Scheduler.$privateApi.$http(request)
+            Scheduler.coreApi.$http(request)
                 .then(next, err => {
                     processRecords.failed.push(queue);
                     next();

@@ -11,8 +11,8 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
      * @param {*} res 
      */
     function cleanUp(task, res) {
-        var delRecordName = DatabaseSyncConnector.$privateApi.storeMapping.delRecordName;
-        var delRecordManager = DatabaseSyncConnector.$privateApi.storageFacade.get(delRecordName, appName);
+        var delRecordName = DatabaseSyncConnector.coreApi.storeMapping.delRecordName;
+        var delRecordManager = DatabaseSyncConnector.coreApi.storageFacade.get(delRecordName, appName);
         var resData = res.renamed || res.removed;
         var totalTask = Object.keys(deleteRecords[task]);
         var inc = 0;
@@ -40,17 +40,17 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         }
 
         //update the storage
-        DatabaseSyncConnector.$privateApi.storageFacade.set(delRecordName, delRecordManager, appName);
+        DatabaseSyncConnector.coreApi.storageFacade.set(delRecordName, delRecordManager, appName);
         /**
          * reset deletedRecords
          */
         if (inc == totalTask.length) {
             if (isDataBaseTask) {
-                DatabaseSyncConnector.$privateApi.closeDB(appName, true);
+                DatabaseSyncConnector.coreApi.closeDB(appName, true);
             } else {
-                DatabaseSyncConnector.$privateApi
+                DatabaseSyncConnector.coreApi
                     .getActiveDB(appName)
-                    .get(DatabaseSyncConnector.$privateApi.constants.RESOLVERS)
+                    .get(DatabaseSyncConnector.coreApi.constants.RESOLVERS)
                     .deleteManager()
                     .reset();
             }
@@ -132,7 +132,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         function request(path, ref, data) {
             var request = syncHelper.setRequestData(appName, path, true, null);
             request.data = { [ref]: data };
-            return DatabaseSyncConnector.$privateApi.$http(request);
+            return DatabaseSyncConnector.coreApi.$http(request);
         }
 
         function mainRequest() {

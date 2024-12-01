@@ -21,7 +21,7 @@ class SelectHelpers {
      */
     static parseFields(fields) {
         var requiredFields = SelectHelpers.cachedFields.get(fields);
-        if (!requiredFields) {
+        if (!requiredFields && fields) {
             requiredFields = fields.split(',').map(function (select) {
                 var aCol = SelectHelpers.replacer(select);
                 aCol = aCol[1] || aCol[0];
@@ -112,6 +112,10 @@ class SelectMethods {
         var dates = field.split(':');
         var today = +new Date;
         return (+new Date(cdata[dates[0]] || today)) - (+new Date(cdata[dates[1]] || today));
+    }
+
+    static DATE_IN_FUTURE(data, field){
+        return (+new Date(SelectMethods.GET(data, field) || '') > Date.now());
     }
 
     static CASE(cdata, field) {
@@ -206,72 +210,90 @@ class ValueMethods {
 
         return expr[0];
     }
+
+    static createInstance(fields, queryResult){
+        return new this(fields, queryResult);
+    }
     
     constructor(fields, queryResult) {
-        var requiredFields = SelectHelpers.parseFields(fields);
-        queryResult = queryResult || [];
-        /**
-         * 
-         * @param {*} field 
-         * @param {*} cdata 
-         * @returns 
-         */
-        this.getValue = function (field, cdata) {
-            if (SelectMethods[field[0]] && !cdata.hasOwnProperty(field[0])) {
-                return SelectMethods[field[0]](cdata, field[1], queryResult);
-            }
+        this.requiredFields = null;
+        this.queryResult = queryResult || [];
 
-            return SelectMethods.GET(cdata, field[0]);
+        this.setField = function(fields) {
+            this.requiredFields = SelectHelpers.parseFields(fields);
+            return this;
         };
-
-        this.first = function () {
-            return this.getData(queryResult[0]);
-        };
-
-        /**
-         * 
-         * @param {*} cData 
-         * @returns selectedField values
-         */
-        this.getData = function (cData) {
-            var odata = {};
-            //set the data
-            for (var field of requiredFields) {
-                if (isequal(field.field, '*')) {
-                    resolveAsterixQuery(field);
-                } else {
-                    odata[field._as] = this.getValue(field.custom, cData);
-                }
-            }
-
-            function resolveAsterixQuery(curField) {
-                if (curField.asx) {
-                    Object.assign(odata, cData[curField.tCol]);
-                } else {
-                    odata[curField._as] = cData[curField.tCol] || cData;
-                }
-            }
-
-            return odata;
-        };
-
-        this.getAll = function (customOnly) {
-            return queryResult.map(item => {
-                if (customOnly) {
-                    return this.getValue(requiredFields[0].custom, item);
-                }
-                return this.getData(item);
-            });
-        };
-
-        this.setField = function (fields) {
-            requiredFields = SelectHelpers.parseFields(fields);
+    
+        this.setData = function(data) {
+            this.queryResult = data;
             return this;
         };
 
-        this.setData = function (data) {
-            queryResult = data;
-            return this;
-        };
+        // set the fields
+        this.setField(fields);
+    }
+
+    /**
+     * 
+     * @param {*} field 
+     * @param {*} cdata 
+     * @returns 
+     */
+    getValue(field, cdata) {
+        var selectFn = SelectMethods[field[0]];
+        if (typeof selectFn == 'function' && !cdata.hasOwnProperty(field[0])) {
+            return selectFn(cdata, field[1], this.queryResult);
+        }
+
+        return SelectMethods.GET(cdata, field[0]);
+    }
+
+    first() {
+        return this.getData(this.queryResult[0]);
+    }
+
+    /**
+     * 
+     * @param {*} cData 
+     * @returns selectedField values
+     */
+    getData(cData) {
+        // return the data if field is undefined
+        if (!this.requiredFields) return cData;
+
+        var odata = {};
+        for (var field of this.requiredFields) {
+            if (isequal(field.field, '*')) {
+                resolveAsterixQuery(field);
+            } else {
+                odata[field._as] = this.getValue(field.custom, cData);
+            }
+        }
+
+        function resolveAsterixQuery(curField) {
+            if (curField.asx) {
+                Object.assign(odata, cData[curField.tCol]);
+            } else {
+                odata[curField._as] = cData[curField.tCol] || cData;
+            }
+        }
+
+        return odata;
+    }
+
+    getAll(customOnly) {
+        return this.queryResult.reduce((accum, item) => {
+            if (customOnly){
+                var value = this.getValue(this.requiredFields[0].custom, item);
+                if (Array.isArray(value)) 
+                    accum.push.apply(accum, value);
+                else 
+                    accum.push(value); 
+            } else {
+                accum.push(this.getData(item)); 
+            }
+            
+            return accum;
+        }, []);
     }
 }

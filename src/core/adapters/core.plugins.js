@@ -17,6 +17,8 @@ class PluginsInstance {
         } else {
             errorBuilder('Failed to register plugin, either it already exists or invalid definition');
         }
+
+        return this;
     }
     
     disablePlugins(list) {

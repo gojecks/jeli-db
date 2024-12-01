@@ -2,98 +2,82 @@
  * @internal validators
  */
 var _type_validators_ = Object({
-    _char_: function(type) {
-        return (isequal(type, 'string'));
-    },
-    _number_: function(type, data) {
-        return (isnumber(data) || !isNaN(Number(data)));
-    },
-    _double_: function(type, data) {
-        return isdouble(data);
-    },
-    _boolean_: function(type, data) {
-        return (!isNaN(Number(data)));
-    },
-    _float_: function(type, data) {
-        return (isfloat(data));
-    },
-    _date_: function(type, data) {
-        return (new Date(data) instanceof Date);
-    },
-    _object_: (type, data) => isobject(data),
-    _array_: (type, data) => isarray(data),
-    _arrayobject_: (type, data) => (isarray(data) && (data[0] ? isobject(data[0]) : true)),
-    _blob_: function(type, data) {
-        return ( isobject(data) || isarray(data) || isstring(data));
-    },
-    _any_: function() {
-        return true
-    }
+    char: (type) => (isequal(type, 'string')),
+    number: (type, data) => (isnumber(data) || !isNaN(Number(data))),
+    double: (type, data) => isdouble(data),
+    boolean: (type, data) => (!isNaN(Number(data))),
+    float: (type, data) => (isfloat(data)),
+    date: (type, data) => (new Date(data) instanceof Date),
+    object: (type, data) => isobject(data),
+    array: (type, data) => isarray(data),
+    arrayobject: (type, data) => (isarray(data) && (data[0] ? isobject(data[0]) : true)),
+    blob: (type, data) => (isobject(data) || isarray(data) || isstring(data)),
+    any: () => true
 });
 
 var defaultValidatorMapper = Object({
     'VARCHAR': {
-        _validator_: "_char_"
+        validator: "char"
     },
     'TEXT': {
-        _validator_: "_char_"
+        validator: "char"
     },
     'STRING': {
-        _validator_: "_char_"
+        validator: "char"
     },
     'NUMBER': {
-        _validator_: "_number_"
+        validator: "number"
     },
     'INTEGER': {
-        _validator_: "_number_"
+        validator: "number"
     },
     'INT': {
-        _validator_: "_number_"
+        validator: "number"
     },
     'SMALLINT': {
-        _validator_: "_number_"
+        validator: "number"
     },
     'BIGINT': {
-        _validator_: "_number_"
+        validator: "number"
     },
     'DOUBLE': {
-        _validator_: "_double_"
+        validator: "double"
     },
     'DECIMAL': {
-        _validator_: "_double_"
+        validator: "double"
     },
     'LONG': {
-        _validator_: "_double_"
+        validator: "double"
     },
     'BOOLEAN': {
-        _validator_: "_boolean_"
+        validator: "boolean"
     },
     'FLOAT': {
-        _validator_: "_float_"
+        validator: "float"
     },
     'DATETIME': {
-        _validator_: "_date_"
+        validator: "date"
     },
     'TIMESTAMP': {
-        _validator_: "_date_"
+        validator: "date"
     },
     'DATE': {
-        _validator_: "_date_"
+        validator: "date"
     },
     'OBJECT': {
-        _validator_: "_object_"
+        validator: "object"
     },
     'ARRAY': {
-        _validator_: "_array_"
+        validator: "array"
     },
     'ARRAYOBJECT':{
-        _validator_: "_arrayobject_"
+        validator: "arrayobject"
     },
     'BLOB': {
-        _validator_: "_blob_"
+        validator: "blob"
     },
     'ANY': {
-        _validator_: "_any_"
+        validator: "any"
     }
 });
 
@@ -121,13 +105,12 @@ class DataTypeHandler {
 
     getValidator(type) {
         var retType = defaultValidatorMapper[type] || this._dataTypes[type];
-        return (retType ? _type_validators_[retType._validator_] : function() { return false; });
+        return (retType ? _type_validators_[retType.validator] : function() { return false; });
     }
 
     validate(data, requiredType) {
         var type = typeof data;
         var validate = this.getValidator(requiredType);
         return validate(type, data, requiredType);
-
     }
 }

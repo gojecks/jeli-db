@@ -4,10 +4,21 @@
  * @param {*} version 
  */
 class DatabaseInstance {
-    constructor(name, version) {
+    static createInstance(name, version, existing) {
+        return new this(name, version, existing);
+    }
+
+    /**
+     * 
+     * @param {*} name 
+     * @param {*} version 
+     * @param {*} existing
+     */
+    constructor(name, version, existing) {
         //set the DB name for reference
         this.name = name;
         this.version = version;
+        this._isExisting = existing;
         this.schema = new PublicSchema(this);
         this.env = new ApplicationEnvInstance(name);
         this.helpers = Object.create({
@@ -25,26 +36,206 @@ class DatabaseInstance {
             }
         });
 
-        if (privateApi.getNetworkResolver('serviceHost', name)) {
+        if (privateApi.getConfigData('serviceHost', name)) {
             //add event listener to db
             // clientService
             this.clientService = new clientService(name);
         }
     }
 
-    transaction = DatabaseInstanceTransaction;
-    table = DatabaseInstanceTable;
-    replicate = DatabaseInstanceReplicate;
-    jQl = DatabaseInstanceJQL;
-    createTbl = DatabaseInstanceCreateTable;
-    api = DatabaseInstanceApi;
+    replicate(definition) {
+        definition.current = this.name;
+        if (!definition.name) {
+            definition.name = this.name + "_copy";
+        }
+    };
+
+    /**
+     * 
+     * @param {*} URL
+     * @param {*} postData 
+     * @param {*} tbl 
+     * @param {*} method
+     * requestState can either be a STRING or OBJECT 
+     * { 
+     *   path:STRING,
+     *   tbl:String,
+     *   AUTH_TYPE:Boolean,
+     *   METHOD:STRING, data:ANY,
+     *   cache: boolen|{cacheId:string,ttl:number}
+     * }
+     */
+    api(path, data) {
+        var options = isobject(path) ? path : { path, data };
+        var httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
+        // no request Match found
+        if (httpRequestOptions.isErrorState) {
+            console.log('Invalid or missing api: ' + options.path);
+            return Promise.reject({ message: "There was an error please try again later" });
+        }
+
+        // set the postData
+        if (options.data) {
+            if (httpRequestOptions.type && isequal(httpRequestOptions.type.toLowerCase(), 'get')) {
+                httpRequestOptions.data = options.data;
+            } else if (options.data instanceof FormData) {
+                // append all data into formData
+                for (var prop in httpRequestOptions.data) {
+                    options.data.append(prop, httpRequestOptions.data[prop]);
+                }
+                httpRequestOptions.data = options.data;
+                httpRequestOptions.contentType = false;
+                httpRequestOptions.processData = false;
+            } else {
+                httpRequestOptions.data = options.data;
+            }
+        }
+
+        return privateApi.$http(httpRequestOptions).then(function (res) {
+            var ret = dbSuccessPromiseObject('api', "");
+            ret.result = res;
+            return ret;
+        }, function (err) {
+            return (err || { message: "There was an error please try again later" });
+        });
+    }
+
+    table(tableName, mode) {
+        //get the requested table
+        var tableInstance = TableInstance.factory.add(this.name, tableName, mode);
+        if (!tableInstance) {
+            errorBuilder(`There was an error, Table (${tableName}) was not found on this DB (${this.name}`);
+        }
+
+        return tableInstance;
+    }
+
+    /**
+     * 
+     * @param {*} tableName 
+     * @param {*} columns 
+     * @param {*} additionalConfig 
+     * @param {*} ignoreInstance 
+     * @returns 
+     */
+    createTbl(tableName, columns, additionalConfig, ignoreInstance) {
+        var response = { state: "create", result: null, errorCode: null, message: null };
+        var _opendedDBInstance = privateApi.getActiveDB(this.name);
+        if (tableName && _opendedDBInstance && !privateApi.tableExists(this.name, tableName)) {
+            // pardon wrong columns format
+            if (isobject(columns)) {
+                columns = [nColumn];
+            }
+
+            var curTime = +new Date;
+            var definition = Object.assign({
+                columns: columns || [{}],
+                DB_NAME: this.name,
+                TBL_NAME: tableName,
+                primaryKey: null,
+                foreignKey: null,
+                lastInsertId: 0,
+                allowedMode: { readwrite: 1, readonly: 1 },
+                proc: null,
+                index: {},
+                created: curTime,
+                alias: '',
+                lastModified: curTime,
+                _hash: GUID(),
+                _previousHash: ''
+            }, additionalConfig || {});
+
+            /**
+             * add table to resource
+             */
+            _opendedDBInstance.get(constants.RESOURCEMANAGER).addTableToResource(tableName, {
+                _hash: definition._hash,
+                lastModified: definition.lastModified,
+                created: definition.created
+            });
+            /**
+             * broadcast event
+             */
+            privateApi.storageFacade.broadcast(this.name, DB_EVENT_NAMES.CREATE_TABLE, [tableName, definition]);
+            privateApi.updateDB(this.name, tableName);
+            //set the result
+            if (!ignoreInstance) {
+                response.result = TableInstance.factory.add(this.name, tableName);
+            }
+            response.message = 'Table(' + tableName + ') created successfully';
+        } else {
+            response.message = (tableName) ? 'Table(' + tableName + ') already exist' : 'Table name is required';
+            response.errorCode = 402;
+        }
+
+        return response;
+    }
+
+    /**
+     * 
+     * @param {*} table 
+     * @param {*} mode 
+     * @returns 
+     */
+    transaction(table, mode) {
+        var dbName = this.name;
+        var err = [];
+        var isMultipleTable = false;
+        var tableJoinMapping = {};
+
+        /**
+         * 
+         * @param {*} table 
+         */
+        function validateTableSchema(table) {
+            var tableSchema = privateApi.getTable(dbName, table);
+            if (!tableSchema) {
+                err.push(`There was an error, Table (${table}) was not found on this DB (${dbName})`);
+                return;
+            }
+
+            if (!tableSchema.columns || !isequal(tableSchema.DB_NAME, dbName) || !isequal(tableSchema.TBL_NAME, table)) {
+                err.push(`Table (${table}) is not well configured, if you re the owner please delete the table and create again`);
+            }
+        }
+
+        if (table) {
+            //required table is an array
+            if (isarray(table)) {
+                for (var tbl of table) {
+                    tbl = tbl.split(' as ').map(trim);
+                    if (tbl.length > 1) {
+                        tableJoinMapping[tbl[1]] = tbl[0];
+                    } else {
+                        tableJoinMapping[tbl[0]] = tbl[0];
+                    }
+
+                    validateTableSchema(tbl[0], tbl);
+                }
+
+                //change mode to read
+                isMultipleTable = table.length > 1;
+            } else {
+                validateTableSchema(table);
+                tableJoinMapping[table] = table;
+            }
+
+            if (err.length) {
+                return errorBuilder(err.join("\n"));
+            }
+
+            return TableTransaction.createInstance(tableJoinMapping, mode, isMultipleTable, dbName);
+        }
+
+        return errorBuilder('Invalid Transaction request');
+    }
 
     storeProc() {
         return new StoreProcedure(this);
     }
 
     onUpdate(realtimeConfig) {
-        var socketEnabled = privateApi.getNetworkResolver('enableSocket', this.name);
+        var socketEnabled = privateApi.getConfigData('enableSocket', this.name);
         var _realtimeConfig = Object.assign({
             type: 'db',
             dbName: this.name,
@@ -59,7 +250,7 @@ class DatabaseInstance {
 
     getConnector(name, config) {
         var connector = Database.connectors.use(name);
-        return new connector(config);
+        return new connector(config, this._isExisting);
     }
 
     /**
@@ -105,15 +296,12 @@ class DatabaseInstance {
      * @param {*} localOnly 
      */
     drop(flag, db, localOnly) {
-        var dbName = this.name;
-        return new DBPromise(function (resolve, reject) {
-            if (flag) {
-                var dbResponse = privateApi.removeDB(db || dbName, localOnly);
-                (isequal(dbResponse.code, 'error') ? reject : resolve)(dbResponse);
-            } else {
-                reject({ message: "Unable to drop DB, either invalid flag or no priviledge granted!!", errorCode: 401 });
-            }
-        });
+        var response = { message: "Unable to drop DB, either invalid flag or no priviledge granted", errorCode: 401 };
+        if (flag) {
+            response = privateApi.removeDB(db || this.name, localOnly);
+        }
+
+        return response;
     };
 
     /**
@@ -179,7 +367,7 @@ class DatabaseInstance {
              * @param {*} res 
              */
             var renameClient = (res) => {
-                privateApi.storageFacade.broadcast(dbName, DB_EVENT_NAMES.RENAME_DATABASE, [dbName, newName, () =>{
+                privateApi.storageFacade.broadcast(dbName, DB_EVENT_NAMES.RENAME_DATABASE, [dbName, newName, () => {
                     // set the new name 
                     this.name = newName;
                     privateApi.databaseContainer.rename(dbName, newName);
@@ -187,7 +375,7 @@ class DatabaseInstance {
                     resolve(res);
                 }]);
             };
-    
+
             var resourceInstance = privateApi.getActiveDB(dbName).get(constants.RESOURCEMANAGER);
             if (isequal(dbName, newName)) {
                 failed({ message: newName + ' cannot be same as ' + dbName });
@@ -201,7 +389,7 @@ class DatabaseInstance {
                     renameClient(dbSuccessPromiseObject('rename', "application renamed successfully"));
                 }
             }
-    
+
             function failed(err) {
                 reject(dbErrorPromiseObject(err.message || 'Unabled to rename application, please try again'));
             }
@@ -219,8 +407,8 @@ class DatabaseInstance {
         var type = type || 'csv';
         var exp = jExport.handlers[type](title, table == 'all');
         var name = this.name;
-    
-        function extractTableSchema(tableName){
+
+        function extractTableSchema(tableName) {
             var tableSchema = privateApi.getTable(name, tableName);
             if (!tableSchema) return false;
             var tableData = privateApi.getTableData(name, tableName);
@@ -232,32 +420,32 @@ class DatabaseInstance {
                 //set label
                 exp.put(tableName, Object.keys((tableSchema.columns[0] || {})), tableData);
             }
-    
+
             return true;
         }
-    
+
         return ({
             initialize: () => {
-               var notFound = false;
+                var notFound = false;
                 // export all table schematics and data
-                if (table =='all') {
-                    var tableNames = privateApi.getDbTablesNames(name);
-                    for(var tableName of tableNames) {
-                        if(!extractTableSchema(tableName)){
+                if (table == 'all') {
+                    var tableNames = privateApi.getDBTableNames(name);
+                    for (var tableName of tableNames) {
+                        if (!extractTableSchema(tableName)) {
                             notFound = true;
-                            console.log('Failed to extract '+ tableName + ', schema configuration not found');
+                            console.log('Failed to extract ' + tableName + ', schema configuration not found');
                             break;
                         }
                     }
                 } else {
                     notFound = !extractTableSchema(table);
                 }
-    
+
                 //Parse the data of its not an OBJECT
                 if (notFound) {
                     return dbErrorPromiseObject("unable to generate export, empty or invalid table provided");
                 }
-    
+
                 //close the exporter
                 return exp.close();
             }
@@ -275,30 +463,21 @@ class DatabaseInstance {
         var createTable = false;
         var db = this;
         //check if handler
-        handler = Object.assign({
-            logService: function (msg) {
-                errorBuilder(msg)
-            },
-            onSelect: function () { },
-            onSuccess: function () { },
-            onError: function () { }
-        }, handler || {});
-    
-        function processJQL(data) {
+        function processJQL(data, resolve) {
             var total = data.length;
             var start = 0;
             var result = {
                 messages: []
             };
-    
+
             function process() {
                 if (isequal(total, start)) {
-                    return handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
+                    return resolve(dbSuccessPromiseObject('import', "Completed without errors"));
                 }
-    
+
                 var query = data[start];
                 start++;
-    
+
                 db.jQl(query).then(function (ret) {
                     handler.logService(ret.result.message);
                     process();
@@ -308,41 +487,152 @@ class DatabaseInstance {
                         process();
                     });
             }
-            
+
             process();
         }
-    
-        /**
-         * import Handler
-         */
-        var coreImportHandler = {
-            onSuccess: function (jdbSchemaData) {
-                handler.logService('Writing DB schemas');
-                // start JQL imortation
-                if (typeof jdbSchemaData == 'string') {
-                    return processJQL(jdbSchemaData)
-                }
-    
-                handler.logService('SchemaData:' + JSON.stringify(jdbSchemaData, null, 3));
-                var schemaProcess = new CoreSchemaProcessService(db);
-                schemaProcess.process(jdbSchemaData, function () {
-                    schemaProcess.processCrud(() => {
-                        handler.onSuccess(dbSuccessPromiseObject('import', "Completed without errors"));
-                    })
-                });
-            },
-    
-            onError: function (err) {
-                handler.logService(err);
-                handler.onError(dbErrorPromiseObject("Completed with errors"));
+
+        return new Promise((resolve, reject) => {
+            handler = Object.assign({
+                onSuccess: function (jdbSchemaData) {
+                    handler.logService('Writing DB schemas');
+                    // start JQL imortation
+                    if (typeof jdbSchemaData == 'string')
+                        return processJQL(jdbSchemaData, resolve);
+
+                    handler.logService('SchemaData:' + JSON.stringify(jdbSchemaData, null, 3));
+                    var schemaProcess = new CoreSchemaProcessService(db);
+                    // process the schemaData 
+                    // when insert data mode
+                    if (Array.isArray(jdbSchemaData) && table && !isSchema) {
+                        jdbSchemaData = {
+                            [table]: {
+                                type: 'crud',
+                                transactions: [{
+                                    type: 'insert',
+                                    data: jdbSchemaData
+                                }]
+                            }
+                        };
+                    }
+
+                    schemaProcess.process(jdbSchemaData, function () {
+                        schemaProcess.processCrud(logs => {
+                            handler.logService('Crud Logs:');
+                            while (logs.length) {
+                                var log = logs.shift();
+                                handler.logService(JSON.stringify(log, null, 3));
+                            }
+
+                            resolve(dbSuccessPromiseObject('import', "Completed without errors"));
+                        })
+                    });
+                },
+
+                onError: function (err) {
+                    handler.logService(err);
+                    reject(dbErrorPromiseObject("Completed with errors"));
+                },
+                unSelect: noFileSelected => {
+                    if (noFileSelected)
+                        reject(dbErrorPromiseObject('No file selected'));
+                },
+                logService: function (msg) {
+                    errorBuilder(msg)
+                },
+                onSelect: function () { },
+            }, handler || {});
+
+            return AutoSelectFile.start(handler);
+        });
+    }
+
+    jQl(tasks, handler, params) {
+        if (handler)
+            console.warn('Support for handler is deprecated and will be removed in next release.');
+
+        handler = handler || {};
+        return new Promise((resolve, reject) => {
+            handler.onSuccess = handler.onSuccess || resolve;
+            handler.onError = handler.onError || reject;
+            /**
+             * convert to tasks to allow
+             */
+            if (Array.isArray(tasks)) {
+                tasks = tasks.filter(task => !!task);
+                startMultipleTask(this);
+            } else {
+                performTask(tasks, handler, this);
             }
-        };
-    
-        if (handler.onselect) {
-            coreImportHandler.onselect = handler.onselect;
+        });
+
+        /**
+         * @param {*} taskToPerform 
+         * @param {*} taskPerformerHandler 
+         * @param {*} context 
+         * @param {*} response 
+         */
+        function performTask(taskToPerform, taskPerformerHandler, context, response) {
+            var task = QueryBuilder.queryParser(taskToPerform, params, response);
+            var taskType = task[0].toLowerCase();
+            var taskPerformerObj = Database.plugins.get(taskType);
+
+            /**
+             * pardon failed handler definition
+             */
+
+            if (task && taskPerformerObj) {
+                if (taskPerformerObj.disabled) {
+                    taskPerformerHandler.error(dbErrorPromiseObject("command is disabled, to use command please enable it."));
+                } else if (taskPerformerObj.requiresParam && taskType.length < 2) {
+                    taskPerformerHandler.error(dbErrorPromiseObject("command requires parameters but got none,\n type help -[command]"));
+                } else {
+                    // map the query to the mapper object
+                    if (taskPerformerObj.map) {
+                        task = Object.keys(taskPerformerObj.map)
+                            .reduce((accum, key) => (accum[key] = task[taskPerformerObj.map[key]], accum), {});
+                    }
+
+                    try {
+                        taskPerformerObj.fn(task, taskPerformerHandler)(context);
+                    } catch (e) {
+                        taskPerformerHandler.onError(e);
+                    }
+                }
+            } else {
+                taskPerformerHandler.onError(dbErrorPromiseObject("Invalid command passed, use -help for help"));
+            }
         }
-    
-        return AutoSelectFile.start(coreImportHandler);
+        /**
+         * 
+         * @param {*} context 
+         */
+        function startMultipleTask(context) {
+            var index = 0;
+            var taskPerformerHandler = Object({
+                onSuccess: next(1),
+                onError: next(0)
+            });
+            var responses = [];
+
+            function next(pos) {
+                return function (res) {
+                    index++;
+                    if (!pos) {
+                        responses.length = 0;
+                        handler.onError(res);
+                    } else {
+                        responses.push(res);
+                        if (tasks.length > index) {
+                            performTask(tasks[index], taskPerformerHandler, context, res);
+                        } else {
+                            handler.onSuccess(responses);
+                        }
+                    }
+                }
+            }
+
+            performTask(tasks[index], taskPerformerHandler, context);
+        }
     }
 }
 

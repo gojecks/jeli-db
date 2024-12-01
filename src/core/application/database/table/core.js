@@ -16,7 +16,7 @@ class TableInstance {
          */
         add: function(dbName, tableName) {
             var cName = this.getName(dbName, tableName);
-            if (!TableInstance.tableInstances.has(cName)) {
+            if (!TableInstance.tableInstances.has(cName) && privateApi.tableExists(dbName, tableName)) {
                 TableInstance.tableInstances.set(cName, new TableInstance(dbName, tableName));
             }
 

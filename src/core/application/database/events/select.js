@@ -4,38 +4,60 @@
  * @param {*} timing 
  */
 class SelectQueryEvent {
-    constructor(records, timing) {
+    constructor(records, pagination, timing) {
         this.state = "select";
         this.timing = timing;
+        
         this.getResult = function () {
+            if (!Array.isArray(records)) return records;
             return records.splice(0, records.length);
         };
 
-        this.first = function () {
-            return records[0];
+        this.first = function (prop) {
+            var record = (!Array.isArray(records)) ? records : records[0];
+            return ((record && prop) ? record[prop] : record);
         };
 
-        this.last = function () {
-            return records[records.length - 1];
+        this.last = function (prop) {
+            var record = (!Array.isArray(records)) ? records : records[records.length - 1];
+            return ((record && prop) ? record[prop] : record);
         }
 
         this.limit = function (start, end) {
+            if (!Array.isArray(records)) return records;
             return records.slice(start, end);
         };
 
         this.jDBNumRows = function () {
-            return records.length;
+            if (Array.isArray(records)) return records.length;
+            return Object.values(records)[0];
         };
 
         this.getRow = function (row) {
             return records[row];
         };
+
+        Object.defineProperties(this, {
+            pagination: {
+                get: () => {
+                    return Object.create({
+                        totalRecords: records.length,
+                        previous: () => {
+
+                        },
+                        next: () => {
+
+                        }
+                    });
+                }
+            }
+        });
     }
 
     openCursor(fn) {
         var start = 0;
         var total = this.jDBNumRows();
-        var cursorEvent = ({
+        var cursorEvent = Object.create({
             result: {
                 value: [],
             },
@@ -65,5 +87,18 @@ class SelectQueryEvent {
     
         //initialize the cursor event
         cursorEvent.continue();
+    }
+}
+
+class SelectPagination{
+    constructor(context, pagination, totalRecords){
+        this.totalRecords = totalRecords;
+        this.next = function(){
+
+        };
+
+        this.previous = function(){
+
+        };
     }
 }

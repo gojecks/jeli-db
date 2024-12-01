@@ -2,7 +2,7 @@ class privateApi {
     static accessStorage = 'jEliAccessToken';
     static stack = [];
     static _activeDatabase = null;
-    static databaseContainer = new AbstractContainer();
+    static databaseContainer = new Map();
     static storeMapping = {
         delRecordName: "_d_",
         resourceName: "_r_",
@@ -44,15 +44,18 @@ class privateApi {
         },
         broadcast: (db, eventName, args) => {
             privateApi.getStorage(db).broadcast(eventName, args);
+        },
+        drop: name => {
+            privateApi.getStorage(name).clear();
         }
     };
 
-    static get constants(){
+    static get constants() {
         return constants
     }
 
     static get DB_EVENT_NAMES() {
-        return  DB_EVENT_NAMES
+        return DB_EVENT_NAMES
     }
 
     /**
@@ -62,7 +65,7 @@ class privateApi {
     static setActiveDB(name) {
         // open the DB
         if (!privateApi.databaseContainer.has(name)) {
-            privateApi.databaseContainer.createInstance(name);
+            privateApi.databaseContainer.set(name, new AbstractContainer());
             privateApi._activeDatabase = name;
         } else if (!isequal(privateApi._activeDatabase, name)) {
             privateApi._activeDatabase = name;
@@ -71,12 +74,19 @@ class privateApi {
         return this;
     };
 
-   static getStorage(db) {
+    static getStorage(db) {
         return privateApi.databaseContainer.get(db || privateApi._activeDatabase).get(constants.STORAGE);
     }
 
     static tableExists(dbName, tableName) {
         return privateApi.getStorage(dbName).isExists(tableName);
+    }
+
+    static renameDatabaseContainer(oldName, newName) {
+        if (privateApi.databaseContainer.has(oldName)) {
+            privateApi.databaseContainer.set(newName, privateApi.databaseContainer.get(oldName));
+            privateApi.databaseContainer.delete(oldName)
+        }
     }
 
     /**
@@ -174,9 +184,17 @@ class privateApi {
     /**
      * 
      * @param {*} db 
+     * @param {*} removeIgnoredTables 
+     * @returns 
      */
-    static getDbTablesNames(db) {
-        return Object.keys(privateApi.get(db || privateApi._activeDatabase, 'tables'));
+    static getDBTableNames(db, removeIgnoredTables) {
+        var tableNames = Object.keys(privateApi.get(db || privateApi._activeDatabase, 'tables'));
+        if (removeIgnoredTables) {
+            var ignoreSync = this.getConfigData('ignoreSync', db);
+            if (Array.isArray(ignoreSync))
+                tableNames = tableNames.filter(tbl => !ignoreSync.includes(tbl));
+        }
+        return tableNames;
     };
 
 
@@ -198,19 +216,16 @@ class privateApi {
      * @param {*} name 
      */
     static isOpen(name) {
-        var _openedDB = privateApi.databaseContainer.get(name);
-        if (_openedDB.opened) {
+        var openedDB = privateApi.databaseContainer.get(name);
+        if (openedDB.opened) {
             return true
         }
 
-        if (_openedDB.closed) {
-            _openedDB
-                .open()
-                .incrementInstance();
-            return;
+        if (openedDB.closed) {
+            return !openedDB.open().incrementInstance();
         }
 
-        _openedDB
+        openedDB
             .open()
             .set(constants.DATATYPES, new DataTypeHandler())
             .set(constants.RESOLVERS, new openedDBResolvers())
@@ -218,7 +233,7 @@ class privateApi {
             .set(constants.RECORDRESOLVERS, new CoreDataResolver(name));
 
 
-        _openedDB = null;
+        openedDB = null;
     };
 
     /**
@@ -228,9 +243,7 @@ class privateApi {
      */
     static closeDB(name, removeFromStorage) {
         var openedDb = privateApi.databaseContainer.get(name);
-        if (!openedDb) {
-            return;
-        }
+        if (!openedDb) return;
 
         openedDb.decrementInstance();
         if (!openedDb.instance) {
@@ -240,8 +253,8 @@ class privateApi {
                     .get(constants.RESOURCEMANAGER)
                     .removeResource();
                 // destroy the DB instance
-                privateApi.storageFacade.remove(name);
-                privateApi.databaseContainer.destroy(name);
+                privateApi.storageFacade.drop(name);
+                privateApi.databaseContainer.delete(name);
             }
         }
 
@@ -260,7 +273,7 @@ class privateApi {
      * @param {*} name 
      * @param {*} db 
      */
-    static getNetworkResolver(prop, db) {
+    static getConfigData(prop, db) {
         return privateApi.getActiveDB(db).get(constants.RESOLVERS).getResolvers(prop) || '';
     };
 
@@ -305,7 +318,7 @@ class privateApi {
                 });
             } else {
                 databaseInstance.get(constants.RECORDRESOLVERS).destroy();
-                privateApi.databaseContainer.destroy(db);
+                privateApi.databaseContainer.delete(db);
             }
 
             databaseInstance = _resource = null;
@@ -363,38 +376,71 @@ class privateApi {
         var canUpdate = (db && tbl);
         var tblData = privateApi.getTableData(db, tbl);
         var exisitingRefs = tblData.map(item => item._ref);
-        var types = ['insert','update','delete'].filter(key => !!records[key]);
-        var _ret = { update: [], "delete": [], insert: [] };
-        var taskHandler = Object.create({
-            update: function () {
-                return records.update.reduce(function (accum, item) {
-                    var idx = exisitingRefs.indexOf(item._ref);
-                    if (idx > -1) {
-                        Object.assign(tblData[idx]._data, item._data);
-                        _ret.update.push(item._data);
-                        accum.push(item);
-                    }
+        var types = ['insert', 'update', 'delete', 'insertReplace'].filter(key => !!records[key]);
+        var _ret = {
+            update: { data: [], refs: [] },
+            delete: { data: [], refs: [] },
+            insert: { data: [], refs: [] },
+            insertReplace: { data: [], refs: [] }
+        };
 
-                    return accum;
-                }, []);
-            },
-            delete: function () {
-                tblData = tblData.filter(function (item) {
-                    return !inarray(item._ref, records.delete);
+        /**
+         * 
+         * @param {*} accum 
+         * @param {*} item 
+         * @returns 
+         */
+        var pushUpdate = (accum, item) => {
+            var idx = exisitingRefs.indexOf(item._ref);
+            if (idx > -1) {
+                Object.assign(tblData[idx]._data, item._data);
+                _ret.update.data.push(item._data);
+                _ret.update.refs.push(item._ref)
+                accum.push(item);
+            }
+
+            return accum;
+        };
+
+        /**
+         * 
+         * @param {*} accum 
+         * @param {*} item 
+         * @returns 
+         */
+        var pushInsert = (accum, item) => {
+            if (item._ref && !exisitingRefs.includes(item._ref)) {
+                tblData.push(item);
+                accum.push(item);
+            }
+            _ret.insert.data.push(item._data || item);
+            _ret.insert.refs.push(item._ref || null);
+            return accum;
+        };
+
+        var taskHandler = Object.create({
+            update: () => records.update.reduce(pushUpdate, []),
+            delete: () => {
+                records.delete.forEach(key => {
+                    var index = exisitingRefs.indexOf(key);
+                    if (index > -1) {
+                        exisitingRefs.splice(index, 1);
+                        var item = tblData.splice(index, 1);
+                        _ret['delete'].data.push(item[0]);
+                    }
                 });
-                _ret['delete'] = records.delete;
+                _ret['delete'].refs = records.delete
                 return records.delete;
             },
-            insert: function () {
-                return records.insert.reduce(function (accum, item) {
-                    if (item._ref && !exisitingRefs.includes(item._ref)) {
-                        tblData.push(item);
-                        accum.push(item);
-                    }
-                    _ret.insert.push(item._data || item);
-                    return accum;
-                }, []);
-            }
+            insert: () => records.insert.reduce(pushInsert, []),
+            insertReplace: () => records.insertReplace.reduce((accum, item) => {
+                if (exisitingRefs.includes(item._ref))
+                    accum = pushUpdate(accum, item);
+                else
+                    accum = pushInsert(accum, item);
+
+                return accum;
+            }, [])
         });
 
         return new Promise((resolve, reject) => {
@@ -405,7 +451,7 @@ class privateApi {
                         privateApi.storageFacade.broadcast(db, type, [tbl, eventValue, false]);
                     }
                 }
-            } 
+            }
 
             resolve(copy(_ret, true));
         });
@@ -426,12 +472,8 @@ class privateApi {
             var cToken = $cookie('X-CSRF-TOKEN');
             var tbl = reqOptions.tbl || requestState.tbl;
             var cache = reqOptions.cache || requestState.CACHE || null;
-            if (isarray(tbl)) {
-                tbl = JSON.stringify(tbl);
-            }
-            /**
-             * configure request options
-             */
+            if (isarray(tbl)) tbl = JSON.stringify(tbl);
+            // configure request options
             options = Object({
                 url: (reqOptions.URL || networkResolver.serviceHost || '') + requestState.URL,
                 __appName__: dbName,
@@ -449,13 +491,11 @@ class privateApi {
              * set X-CSRF-TOKEN
              * only when defined
              */
-            if (cToken) {
+            if (cToken)
                 options.headers['X-CSRF-TOKEN'] = cToken;
-            }
             //initialize our network interceptor
-            if (networkResolver.interceptor) {
+            if (networkResolver.interceptor)
                 networkResolver.interceptor(options, requestState);
-            }
         } else {
             options.isErrorState = true;
         }
@@ -591,6 +631,19 @@ class privateApi {
 
     /**
      * 
+     * @param {*} table 
+     * @param {*} type 
+     * @param {*} refs 
+     */
+    static rollBack(table, type, refs) {
+        if (table && type && refs) {
+            var resolvers = privateApi.getActiveDB(dbName).get(constants.RECORDRESOLVERS);
+            resolvers.rollBack(table, type, refs);
+        }
+    }
+
+    /**
+     * 
      * @param {*} appName 
      * @param {*} tbl 
      * @param {*} type 
@@ -598,12 +651,12 @@ class privateApi {
      * @returns 
      */
     static autoSync(appName, tbl, type, data) {
-        var ignoreSync = privateApi.getNetworkResolver('ignoreSync', appName);
+        var ignoreSync = privateApi.getConfigData('ignoreSync', appName);
         var handleResult = res => {
             recordResolver.handleFailedRecords(tbl, (res && res.failed));
             return res;
         };
-        
+
         if (!inarray(tbl, (ignoreSync || []))) {
             var recordResolver = privateApi.getActiveDB(appName).get(constants.RECORDRESOLVERS);
             var haveDataToProcess = true;
@@ -620,7 +673,7 @@ class privateApi {
                 var requestParams = privateApi.buildHttpRequestOptions(appName, { tbl, path: '/database/push' });
                 requestParams.data = data;
                 return privateApi.processRequest(requestParams, tbl, appName, !!type)
-                .then(handleResult, handleResult);
+                    .then(handleResult, handleResult);
             }
         }
 
@@ -631,7 +684,7 @@ class privateApi {
      * 
      * @param {*} options 
      */
-    static $http = (function() {
+    static $http = (function () {
         var interceptor = Object.create({
             resolveInterceptor: function (type, options) {
                 if (_globalInterceptors.has(type)) {
@@ -649,7 +702,7 @@ class privateApi {
             // one time  check for user custom ajax
             if (!checkedUserDefined) {
                 checkedUserDefined = true;
-                userDefinedAjax = privateApi.getNetworkResolver('$ajax', options.__appName__);
+                userDefinedAjax = privateApi.getConfigData('$ajax', options.__appName__);
             }
 
             // use userDefined Ajax if configured

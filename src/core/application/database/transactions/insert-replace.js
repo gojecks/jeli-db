@@ -33,7 +33,7 @@ function TransactionInsertReplace(records, updateRef) {
             // update process
             var _ref = tableData[recordRefIndex]._ref;
             this.performTableAction(tableInfo, record, 'ON_UPDATE');
-            tableData[recordRefIndex]._data = extend(true, tableData[recordRefIndex]._data, record);
+            tableData[recordRefIndex]._data = QueryTaskPerformer.extend(true, tableData[recordRefIndex]._data, record);
             rowsToUpdate.push({
                 _ref,
                 _data: record
@@ -50,17 +50,20 @@ function TransactionInsertReplace(records, updateRef) {
     }
 
     function publishAndCleanUp() {
-        privateApi.storageFacade.broadcast(
-            tableInfo.DB_NAME, 
-            DB_EVENT_NAMES.TRANSACTION_UPDATE, 
-            [tableName, rowsToUpdate.slice()]
-        );
-
-        privateApi.storageFacade.broadcast(
-            tableInfo.DB_NAME, 
-            DB_EVENT_NAMES.TRANSACTION_INSERT, 
-            [tableName, rowsToInsert.slice(), true]
-        );
+        if (rowsToUpdate.length) {
+            privateApi.storageFacade.broadcast(
+                tableInfo.DB_NAME, 
+                DB_EVENT_NAMES.TRANSACTION_UPDATE, 
+                [tableName, rowsToUpdate.slice()]
+            );
+        }
+        if (rowsToInsert.length) {
+            privateApi.storageFacade.broadcast(
+                tableInfo.DB_NAME, 
+                DB_EVENT_NAMES.TRANSACTION_INSERT, 
+                [tableName, rowsToInsert.slice(), true]
+            );
+        }
 
         //clear processed Data
         tableInfo = columns = null;
@@ -93,7 +96,7 @@ function TransactionInsertReplace(records, updateRef) {
             state: "insertReplace",
             table: tableName,
             timing: performance.now() - time,
-            message: "Inserted " + totalIns + " and updated " + totalUpd + ' records'
+            message: `Inserted ${totalIns} and updated ${ totalUpd } records`
         });
 
     }]);

@@ -30,6 +30,8 @@ class StorageAdapter {
                 store(name);
             }
         }
+
+        return this;
     }
 
     get(adapterName) {

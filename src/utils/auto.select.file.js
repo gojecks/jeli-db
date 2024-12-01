@@ -15,7 +15,6 @@ class AutoSelectFile {
         }
     }
 
-
     /**
      * 
      * @param {*} content 
@@ -25,7 +24,7 @@ class AutoSelectFile {
         var fileType = handlers.selectedFile.name.split('.')[1];
         var importFormatFn = JImportHelper[fileType];
         if (fileType && importFormatFn) {
-            handlers.onSuccess(importFormatFn(content));
+            handlers.onSuccess(importFormatFn(content), fileType);
         } else {
             handlers.onError("Unsupported File Format");
         }
@@ -33,9 +32,11 @@ class AutoSelectFile {
 
     static start(handlers) {
         handlers = Object.assign({
-            onselect: function() {},
-            onSuccess: function() {},
-            onError: function() {},
+            onselect: noop,
+            unselect: noop,
+            onSuccess: noop,
+            onError: noop,
+            logService: noop,
             onload: function loadHandler(event) {
                 AutoSelectFile.processData(event.target.result, handlers);
             }
@@ -59,6 +60,8 @@ class AutoSelectFile {
         window.onfocus = function() {
             setTimeout(function() {
                 input.removeEventListener('change', eventBinder);
+                input.remove();
+                handlers.unselect(!handlers.selectedFile);
             }, 1000);
         };
         input.click();

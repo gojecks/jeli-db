@@ -163,8 +163,10 @@ function DefaultStorage(config, storageUtils, callback) {
          * we only set data property if its a new table and not exists
          */
         if (!_privateStore.hasOwnProperty(tableName)) {
+            var data  = definition.data || [];
+            delete definition.data;
             publicApi.setItem(tableName, definition);
-            publicApi.setItem(tableName + ":data", []);
+            publicApi.setItem(tableName + ':data', data.splice(0));
         } else {
             /**
              * extend the existing with the new
@@ -177,7 +179,7 @@ function DefaultStorage(config, storageUtils, callback) {
         var jsonValue = JSON.stringify(value);
         var filesizeCheck = Math.floor((((jsonValue.length) * 2) / 1024).toFixed(2));
         if (filesizeCheck >= (1024 * 10)) {
-            privateApi.getNetworkResolver('logService')("_privateStore_ERROR:File-Size is too large :" + (filesizeCheck / 1024) + " MB");
+            privateApi.getConfigData('logService')("_privateStore_ERROR:File-Size is too large :" + (filesizeCheck / 1024) + " MB");
             return;
         }
 

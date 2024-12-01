@@ -3,6 +3,10 @@
 
  Database.plugins.jQl('truncate', {
      help: ['-truncate -[tbl_name] -flag[[yes] : [no]]'],
+     map: {
+        table: 1,
+        flag: 2
+     },
      requiresParam: true,
      fn: truncatePluginFn
  });
@@ -13,20 +17,7 @@
      return function(db) {
          //@Function Truncate
          //Empties the required table
-         if (query.length > 2) {
-             db
-                 .table(query[1])
-                 .onSuccess(function(trun) {
-                     var flag = query[2],
-                         state = trun.result.truncate(flag);
-                     if (state.status) {
-                         handler.onSuccess(state);
-                     } else {
-                         handler.onError(state);
-                     }
-                 })
-                 .onError(handler.onError);
-         }
-
+        var state =  db.table(query.table).truncate(query.flag);
+        handler[state.status ? 'onSuccess' : 'onError'](state);
      };
  }

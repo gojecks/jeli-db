@@ -62,19 +62,32 @@ function transactionInsert(data, hardInsert, tableName) {
         var dataExists = false;
         for (var index in tableInfo.index) {
             var tableColumnIndex = tableInfo.index[index];
+            // check the the index already exists
+            var groupBy = tableColumnIndex.groupBy;
+            var indexValue = pData[index];
+            ref = groupBy ? pData[groupBy] : ref;
             if (tableColumnIndex.indexes) {
-                // check the the index already exists
-                if (tableColumnIndex.indexes[pData[index]]) {
+                if (tableColumnIndex.indexes[indexValue]) {
                     if (tableColumnIndex.unique) {
-                        dataExists = true;
-                        _skipped.push(tableColumnIndex.indexes[pData[index]]);
+                        dataExists = (groupBy ? tableColumnIndex.indexes[indexValue].includes(ref) : true);
+                        if (!dataExists) {
+                            if (groupBy){
+                                if (!Array.isArray(tableColumnIndex.indexes[indexValue]))
+                                    tableColumnIndex.indexes[indexValue] = [];
+                                tableColumnIndex.indexes[indexValue].push(ref);
+                            } else {
+                                tableColumnIndex.indexes[indexValue] = ref;
+                            }
+                        }
+                        _skipped.push(ref);
                     }
                 } else {
-                    tableColumnIndex.indexes[pData[index]] = ref;
+                    tableColumnIndex.indexes[indexValue] = (groupBy ? [ref] : ref);
                 }
             } else {
+                // first time creating indexes records
                 tableColumnIndex.indexes = {};
-                tableColumnIndex.indexes[pData[index]] = ref;
+                tableColumnIndex.indexes[indexValue] = (groupBy ? [ref] : ref);
             }
         }
 
@@ -148,23 +161,23 @@ function transactionInsert(data, hardInsert, tableName) {
      */
     function updateTable(totalRecords) {
         var totalRecords = processedData.length;
+        var lastInsertId = getLastInsertId();
         if (totalRecords) {
             privateApi.storageFacade.broadcast(
                 tableInfo.DB_NAME,
                 DB_EVENT_NAMES.TRANSACTION_INSERT, 
-                [tableInfo.TBL_NAME, processedData, true]
+                [tableInfo.TBL_NAME, processedData.splice(0), true]
             );
         }
 
         //return success after push
-        var lastInsertId = getLastInsertId();
-        processedData.length = 0;
-        refs.length = 0;
         columns = null;
         defaultValueGenerator.cleanup();
         return new InsertQueryEvent(
             tableInfo.TBL_NAME,
-            lastInsertId, {
+            lastInsertId,
+            refs.splice(0),
+            {
                 timing: performance.now() - time,
                 message: totalRecords + " record(s) inserted successfully, skipped " + _skipped.length + " existing record(s)",
                 skippedRecords: _skipped.slice(0)
@@ -181,9 +194,8 @@ function transactionInsert(data, hardInsert, tableName) {
         }
 
         // update offline
-        if (!disableOfflineCache) {
+        if (!disableOfflineCache)
             this.updateOfflineCache('insert', refs, tableInfo.TBL_NAME);
-        }
 
         //push records to our resolver
         return updateTable();

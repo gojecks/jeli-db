@@ -88,33 +88,31 @@ class QueryLimitMethods {
      */
     static process(definition, cdata) {
         var staticMethods = {
-            groupBy: (cdata, definition) => QueryLimitMethods.groupByTask(cdata, definition),
-            groupByStrict: (cdata, definition) => QueryLimitMethods.groupByTask(cdata, definition, true),
-            orderBy: (cdata, _, propertyName) => {
-                var checkParam = (_[propertyName] || 'ASC').split(':')
+            groupBy: (cdata) => QueryLimitMethods.groupByTask(cdata, definition),
+            groupByStrict: (cdata) => QueryLimitMethods.groupByTask(cdata, definition, true),
+            orderBy: (cdata) => {
+                var checkParam = (definition['orderBy'] || 'ASC').split(':')
                 var order = checkParam.pop();
                 /**
                  * sort option accepts multiple property
                  * split the properties into array
                  * as method params
                  */
-                if (checkParam.length) {
-                    cdata = _querySortPerformer.call(cdata, checkParam[0].split(','));
-                }
+                if (checkParam.length)
+                    cdata = QueryTaskPerformer.sort(cdata, checkParam[0].split(','));
                 /**
                  * set reverse options if defined
                  * only when been used as filter options in expressions
                  */
-                if (order === 'DESC') {
+                if (order === 'DESC')
                     cdata.reverse();
-                }
 
                 return cdata;
             },
-            limit: (cdata, definition) => ((!definition.groupBy && !definition.groupByStrict) ? QueryLimitMethods.limitTask(cdata, definition) : cdata)
+            limit: (cdata) => ((!definition.groupBy && !definition.groupByStrict) ? QueryLimitMethods.limitTask(cdata, definition) : cdata)
         };
 
-        cdata = Object.keys(staticMethods).reduce((accum, key) => ((definition[key]) ? staticMethods[key](accum, definition, key) : accum), cdata);
+        cdata = Object.keys(staticMethods).reduce((accum, key) => ((definition[key]) ? staticMethods[key](accum) : accum), cdata);
         return copy(cdata, true);
     }
 }

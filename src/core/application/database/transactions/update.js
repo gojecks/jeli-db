@@ -6,33 +6,24 @@
  */
 function transactionUpdate(record, query, tableName) {
     tableName = tableName || this.rawTables[0];
-    var _this = this;
     var tableInfo = this.getTableInfo(tableName);
     var time = performance.now();
     var columns = tableInfo.columns[0];
     var fieldErrors = [];
     var validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var isObjectType = isobject(record);
     var refs = [];
-
-    /**
-     * 
-     * @param {*} cData 
-     */
-    function structureUpdateData(cData) {
-        // return setData when its an object
-        if (isstring(cData)) {
-            //convert String Data to Object
-            record = stringEqualToObject(cData);
-        } else if(!isObjectType) {
-            _this.setDBError('Unable to update Table(' + tableName + '), unaccepted dataType recieved');
-        }
-    }
-
-    structureUpdateData();
     var tableData = this.getTableData(tableName);
     var updated = 0;
     var rowsToUpdate = [];
+
+    // return setData when its an object
+    if (isstring(record)) {
+        //convert String Data to Object
+        record = stringEqualToObject(record);
+    } else if(!isobject(record)) {
+        this.setDBError('Unable to update Table(' + tableName + '), unaccepted dataType recieved');
+    }
+
     /**
      * validate and update column with ON_UPDATE configuration
      */
@@ -40,55 +31,62 @@ function transactionUpdate(record, query, tableName) {
     validator(record, 0);
 
     /**
-     * 
+     * @param {*} record 
      * @param {*} data 
-     * @param {*} idx 
      */
-    function store(previous, idx) {
-        //set the current Value
-        tableData[idx]._data = extend(true, previous._data, record);
-        updated++;
-        /**
-         * store the ref to be updated
-         */
-        rowsToUpdate.push({
-            _ref: previous._ref,
-            _data: record
-        });
-        // update refs
-        refs.push(previous._ref);
+    function collectRecords(record, hasExpressions){
+        var keys = Object.keys(record);
+        return data => {
+            if (!hasExpressions) {
+                return record;
+            } else {
+                return keys.reduce((accum, key)=> {
+                    if (key == '$exp'){
+                        var obj = record[key];
+                        accum[obj.key] = data[obj.key];
+                    } else {
+                        accum[key] = record[key];
+                    }
+                    return accum;
+                }, {});
+            }
+        };
     }
 
-    this.executeState.push(["update", (disableOfflineCache) => {
+    this.executeState.push(['update', (disableOfflineCache) => {
         //Execute Function 
         //Kill Process if error was Found
-        if (this.hasError() || !record) {
+        if (this.hasError() || !record){
             throw new TransactionErrorEvent('update', this.getError(fieldErrors));
         }
 
-        queryPerformer(tableData, query, function(data, idx) {
-            store(data, idx);
+        var hasExpressions = record.hasOwnProperty('$exp');
+        var cRecords = collectRecords(record, hasExpressions);
+        QueryTaskPerformer.run(tableData, query, (previous, idx) => {
+            //set the current Value
+            tableData[idx]._data = QueryTaskPerformer.extend(true, previous._data, record);
+            updated++;
+            // store the ref to be updated
+            rowsToUpdate.push({
+                _ref: previous._ref,
+                _data: cRecords(previous._data)
+            });
+            // update refs
+            refs.push(previous._ref);
         });
+
         //push records to our resolver
-        if (!disableOfflineCache) {
-            this.updateOfflineCache('update', refs, tableName);
+        if (!disableOfflineCache){
+            this.updateOfflineCache('update', refs, tableName, record);
         }
 
-        /**
-         * broadcast our event
-         */
+        // broadcast our event
         privateApi.storageFacade.broadcast(tableInfo.DB_NAME, DB_EVENT_NAMES.TRANSACTION_UPDATE, [tableName, rowsToUpdate.slice()]);
-
         //empty the rows 
         rowsToUpdate.length = 0;
 
         //return success
-        return ({
-            state: "update",
-            table: tableName,
-            timing: performance.now() - time,
-            message: updated + " row(s) updated."
-        });
+        return new UpdateQueryEvent(tableName, updated, time, refs.splice(0));
     }]);
 
 

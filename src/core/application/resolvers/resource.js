@@ -2,106 +2,110 @@
  * ResourceManager()
  * @param {*} name 
  */
-function ResourceManager(appName) {
-    this.appName = appName;
-    var _resource = privateApi.storageFacade.get(privateApi.storeMapping.resourceName, this.name) || {};
-    this.getResource = function() {
-        return _resource || privateApi.storageFacade.get(privateApi.storeMapping.resourceName, this.appName);
+class ResourceManager {
+    constructor(appName) {
+        this.appName = appName;
+        this._resource = privateApi.storageFacade.get(privateApi.storeMapping.resourceName, this.name) || {};
+    }
+
+    getResource() {
+        return this._resource || privateApi.storageFacade.get(privateApi.storeMapping.resourceName, this.appName);
     };
 
     /**
-     * 
-     * @param {*} resource 
+     *
+     * @param {*} resource
      */
-    this.setResource = function(resource, _name) {
-        _resource = resource || _resource;
+    setResource(resource, _name) {
+        this._resource = resource || this._resource;
         //set and save the resource
-        privateApi.storageFacade.set(_name || privateApi.storeMapping.resourceName, _resource, this.appName);
-    };
+        privateApi.storageFacade.set(_name || privateApi.storeMapping.resourceName, this._resource, this.appName);
+    }
 
-    this.$isExists = function() {
-        return !!_resource;
-    };
+    $isExists() {
+        return !!this._resource;
+    }
 
-    this.renameResource = function(newName) {
+    renameResource(newName) {
         var resource = this.getResource();
         resource.lastUpdated = +new Date;
         this.appName = newName;
         this.setResource(resource);
-    };
+    }
 
-    this.removeResource = function() {
-        _resource = null;
+    removeResource() {
+        this._resource = null;
         return privateApi.storageFacade.remove(privateApi.storeMapping.resourceName, this.appName);
-    };
+    }
 
-    this.getTableLastSyncDate = function(tbl) {
-        return _resource && _resource.resourceManager.hasOwnProperty(tbl) && _resource.resourceManager[tbl].lastSyncedDate;
-    };
+    getTableLastSyncDate(tbl) {
+        return this._resource && this._resource.resourceManager.hasOwnProperty(tbl) && this._resource.resourceManager[tbl].lastSyncedDate;
+    }
 
-    this.getDataBaseLastSyncDate = function() {
-        return _resource && _resource.lastSyncedDate;
-    };
+    getDataBaseLastSyncDate() {
+        return this._resource && this._resource.lastSyncedDate;
+    }
 
-    this.putTableResource = function(tbl, definition) {
-        _resource.resourceManager[tbl] = definition;
+    putTableResource(tbl, definition) {
+        this._resource.resourceManager[tbl] = definition;
         return this;
-    };
+    }
 
-    this.getTableNames = function() {
-        return _resource && _resource.resourceManager && Object.keys(_resource.resourceManager);
-    };
+    getTableNames() {
+        return this._resource && this._resource.resourceManager && Object.keys(this._resource.resourceManager);
+    }
 
-    this.addTableToResource = function(tableName, data) {
-        if (isarray(_resource.resourceManager) || !_resource.resourceManager) {
-            _resource.resourceManager = {};
+    addTableToResource = function (tableName, data) {
+        if (isarray(this._resource.resourceManager) || !this._resource.resourceManager) {
+            this._resource.resourceManager = {};
         }
-        _resource.resourceManager[tableName] = data;
+        this._resource.resourceManager[tableName] = data;
+    }
+
+    /**
+     *
+     * @param {*} tbl
+     */
+    removeTableFromResource(tbl) {
+        var resourceControl = this.getResource();
+        if (resourceControl && resourceControl.resourceManager.hasOwnProperty(tbl)) {
+            delete resourceControl.resourceManager[tbl];
+            this.setResource(resourceControl);
+        }
+    }
+    /**
+     *
+     * @param {*} oldName
+     * @param {*} newName
+     */
+    renameTableResource(oldName, newName) {
+        var resourceControl = this.getResource();
+        if (resourceControl && resourceControl.resourceManager.hasOwnProperty(oldName)) {
+            resourceControl.resourceManager[newName] = resourceControl.resourceManager[oldName];
+            delete resourceControl.resourceManager[oldName];
+            resourceControl.resourceManager[newName].lastUpdated = +new Date;
+            resourceControl.resourceManager[newName].lastSyncedDate = null;
+            this.setResource(resourceControl);
+        }
+    }
+    getTableDifferences(resource) {
+        var tables = this.getTableNames();
+        if (!resource || !tables) {
+            return tables || [];
+        }
+
+        var resourceControl = this.getResource();
+        return tables.reduce(function (accum, tbl) {
+            if (resource.resourceManager && resource.resourceManager.hasOwnProperty(tbl)) {
+                if (resourceControl.resourceManager[tbl]._hash !== resource.resourceManager[tbl]._hash)
+                    accum.push(tbl);
+            } else {
+                accum.push(tbl);
+            }
+
+            return accum;
+        }, []);
     }
 }
-/**
- * 
- * @param {*} tbl 
- */
-ResourceManager.prototype.removeTableFromResource = function(tbl) {
-    var resourceControl = this.getResource();
-    if (resourceControl && resourceControl.resourceManager.hasOwnProperty(tbl)) {
-        delete resourceControl.resourceManager[tbl];
-        this.setResource(resourceControl);
-    }
-};
 
-/**
- * 
- * @param {*} oldName 
- * @param {*} newName 
- */
-ResourceManager.prototype.renameTableResource = function(oldName, newName) {
-    var resourceControl = this.getResource();
-    if (resourceControl && resourceControl.resourceManager.hasOwnProperty(oldName)) {
-        resourceControl.resourceManager[newName] = resourceControl.resourceManager[oldName];
-        delete resourceControl.resourceManager[oldName];
-        resourceControl.resourceManager[newName].lastUpdated = +new Date;
-        resourceControl.resourceManager[newName].lastSyncedDate = null;
-        this.setResource(resourceControl);
-    }
-};
 
-ResourceManager.prototype.getTableDifferences = function(resource) {
-    var tables = this.getTableNames();
-    if (!resource || !tables) {
-        return tables || [];
-    }
-
-    var resourceControl = this.getResource();
-    return tables.reduce(function(accum, tbl) {
-        if (resource.resourceManager && resource.resourceManager.hasOwnProperty(tbl)) {
-            if (resourceControl.resourceManager[tbl]._hash !== resource.resourceManager[tbl]._hash)
-                accum.push(tbl);
-        } else {
-            accum.push(tbl);
-        }
-
-        return accum;
-    }, []);
-};

@@ -19,65 +19,54 @@
  *  }
  * }
  */
-function CoreSchemaProcessService(core) {
-    var crudProcess = new SchemaCrudProcess(core);
+class CoreSchemaProcessService {
+    constructor(coreInstance) {
+        this.crudProcess = new SchemaCrudProcess(coreInstance);
+        this.coreInstance = coreInstance;
+    }
+
     /**
      * @param data
      * @param next
      */
-    this.process = function(data, next) {
+    process(data, next) {
         if (!isobject(data)) {
             throw new TypeError('JDBSchema Error: invalid schema dataType');
         }
 
-        var tables = Object.keys(data),
-            inc = -1;
+        var tables = Object.keys(data), inc = -1;
+        /**
+         * @param {*} config 
+         * @param {*} table 
+         */
+        var pushCrudTask = (config, table) => {
+            this.crudProcess.addTask(table, config);
+            processNext();
+        };
 
-        function startTableProcess() {
-            var tableName = tables[inc],
-                config = data[tableName];
-
-            /**
-             * support for multiple type of config
-             */
-            if (isequal(config.type, 'create')) {
-                core.createTbl(tableName, config.definition, config.additionalConfig);
-                /**
-                 * check for crud definition in create query
-                 */
-                pushCrudTask(config.crud, tableName);
-            }
-            /**
-             * Clone a table
-             */
-            else if (isequal(config.type, 'clone')) {
-                OtherProcess(config.from);
-            } else if (isequal(config.type, 'crud')) {
-                pushCrudTask(config, tableName);
-            } else {
-                OtherProcess(tableName);
-            }
-
-            function OtherProcess(tbl) {
-                core.table(tbl)
-                    .then(function(tx) {
+        var startTableProcess = () => {
+            var tableName = tables[inc], config = data[tableName];
+            var OtherProcess = tbl => {
+                this.coreInstance.table(tbl)
+                    .then(function (tx) {
                         var tableInstance = tx.result;
-                        if (isarray(config)) {
-                            config.forEach(function(conf) {
+                        if (isarray(config)) 
+                            config.forEach(function (conf) {
                                 processRequest(tableInstance, conf);
                             });
-                        } else {
+                        else 
                             processRequest(tableInstance, config);
-                        }
+
                         processNext();
                     }, processNext);
-            }
+            };
+
             /**
-             * 
-             * @param {*} tableInstance 
-             * @param {*} conf 
+             *
+             * @param {*} tableInstance
+             * @param {*} conf
              */
-            function processRequest(tableInstance, conf) {
+            var processRequest = (tableInstance, conf) => {
                 if (isequal(conf.type, 'drop')) {
                     tableInstance.drop(tableName);
                 } else if (isequal(conf.type, 'rename')) {
@@ -85,7 +74,7 @@ function CoreSchemaProcessService(core) {
                 } else if (isequal(conf.type, 'truncate')) {
                     tableInstance.truncate(true);
                 } else if (isequal(conf.type, 'alter')) {
-                    conf.columns.forEach(function(column) {
+                    conf.columns.forEach(function (column) {
                         var type = column.type.toLowerCase();
                         /**
                          * drop case
@@ -97,28 +86,33 @@ function CoreSchemaProcessService(core) {
                         }
                     });
                 } else if (isequal(conf.type, 'clone')) {
-                    var definition = extend(true, tableInstance.columns(), conf.definition || {});
+                    var definition = Object.assign(tableInstance.columns(), conf.definition || {});
                     /**
                      * create the table
                      */
-                    core.createTbl(tableName, definition)
-                        .then(function(tx) {
+                    this.coreInstance.createTbl(tableName, definition)
+                        .then(function (tx) {
                             pushCrudTask(config.crud, tableName);
                         }, processNext);
 
                 }
-            }
-        }
+            };
 
-        /**
-         * 
-         * @param {*} config 
-         * @param {*} table 
-         */
-        function pushCrudTask(config, table) {
-            crudProcess.addTask(table, config);
-            processNext();
-        }
+            // support for multiple type of config
+            if (isequal(config.type, 'create')) {
+                this.coreInstance.createTbl(tableName, config.definition, config.additionalConfig);
+                //check for crud definition in create query
+                pushCrudTask(config.crud, tableName);
+            }
+            // Clone a table
+            else if (isequal(config.type, 'clone')) {
+                OtherProcess(config.from);
+            } else if (isequal(config.type, 'crud')) {
+                pushCrudTask(config, tableName);
+            } else {
+                OtherProcess(tableName);
+            }
+        };
 
 
         function processNext() {
@@ -133,7 +127,7 @@ function CoreSchemaProcessService(core) {
         processNext();
     };
 
-    this.processCrud = function(cb) {
-        crudProcess.process(cb);
-    };
+    processCrud(cb) {
+        this.crudProcess.process(cb);
+    }
 }

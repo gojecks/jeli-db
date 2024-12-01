@@ -103,14 +103,3 @@ class UserService {
             .then(res => this.createAuthorizeInstance(res.result));
     }
 };
-
-
-
-
-
-
-
-
-
-
-

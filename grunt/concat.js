@@ -65,5 +65,16 @@ module.exports = {
             banner: "(function (root, factory) { if (typeof define === 'function' && define.amd) { define([], factory); } else if (typeof module === 'object' && module.exports) { module.exports = factory(); } else { root.SessionService = factory(); } }(typeof self !== 'undefined' ? self : this, function () {",
             footer: '\n\nreturn SessionService; \n\n}))'
         }
+    },
+   SqlAdapter: {
+        dest: './dist/adapters/sql.js',
+        src: [
+            './packages/sql-adapter/src/**.js',
+            './packages/sql-adapter/index.js'
+        ],
+        options: {
+            banner: "(function (root, factory) { if (typeof define === 'function' && define.amd) { define([], factory); } else if (typeof module === 'object' && module.exports) { module.exports = factory(); } else { root.sqlAdapter = factory(); } }(typeof self !== 'undefined' ? self : this, function () {",
+            footer: '\n\nreturn SqlAdapter; \n\n}))'
+        }
     }
 }

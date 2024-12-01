@@ -6,6 +6,10 @@
  * @param {*} dbName 
  */
 class TableTransaction {
+    static createInstance(tables, mode, isMultipleTable, dbName) {
+        return new TableTransaction(tables, mode, isMultipleTable, dbName);
+    }
+
     constructor(tables, mode, isMultipleTable, dbName) {
         var tblMode = mode || 'read';
         this._recordResolvers = null;
@@ -28,22 +32,22 @@ class TableTransaction {
             /**
              * 
              * @param {*} type 
-             * @param {*} data 
+             * @param {*} refs 
              * @param {*} tableName 
+             * @param {*} record 
              */
-            this.updateOfflineCache = function (type, data, tableName) {
-                var ignoreSync = privateApi.getNetworkResolver('ignoreSync', dbName);
+            this.updateOfflineCache = function (type, refs, tableName, record) {
+                var ignoreSync = privateApi.getConfigData('ignoreSync', dbName);
                 // check for sync ignore in db configuration
-                if ((!ignoreSync || (isarray(ignoreSync) && !inarray(tableName, ignoreSync)) && data.length)) {
-                    this._recordResolvers.setData(tableName, type, data);
+                if ((!ignoreSync || (Array.isArray(ignoreSync) && !ignoreSync.includes(tableName)) && refs.length)){
+                    this._recordResolvers.setData(tableName, type, refs, (record || true));
                 }
-            };
+            }
 
-            this.validator = TransactionDataAndColumnValidator;
             this.insert = transactionInsert;
             this.insertReplace = TransactionInsertReplace;
             this.update = transactionUpdate;
-            this['delete'] = transactionDelete;
+            this.delete = transactionDelete;
         }
 
         if (inarray('read', tblMode)) {
@@ -52,10 +56,108 @@ class TableTransaction {
              * Quick Search Language
              */
             this.qsl = function () {
-                return new generateQuickSearchApi(this);
+                var queryDSL = {};
+                /**
+                 * 
+                 * @param {*} columnName 
+                 * @returns 
+                 */
+                var buildQuery = (columnName) => {
+                    var query = {};
+                    query[columnName] = {
+                        type: "eq",
+                        value: null
+                    };
+
+                    return (value, fields) => {
+                        if (isMultipleTable) {
+                           return  errorBuilder('Current state is having multiple table, please specify the table');
+                        }
+                        /**
+                         * set the query value
+                         */
+                        query[columnName].value = value;
+
+                        return this.select(fields || '*', { where: query }).execute();
+                    };
+                };
+
+                if (!this.isMultipleTable) {
+                    var tableColumns = Object.keys(this.getTableInfo().columns[0])
+                    for (var i = 0; i < tableColumns.length; i++) {
+                        queryDSL['findby' + tableColumns[i]] = buildQuery(tableColumns[i]);
+                    }
+                } else {
+                    queryDSL.findByColumn = buildQuery;
+                }
+
+                return queryDSL;
             };
         }
     }
+
+    /**
+     * 
+     * @param {*} tableName 
+     * @param {*} columns 
+     * @param {*} callback 
+     * @returns 
+     */
+    validator(tableName, columns, callback) {
+        var _typeValidator = privateApi.getActiveDB(this.DB_NAME).get(constants.DATATYPES);
+        callback = callback || noop;
+
+        /**
+         * 
+         * @param {*} cData 
+         * @param {*} dataRef 
+         */
+        return (cData, dataRef) => {
+            //Process the Data
+            var passed = 1;
+            if (cData) {
+                var cdataKeys = Object.keys(cData);
+                for (var key of cdataKeys) {
+                    if (key == '$exp') {
+                        if (!Array.isArray(cData[key])) {
+                            this.setDBError(`${key} field must be an object containing op,key`);
+                            passed = false;
+                            return;
+                        }
+                        continue;
+                    }
+                    //check if column is in table
+                    if (!columns[key]) {
+                        //throw new error
+                        this.setDBError('column (' + key + ') was not found on this table (' + tableName + '), to add a new column use the addColumn FN - ref #' + dataRef);
+                        callback(key);
+                        passed = !1;
+                        return;
+                    }
+
+                    var type = typeof cData[key];
+                    var requiredType = (columns[key].type || 'string').toUpperCase();
+
+                    if (!_typeValidator.validate(cData[key], requiredType)) {
+                        /**
+                         * Allow null value when NOT_NULL is not configured 
+                         */
+                        if (isnull(cData[key]) && !columns[key].NOT_NULL && !columns[key].required) continue;
+
+                        callback(key, requiredType, type);
+                        this.setDBError(key + " Field requires " + requiredType.toUpperCase() + ", but got " + type.toUpperCase() + "(" + cData[key] + ")- ref #" + dataRef);
+                        passed = !1;
+                    }
+                }
+
+                return passed;
+            }
+
+            return !1;
+        };
+
+    }
+
 
     tableInfoExists(tableName) {
         return this.isMultipleTable && this.rawTables.includes(tableName);
@@ -146,10 +248,10 @@ class TableTransaction {
         return privateApi.getTableData(this.DB_NAME, tableName);
     }
 
-    execute(disableOfflineCache) {
+    execute(disablePushToServer) {
         var executeStates = this.executeState;
         var executeLen = executeStates.length;
-        var isLiveEnabled = privateApi.getNetworkResolver('live', this.DB_NAME);
+        var isLiveEnabled = privateApi.getConfigData('live', this.DB_NAME);
         return new Promise((resolve, reject) => {
             if (executeLen) {
                 var error = !1;
@@ -176,7 +278,7 @@ class TableTransaction {
                     var ex = executeStates.shift();
                     var res = { state: ex[0] };
                     try {
-                        res = ex[1].call(ex[1], disableOfflineCache);
+                        res = ex[1].call(ex[1], disablePushToServer);
                     } catch (err) {
                         if (err instanceof TransactionErrorEvent) {
                             res = err;
@@ -187,7 +289,7 @@ class TableTransaction {
                         error = true;
                     } finally {
                         this.errLog = [];
-                        if (isLiveEnabled && inarray(ex[0], ['insert', 'update', 'delete', 'insertReplace']) && !error) {
+                        if (!disablePushToServer && !error && isLiveEnabled && inarray(ex[0], ['insert', 'update', 'delete', 'insertReplace'])) {
                             /**
                              * Sync to the backend
                              * Available only when live is define in configuration

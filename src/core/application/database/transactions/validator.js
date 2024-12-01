@@ -1,59 +1,5 @@
 /**
  * 
- * @param {*} tableName 
- * @param {*} columns 
- * @param {*} callback 
- * @returns 
- */
-function TransactionDataAndColumnValidator(tableName, columns, callback) {
-    var  _typeValidator = privateApi.getActiveDB(this.DB_NAME).get(constants.DATATYPES);
-    callback = callback || noop;
-
-    /**
-     * 
-     * @param {*} cData 
-     * @param {*} dataRef 
-     */
-    return (cData, dataRef) => {
-        //Process the Data
-        var passed = 1;
-        if (cData) {
-            var cdataKeys = Object.keys(cData);
-            for(var key of cdataKeys){
-                //check if column is in table
-                if (!columns[key]) {
-                    //throw new error
-                    this.setDBError('column (' + key + ') was not found on this table (' + tableName + '), to add a new column use the addColumn FN - ref #' + dataRef);
-                    callback(key);
-                    passed = !1;
-                    return;
-                }
-
-                var type = typeof cData[key];
-                var requiredType = (columns[key].type || 'string').toUpperCase();
-
-                if (!_typeValidator.validate(cData[key], requiredType)) {
-                    /**
-                     * Allow null value when NOT_NULL is not configured 
-                     */
-                    if (isnull(cData[key]) && !columns[key].NOT_NULL && !columns[key].required) continue;
-                    
-                    callback(key, requiredType, type);
-                    this.setDBError(key + " Field requires " + requiredType.toUpperCase() + ", but got " + type.toUpperCase() + "(" + cData[key] + ")- ref #" + dataRef);
-                    passed = !1;
-                }
-            }
-
-            return passed;
-        }
-
-        return !1;
-    };
-
-}
-
-/**
- * 
  * @param {*} defaultValue 
  * @param {*} ref 
  * @param {*} tableInfo 

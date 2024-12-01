@@ -14,7 +14,7 @@ class ConnectorAdapter{
     use(name){
         var connector = this.registeredConnectors[name];
         if (!connector) throw new Error("Connector "+  name + " not found, please make sure it's registered")
-        connector.$privateApi = privateApi;
+        connector.coreApi = privateApi;
         return connector;
     }
 }

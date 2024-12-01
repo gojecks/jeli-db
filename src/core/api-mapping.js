@@ -47,7 +47,7 @@ class RequestMapping {
                     return customApiRepository;
                 },
                 set: function (value) {
-                    customApiRepository = extend(true, customApiRepository, value);
+                    customApiRepository = Object.assign(customApiRepository, value);
                 }
             }
         });
@@ -80,7 +80,7 @@ class RequestMapping {
         }
 
         this.isResolvedCustom = true;
-        var requestOptions = privateApi.buildHttpRequestOptions(this.appName, { path: '/application/api' });
+        var requestOptions = privateApi.buildHttpRequestOptions(this.appName, { path: '/functions' });
         return privateApi.$http(requestOptions)
             .then(res => {
                 if (isarray(res)) {
@@ -98,13 +98,6 @@ class RequestMapping {
         });
     }
 }
-
-
-
-
-
-
-
 
 /**
  * register static method to Core
@@ -157,12 +150,3 @@ class ApiMapper {
         });
     }
 }
-
-
-
-
-
-/**
- * register instance of ApiMapper
- */
-Database.API = (new ApiMapper);

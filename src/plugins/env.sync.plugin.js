@@ -9,7 +9,7 @@ Database.plugins.jQl('sync', {
 
 function syncPluginFn(query, handler) {
     return function (db) {
-        var connector = db.getConnector('sync-connector', {name: db.name, version: db.version});
+        var connector = db.getConnector('sync-connector', { name: db.name, version: db.version });
         connector
             .Entity(query[1])
             .configSync(null, query[2])

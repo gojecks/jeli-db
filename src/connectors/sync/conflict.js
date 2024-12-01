@@ -7,7 +7,7 @@
  * @returns 
  */
 function SyncConflictChecker(appName, tbl, $process, networkResolver) {
-    var clientTbl = DatabaseSyncConnector.$privateApi.getTable(appName, tbl);
+    var clientTbl = DatabaseSyncConnector.coreApi.getTable(appName, tbl);
     // getLatest from server
     if (!syncHelper.entity) {
         syncHelper.entity = [tbl];

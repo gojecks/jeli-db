@@ -63,7 +63,7 @@ function startSyncState(appName, serverResource,  pullState) {
      */
     function updateHash(tableToUpdate, hash) {
         if (('string' == typeof tableToUpdate)) {
-            tableToUpdate = DatabaseSyncConnector.$privateApi.getTable(appName, tableToUpdate);
+            tableToUpdate = DatabaseSyncConnector.coreApi.getTable(appName, tableToUpdate);
         }
 
         //Update Hash
@@ -114,7 +114,7 @@ function startSyncState(appName, serverResource,  pullState) {
                     updateHash(currentProcessTbl, checksum);
                 }
 
-                DatabaseSyncConnector.$privateApi.updateDB(appName, currentProcessTbl, null, +new Date);
+                DatabaseSyncConnector.coreApi.updateDB(appName, currentProcessTbl, null, +new Date);
                 nextQueue({ state: 'Success' }, 'push');
             }
 
@@ -123,10 +123,10 @@ function startSyncState(appName, serverResource,  pullState) {
              * @param {*} mergeObj 
              */
             function mergeChanges(mergeObj) {
-                var tableSchema = DatabaseSyncConnector.$privateApi.getTable(appName, currentProcessTbl);
+                var tableSchema = DatabaseSyncConnector.coreApi.getTable(appName, currentProcessTbl);
                 if (tableSchema) {
                     Object.assign(tableSchema, mergeObj.schema);
-                    DatabaseSyncConnector.$privateApi.updateDB(appName, currentProcessTbl, null, +new Date);
+                    DatabaseSyncConnector.coreApi.updateDB(appName, currentProcessTbl, null, +new Date);
                     syncHelper.setMessage('Table(' + currentProcessTbl + ') updated successfully');
                     if (mergeObj.isLocalLastModified) {
                         allowPushState(false);
@@ -167,8 +167,8 @@ function startSyncState(appName, serverResource,  pullState) {
                 if (isDeletedTable(serverResource.resourceManager, currentProcessTbl)) {
                     syncHelper.setMessage(currentProcessTbl + ' doesn\'t exist on the server');
                     if (networkResolver.resolveDeletedTable(currentProcessTbl)) {
-                        var eventName = DatabaseSyncConnector.$privateApi.DB_EVENT_NAMES.DROP_TABLE;
-                        DatabaseSyncConnector.$privateApi.storageFacade.broadcast(appName, eventName, [currentProcessTbl]);
+                        var eventName = DatabaseSyncConnector.coreApi.DB_EVENT_NAMES.DROP_TABLE;
+                        DatabaseSyncConnector.coreApi.storageFacade.broadcast(appName, eventName, [currentProcessTbl]);
                         resourceManagerInstance.removeTableFromResource(currentProcessTbl);
 
                         syncHelper.setMessage(currentProcessTbl + ' removed from local DB');
@@ -237,7 +237,7 @@ function startSyncState(appName, serverResource,  pullState) {
             syncHelper[state](appName);
         }
         //remove deleteRecords
-        DatabaseSyncConnector.$privateApi.storageFacade.remove(DatabaseSyncConnector.$privateApi.storeMapping.delRecordName);
+        DatabaseSyncConnector.coreApi.storageFacade.remove(DatabaseSyncConnector.coreApi.storeMapping.delRecordName);
         cleanUp();
     }
 
@@ -314,7 +314,7 @@ function startSyncState(appName, serverResource,  pullState) {
         if (syncState.tables.length) {
             processQueue(queue, 'push');
         } else {
-            DatabaseSyncConnector.$privateApi.updateDB(appName, null, null, Date.now());
+            DatabaseSyncConnector.coreApi.updateDB(appName, null, null, Date.now());
             finishQueue('push', { state: 'success' });
         }
     }
