@@ -4,9 +4,7 @@
 //@ExecuteState return {obj}
 /**
  * 
- * @param {*} query 
- * 
- * 
+ * @param {*} query  
  * WhereIn Query
  * delete -t -IN(@value([values]) @field(t1.column))
  * 
@@ -27,20 +25,16 @@ function transactionDelete(query, tableName) {
      * make sure table is set
      */
     tableName = tableName || this.rawTables[0];
-    if (!query || !tableName)
-        throw new TransactionErrorEvent('delete', 'Invalid delete statement Table and Query are required');
+    if (!tableName)
+        throw new TransactionErrorEvent('delete', 'Invalid delete statement Table is required');
 
     var delItem = [];
     var indexes = [];
     var time = performance.now();
     var tableData = this.getTableData(tableName);
     var tableInfo = this.getTableInfo(tableName);
-    if (query) {
-        if (isobject(query) && query.hasOwnProperty('byRefs')) {
-            if (!isarray(query.byRefs)) {
-                query.byRefs = [query.byRefs];
-            }
-        }
+    if (query && isobject(query) && query.byRefs && !isarray(query.byRefs)) {
+        query.byRefs = [query.byRefs];
     }
 
     /**

@@ -53,10 +53,14 @@ class TableInstance {
         return jEliDeepCopy(this.tableInfo.columns[0]);
     }
 
+    getModel(data){
+        return tableModelMapper(this.tableInfo)(data);
+    }
+
     /**
- * 
- * @param {*} tableData 
- */
+     * 
+     * @param {*} tableData 
+     */
     update(tableData) {
         privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, function (table) {
             if (tableData.columns && !Array.isArray(tableData.columns)) {

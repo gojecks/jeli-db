@@ -17,7 +17,7 @@ function TransactionInsertReplace(records, updateRef) {
     var columns = tableInfo.columns[0];
     var fieldErrors = [];
     var validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var defaultValueGenerator = columnObjFn(tableInfo);
+    var defaultValueGenerator = tableModelMapper(tableInfo);
     var rowsToUpdate = [];
     var rowsToInsert = [];
     var tableData = this.getTableData(tableName);

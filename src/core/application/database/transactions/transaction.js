@@ -10,6 +10,10 @@ class TableTransaction {
         return new TableTransaction(tables, mode, isMultipleTable, dbName);
     }
 
+    static ALLOWED_WRITE(mode){
+        return inarray(mode, ['insert', 'update', 'delete', 'insertReplace']);
+    }
+
     constructor(tables, mode, isMultipleTable, dbName) {
         var tblMode = mode || 'read';
         this._recordResolvers = null;
@@ -244,14 +248,16 @@ class TableTransaction {
         return this.errLog.length;
     }
 
-    getTableData(tableName) {
-        return privateApi.getTableData(this.DB_NAME, tableName);
+    getTableData(tableName, dataOnly) {
+        var data = privateApi.getTableData(this.DB_NAME, tableName);
+        return !dataOnly ? data : data.map(item => item._data );
     }
 
-    execute(disablePushToServer) {
+    execute(disablePushToServer, fromBatch) {
         var executeStates = this.executeState;
         var executeLen = executeStates.length;
         var isLiveEnabled = privateApi.getConfigData('live', this.DB_NAME);
+        var totalSuccess = 0;
         return new Promise((resolve, reject) => {
             if (executeLen) {
                 var error = !1;
@@ -264,11 +270,9 @@ class TableTransaction {
                  */
                 var complete = (success, res) => {
                     results.push(res);
-                    /**
-                     * cleanUp
-                     */
+                    if (success) totalSuccess++;
                     if (!executeLen) {
-                        (success ? resolve : reject)((total > 1) ? results : results.pop());
+                        (totalSuccess ? resolve : reject)((total > 1) ? results : results.pop());
                         this.cleanup();
                     }
                 };
@@ -278,7 +282,7 @@ class TableTransaction {
                     var ex = executeStates.shift();
                     var res = { state: ex[0] };
                     try {
-                        res = ex[1].call(ex[1], disablePushToServer);
+                        res = ex[1](disablePushToServer);
                     } catch (err) {
                         if (err instanceof TransactionErrorEvent) {
                             res = err;
@@ -289,7 +293,7 @@ class TableTransaction {
                         error = true;
                     } finally {
                         this.errLog = [];
-                        if (!disablePushToServer && !error && isLiveEnabled && inarray(ex[0], ['insert', 'update', 'delete', 'insertReplace'])) {
+                        if (!fromBatch && !disablePushToServer && !error && isLiveEnabled && TableTransaction.ALLOWED_WRITE(ex[0])) {
                             /**
                              * Sync to the backend
                              * Available only when live is define in configuration

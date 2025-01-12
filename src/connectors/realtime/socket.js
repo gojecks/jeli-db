@@ -57,6 +57,12 @@ class SocketService {
         this.parentContext.events.on('socket.connect', socketServerEndpoint => {
             if (socketServerEndpoint) {
                 console.log('Connecting to socket');
+                // construct the domain
+                if (!['ws', '//'].includes(socketServerEndpoint.substring(0, 2))) {
+                    // wss for secured connections
+                    var socketDomain = (this.parentContext.socketDomain || `${location.protocol == 'http' ? 'ws' : 'wss'}://${location.host}`);
+                    socketServerEndpoint = `${socketDomain}${socketServerEndpoint}`;
+                }
                 this.socket = new WebSocket(socketServerEndpoint, this.options.socketSubProtocols);
                 // register core events
                 for (var eventName of this.eventList) {

@@ -19,6 +19,7 @@ class RealtimeConnector {
             withRef: false,
             payload: null,
             heartBeatEnabled: false,
+            socketDomain: null,
             socketRedial: true,
             socketEnabled: false,
             socketTotalRedial: 3, // redial

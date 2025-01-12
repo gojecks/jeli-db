@@ -40,15 +40,14 @@ class SyncProcess {
      */
     getApplicationApiKey(appName) {
         var appProcess = this.getProcess(appName);
-        var request = syncHelper.setRequestData(appName, '/application/key', true);
-        request.data = { key: "api_key" };
         syncHelper.setMessage('Retrieving API key....');
-        return DatabaseSyncConnector.coreApi.$http(request).then(res => {
-            syncHelper.setMessage('Retrieved API key');
-            appProcess.getSet('applicationKey', res);
-            appProcess = null;
-            return res;
-        });
+        return syncHelper.setRequestData(appName, '/application/key', null, { key: "api_key" })
+            .then(res => {
+                syncHelper.setMessage('Retrieved API key');
+                appProcess.getSet('applicationKey', res);
+                appProcess = null;
+                return res;
+            });
     }
 }
 

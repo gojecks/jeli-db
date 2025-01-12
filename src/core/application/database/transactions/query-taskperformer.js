@@ -83,9 +83,14 @@ class QueryTaskPerformer {
             //match found item
             var conditionValue = item._data || item;
             var checkConditions = function (condition) {
+                if (isfunction(condition)) {
+                    return condition(conditionValue);
+                }
+
                 for (var key in condition) {
-                    if (!QueryTaskPerformer.match(condition[key], modelGetter(key, conditionValue), conditionValue))
+                    if (!QueryTaskPerformer.match(condition[key], modelGetter(key, conditionValue), conditionValue)) {
                         return false;
+                    }
                 }
 
                 return true;
@@ -94,7 +99,7 @@ class QueryTaskPerformer {
             return logic.some(checkConditions);
         }
 
-        if (logic) {
+        if (!isempty(logic)) {
             if (isstring(logic)) {
                 if (!this.cachedLogics.has(logic)) {
                     this.cachedLogics.set(logic, QueryBuilder._parseCondition(logic, replacer));
@@ -121,20 +126,22 @@ class QueryTaskPerformer {
 
     /**
      * 
-     * @param {*} $query 
+     * @param {*} condition 
      * @param {*} fieldValue 
      * @param {*} item 
      * @returns 
      */
-    static match($query, fieldValue, item) {
-        if (isobject($query)) {
-            var recordValue = modelGetter($query.value, item) || $query.value;
-            return OperatorMethod._call($query.type, fieldValue, recordValue);
+    static match(condition, fieldValue, item) {
+        if (isfunction(condition)) {
+            return condition(fieldValue, item);
+        } else if (isobject(condition)) {
+            var recordValue = modelGetter(condition.value, item) || condition.value;
+            return OperatorMethod._call(condition.type, fieldValue, recordValue);
         } else if (isobject(fieldValue)) {
-            return jsonMatcher($query, fieldValue);
+            return jsonMatcher(condition, fieldValue);
         }
 
-        return $query == fieldValue;
+        return condition == fieldValue;
     }
 
     /**
@@ -151,7 +158,7 @@ class QueryTaskPerformer {
              * exp.key 
              */
             ins: (arr, exp) => {
-                if(!Array.isArray(arr)){
+                if (!Array.isArray(arr)) {
                     arr = [];
                     modelSetter(exp.key, record, arr);
                 }
@@ -167,8 +174,8 @@ class QueryTaskPerformer {
                 if (Array.isArray(arr)) {
                     var executor = this.externalQuery(exp.conditions);
                     var len = arr.length;
-                    while(len--){
-                        if (executor(arr[len])){
+                    while (len--) {
+                        if (executor(arr[len])) {
                             arr.splice(len, 1);
                         }
                     }
@@ -185,8 +192,8 @@ class QueryTaskPerformer {
                 if (Array.isArray(arr)) {
                     var executor = this.externalQuery(exp.conditions);
                     var len = arr.length;
-                    while(len--){
-                        if (executor(arr[len])){
+                    while (len--) {
+                        if (executor(arr[len])) {
                             Object.assign(arr[len], exp.value);
                         }
                     }
@@ -194,9 +201,9 @@ class QueryTaskPerformer {
             }
         };
 
-        for(var exp of expressions){
+        for (var exp of expressions) {
             if (exp && operations[exp.op]) {
-                var arr =  modelGetter(exp.key, record);
+                var arr = modelGetter(exp.key, record);
                 operations[exp.op](arr, exp);
             }
         }
@@ -241,5 +248,21 @@ class QueryTaskPerformer {
         }
 
         return extended;
+    }
+
+    // Recursive aggregation function
+    static aggregateItems(items, aggregateQuery) {
+        const aggregatedResult = {};
+        for (const [key, value] of Object.entries(aggregateQuery)) {
+            if (typeof value === 'object' && !Array.isArray(value)) {
+                // If the value is an object, recurse
+                aggregatedResult[key] = this.aggregateItems(items, value);
+            } else if (typeof value === 'string') {
+                // Handle different aggregation functions
+                aggregatedResult[key] = SelectMethods._call(value, items, key);
+            }
+        }
+
+        return aggregatedResult;
     }
 }

@@ -17,7 +17,7 @@ function transactionInsert(data, hardInsert, tableName) {
     var columns = tableInfo.columns[0];
     var objectType = isobject(data);
     var _validator = this.validator(tableInfo.TBL_NAME, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var defaultValueGenerator = columnObjFn(tableInfo);
+    var defaultValueGenerator = tableModelMapper(tableInfo);
     var refs = [];
     /**
      * Data must an Array or Object format

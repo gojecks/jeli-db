@@ -129,9 +129,9 @@ class privateApi {
             return ret;
         }
 
-        ret = Object(db.getItem(tableName) || null);
+        ret = db.getItem(tableName) || null;
 
-        return ret;
+        return extendable ? Object.assign({}, ret) : ret;
     };
 
     /**
@@ -476,26 +476,33 @@ class privateApi {
             // configure request options
             options = Object({
                 url: (reqOptions.URL || networkResolver.serviceHost || '') + requestState.URL,
-                __appName__: dbName,
+                $appName: dbName,
                 type: requestState.METHOD,
-                dataType: "json",
-                contentType: "application/json",
+                dataType: 'json',
+                contentType: 'application/json',
                 headers: {
                     Authorization: "Bearer *",
-                    'X-REQ-OPTS': Base64Fn.encode(networkResolver.organisation + ':' + dbName + ':' + (tbl || '') + ':' + (Math.floor(+new Date / 1000) * 1000) + ':' + networkResolver.nonce)
+                    'X-REQ-OPTS': Base64Fn.encode(
+                        `${networkResolver.organisation}:${dbName}:${(tbl || '')}:${(Math.floor(+new Date / 1000) * 1000)}:${networkResolver.nonce}`
+                    )
                 },
                 requestState: requestState,
-                cache: cache
+                cache: cache,
+                data: reqOptions.data
             });
+
             /**
              * set X-CSRF-TOKEN
              * only when defined
              */
-            if (cToken)
+            if (cToken) {
                 options.headers['X-CSRF-TOKEN'] = cToken;
+            }
+
             //initialize our network interceptor
-            if (networkResolver.interceptor)
+            if (networkResolver.interceptor) {
                 networkResolver.interceptor(options, requestState);
+            }
         } else {
             options.isErrorState = true;
         }
@@ -652,27 +659,28 @@ class privateApi {
      */
     static autoSync(appName, tbl, type, data) {
         var ignoreSync = privateApi.getConfigData('ignoreSync', appName);
-        var handleResult = res => {
-            recordResolver.handleFailedRecords(tbl, (res && res.failed));
-            return res;
-        };
-
         if (!inarray(tbl, (ignoreSync || []))) {
             var recordResolver = privateApi.getActiveDB(appName).get(constants.RECORDRESOLVERS);
-            var haveDataToProcess = true;
+            var handleResult = res => {
+                recordResolver
+                    .isResolved(tbl, res._hash)
+                    .handleFailedRecords(tbl, (res && res.failed));
+                return res;
+            };
+            
             //process the request
             //Synchronize PUT STATE
             if (!data && type) {
-                var dataToSync = recordResolver.get(tbl, null, 'data');
+                var dataToSync = recordResolver.get(tbl);
                 data = dataToSync.data;
-                haveDataToProcess = Object.keys(data).some(key => (data[key].length > 0));
             }
 
             // make sure there is data to push
+            var haveDataToProcess = Object.keys(data).some(key => (data[key].length > 0));
             if (haveDataToProcess) {
                 var requestParams = privateApi.buildHttpRequestOptions(appName, { tbl, path: '/database/push' });
                 requestParams.data = data;
-                return privateApi.processRequest(requestParams, tbl, appName, !!type)
+                return privateApi.$http(requestParams)
                     .then(handleResult, handleResult);
             }
         }
@@ -695,6 +703,7 @@ class privateApi {
                 return options;
             }
         });
+
         var $ajax = AjaxSetup(interceptor);
         var checkedUserDefined = false;
         var userDefinedAjax = null;
@@ -702,7 +711,7 @@ class privateApi {
             // one time  check for user custom ajax
             if (!checkedUserDefined) {
                 checkedUserDefined = true;
-                userDefinedAjax = privateApi.getConfigData('$ajax', options.__appName__);
+                userDefinedAjax = privateApi.getConfigData('$ajax', options.$appName);
             }
 
             // use userDefined Ajax if configured

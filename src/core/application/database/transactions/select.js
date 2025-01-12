@@ -5,6 +5,7 @@
  *     Perform query on selected Table and return the Data that matches the query
  *     -query : select -* -TBL_NAME
  *     -definition: {
+ *     aggregate: {},
  *     where:STRING,
  *     limit:STRING,
  *     orderBy:STRING,
@@ -38,6 +39,7 @@ function transactionSelect(selectFields, definition) {
     var _sData = [];
     var time = performance.now();
     var lookupTableCache = {};
+    var resultSet = [];
 
     //reference our select query
     if (!selectFields)
@@ -69,27 +71,6 @@ function transactionSelect(selectFields, definition) {
     // @Arguments nill
     if (queryDefinition.join && isequal(selectFields, '*'))
         this.setDBError('Invalid Select Statment');
-
-    var validateFields = () => {
-        var queryFields = queryDefinition.fields.split(/(\w+\((.*?)\)+,|,)/).filter(item => (item && item !== ','));
-        //Loop through queryFields
-        for (var field of queryFields) {
-            if (field.includes('.')) {
-                if (this.isMultipleTable && field) {
-                    field = field.replace(/\((.*?)\)/, '|$1').split('|');
-                    var tblName = (field[1] || field[0]).split('.')[0];
-                    if (isequal(field[0].toLowerCase(), 'case')) {
-                        tblName = field[1].split(new RegExp('when', 'gi'))[1].split('.')[0];
-                    }
-
-                    //reference to the tables
-                    if (!this.tableInfoExists(tblName.trim())) {
-                        this.setDBError(tblName + ' was not found, Include table in transaction Array eg: db.transaction([table_1,table_2])');
-                    }
-                }
-            }
-        }
-    };
 
     /**
      * 
@@ -124,7 +105,7 @@ function transactionSelect(selectFields, definition) {
         var rightTableIndex = [];
         // perform where query on joinClause
         var valueMethods = ValueMethods.createInstance(joinObj.field);
-        QueryTaskPerformer.run(getTableData(joinObj.table), joinObj.where, result => {
+        QueryTaskPerformer.run(this.getTableData(joinObj.table), joinObj.where, result => {
             rightTable.push(valueMethods.getData(result._data));
             rightTableIndex.push(result._data[rightTableCol]);
         }, joinObj.limit);
@@ -190,14 +171,14 @@ function transactionSelect(selectFields, definition) {
      * @param {*} resolvedTable 
      * @param {*} indexes 
      */
-    function performResolve(resolveQuery, resObject, resolvedTable, indexes) {
-        function resolver(tobeResolved) {
+    var performResolve = (resolveQuery, resObject, resolvedTable, indexes) => {
+        var resolver = (tobeResolved) => {
             tobeResolved.forEach(function (resolve) {
                 if (resolve.when && !QueryTaskPerformer.externalQuery(resolve.when)(resObject))
                     return;
 
                 if (resolve.table)
-                    resolvedTable = getTableData(resolve.table);
+                    resolvedTable = this.getTableData(resolve.table);
 
                 // check if resolvedTable data exists
                 if (!resolvedTable)
@@ -244,45 +225,19 @@ function transactionSelect(selectFields, definition) {
                 // init resolver
                 startResolver(resObject);
             });
-        }
+        };
 
         if (resolveQuery) {
             resolver(resolveQuery);
         }
-    }
-
-    /**
-     * 
-     * @param {*} lookupTable 
-     * @param {*} tableName 
-     * @param {*} on 
-     * @param {*} fields 
-     * @returns 
-     */
-    function getLookUpTableIndex(lookupTable, tableName, on, fields) {
-        var name = tableName + ':' + on;
-        if (!lookupTableCache[name])
-            lookupTableCache[name] = lookupTable.map(function (item) { return item[on]; })
-
-        return (foreignKey, total) => {
-            var thenValue = null;
-            var foundIndex = lookupTableCache[name].indexOf(foreignKey);
-            if (foundIndex > -1) {
-                thenValue = lookupTable[foundIndex];
-                if (fields)
-                    thenValue = ValueMethods.instance.setField(fields).getData(thenValue);
-            }
-
-            return thenValue;
-        };
-    }
+    };
 
     /**
      * 
      * @param {*} resolveLookup 
      * @param {*} data 
      */
-    function performLookup(lookup, data, hasGroupBy) {
+    var performLookup = (lookup, data, hasGroupBy) => {
         if (lookup && data && lookup.table) {
             // run when condition check if defined
             if (lookup.when && !QueryTaskPerformer.externalQuery(lookup.when)(data))
@@ -290,7 +245,7 @@ function transactionSelect(selectFields, definition) {
 
             var tableName = ValueMethods.callMethod(lookup.table, data);
             var on = ValueMethods.callMethod(lookup.on, data);
-            var lookupTable = getTableData(tableName, true);
+            var lookupTable = this.getTableData(tableName, true);
             // no table table to look stop process
             if (!lookupTable) return;
 
@@ -328,6 +283,32 @@ function transactionSelect(selectFields, definition) {
         }
 
         return data;
+    };
+
+    /**
+     * 
+     * @param {*} lookupTable 
+     * @param {*} tableName 
+     * @param {*} on 
+     * @param {*} fields 
+     * @returns 
+     */
+    function getLookUpTableIndex(lookupTable, tableName, on, fields) {
+        var name = tableName + ':' + on;
+        if (!lookupTableCache[name])
+            lookupTableCache[name] = lookupTable.map(function (item) { return item[on]; })
+
+        return (foreignKey, total) => {
+            var thenValue = null;
+            var foundIndex = lookupTableCache[name].indexOf(foreignKey);
+            if (foundIndex > -1) {
+                thenValue = lookupTable[foundIndex];
+                if (fields)
+                    thenValue = ValueMethods.instance.setField(fields).getData(thenValue);
+            }
+
+            return thenValue;
+        };
     }
 
     /**
@@ -356,34 +337,11 @@ function transactionSelect(selectFields, definition) {
                 return valueMethods.first();
 
             tableData = valueMethods.getAll(queryInstance.isArrayResult);
-        } else {
-            tableData = tableData.splice(0);
         }
 
         //return the tableData
         return QueryLimitMethods.process(queryInstance, tableData);
     }
-
-    /**
-     * 
-     * @param {*} tableName 
-     * @param {*} removeData 
-     */
-    var getTableData = (tableName, dataOnly) => {
-        var data = this.getTableData(tableName);
-        return !dataOnly ? data : data.map(function (item) { return item._data });
-    };
-
-    /**
-     * 
-     * @param {*} tableName 
-     * @param {*} refId 
-     * @returns 
-     */
-    var getTableDataWithIndexes = (tableName, refId) => {
-        var data = this.getTableData(tableName);
-        return data.reduce(function (accum, item) { return (accum.data.push(item._data), accum.indexes.push(item_data[refId]), accum) }, { data: [], indexes: [] });
-    };
 
     /**
      * 
@@ -393,7 +351,7 @@ function transactionSelect(selectFields, definition) {
      */
     var runClause = (clause) => {
         if (!clause.value && clause.table) {
-            var clauseTable = getTableData(clause.table);
+            var clauseTable = this.getTableData(clause.table);
             if (!clauseTable) {
                 return this.setDBError(clause.table + " was not found, please fix query and try again");
             }
@@ -426,57 +384,38 @@ function transactionSelect(selectFields, definition) {
         }
     }
 
-    function performQueryCheck() {
-        for (var item of queryDefinition.where) {
-            for (var key in item) {
-                if (!isobject(item[key])) continue
-                runRecursiveCheck(key, item[key]);
-            }
+    var queryRunner = () => {
+        var group = null;
+        var groupResult = new Map();
+        if (queryDefinition.groupBy) {
+            group = Array.isArray(queryDefinition.groupBy) ? queryDefinition.groupBy : [queryDefinition.groupBy];
         }
-    }
 
-    function performJoinQuery(rawTables) {
-        /**
-         * when queryDefinition.filterBefore is set to true
-         * we perform where clause query on the initialTable
-         */
-        if (queryDefinition.filterBefore)
-            QueryTaskPerformer.run(getTableData(rawTables[0], true), queryDefinition.where, resolveAndLookupQueryResult);
-        else
-            _sData = getTableData(rawTables[0], true);
+        return table => {
+            QueryTaskPerformer.run(isstring(table) ? this.getTableData(table) : table, queryDefinition.where, result => {
+                result = Object.assign({}, (result._data || result));
+                performResolve(queryDefinition.resolve, result);
+                result = performLookup(queryDefinition.lookup, result);
 
-        // Table matcher
-        // Matches the leftTable to RightTable
-        // returns both Match and unMatched Result
-        queryDefinition.join.forEach(matchTableFn);
-        if (!queryDefinition.filterBefore && queryDefinition.where)
-            QueryTaskPerformer.run(_sData.splice(0), queryDefinition.where, resolveAndLookupQueryResult);
-    }
+                if (group) {
+                    var key = group.map(k => modelGetter(k, result)).sort().join(':');
+                    if (!groupResult.has(key)) {
+                        groupResult.set(key, []);
+                    }
+                    
+                    groupResult.get(key).push(result);
+                } else {
+                    _sData.push(result);
+                }
+            });
 
-    /**
-     * @param {*} result 
-     */
-    function resolveAndLookupQueryResult(result) {
-        var data = Object.assign({}, (result._data || result));
-        performResolve(queryDefinition.resolve, data);
-        data = performLookup(queryDefinition.lookup, data);
-        _sData.push(data);
-    }
-
-    /**
-     * 
-     * @param {*} rawTables 
-     * @param {*} isMultipleTable 
-     */
-    function performMainQuery(rawTables, isMultipleTable) {
-        if (isMultipleTable) {
-            for (var i = 0; i < rawTables.length; i++) {
-                QueryTaskPerformer.run(getTableData(rawTables[i]), queryDefinition.where, resolveAndLookupQueryResult);
+            if (group) {
+                _sData = Array.from(groupResult.values());
+                groupResult.clear();
             }
-        } else {
-            QueryTaskPerformer.run(getTableData(rawTables[0]), queryDefinition.where, resolveAndLookupQueryResult)
-        }
-    }
+        };
+    };
+
 
     //Push our executeState Function into Array
     this.executeState.push(["select", () => {
@@ -488,7 +427,13 @@ function transactionSelect(selectFields, definition) {
                 console.warn("WHERE clause of type (Object) support will be removed in next version, please use type (Array<Object>)");
                 queryDefinition.where = [queryDefinition.where];
             }
-            performQueryCheck();
+            
+            for (var item of queryDefinition.where) {
+                for (var key in item) {
+                    if (!isobject(item[key])) continue
+                    runRecursiveCheck(key, item[key]);
+                }
+            }
         }
 
         if (this.hasError()) {
@@ -496,21 +441,58 @@ function transactionSelect(selectFields, definition) {
             throw new TransactionErrorEvent('select', this.getError());
         }
 
-        var resultSet = [];
-        if (queryDefinition.join) {
-            performJoinQuery(this.rawTables);
+        var runner = queryRunner();
+        this.rawTables, this.isMultipleTable
+        if (this.isMultipleTable) {
+            for (var i = 0; i < this.rawTables.length; i++) {
+                runner(rawTables[i]);
+            }
+        } else if (queryDefinition.join) {
+            /**
+            * when queryDefinition.filterBefore is set to true
+            * we perform where clause query on the initialTable
+            */
+            if (queryDefinition.filterBefore) {
+                runner(this.rawTables[0]);
+            } else {
+                _sData = this.getTableData(this.rawTables[0], true);
+            }
+
+            // Table matcher
+            // Matches the leftTable to RightTable
+            // returns both Match and unMatched Result
+            queryDefinition.join.forEach(matchTableFn);
+            if (!queryDefinition.filterBefore && queryDefinition.where) {
+                runner(_sData.splice(0));
+            }
         } else {
-            performMainQuery(this.rawTables, this.isMultipleTable);
+            runner(this.rawTables[0]);
+        }
+
+        var pagination = null;
+        if (queryDefinition.pagination){
+            const limit = QueryLimitMethods.parseLimit(queryDefinition.limit);
+            const total = _sData.length;
+            // L(n) limit type
+            if (0 > limit[0]) {
+                limit = [(total - limit[1]), total];
+            }
+            const size = (limit[1] - limit[0]);
+            pagination = {
+                total,
+                pages: Math.ceil(total / size),
+                current: Math.ceil(limit[1] / size),
+                size,
+            }
         }
 
         // get all records
-        var totalRecords = _sData.length;
         resultSet = performSelect(_sData, queryDefinition);
         lookupTableCache = null;
         //return the processed Data
         return new SelectQueryEvent(
-            resultSet, 
-            queryDefinition.pagination, 
+            resultSet,
+            pagination,
             (performance.now() - time)
         );
     }]);
@@ -567,6 +549,11 @@ class SelectQueryFacade {
 
     limit(parseLimit) {
         this.queryDefinition.limit = parseLimit;
+        return this;
+    }
+
+    aggregate(definition) {
+        this.queryDefinition.aggregate = definition;
         return this;
     }
 }

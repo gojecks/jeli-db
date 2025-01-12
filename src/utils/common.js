@@ -123,6 +123,8 @@ function isnull(val) {
  * @param {*} val 
  */
 function isempty(val) {
+    if (!val) return true;
+    if (isarray(val)) return !val.length;
     return val === "";
 }
 

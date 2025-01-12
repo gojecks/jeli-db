@@ -53,63 +53,28 @@ class QueryLimitMethods {
 
     /**
      * 
-     * @param {*} cData 
-     * @param {*} definition 
-     * @param {*} strict 
-     * @returns 
-     */
-    static groupByTask(cData, definition, strict) {
-        var _groupSplit = (definition.groupBy || definition.groupByStrict).split(',');
-        var ret = cData.reduce(function (accum, item) {
-            var cMatch = _groupSplit.map((key) => item[key]);
-            var cMatch2 = cMatch.reverse().join(':');
-            cMatch = cMatch.join(':');
-            if (strict && !accum[cMatch] && accum[cMatch2]) {
-                cMatch = cMatch2;
-            }
-
-            if (!accum[cMatch]) {
-                accum[cMatch] = [];
-            }
-
-            accum[cMatch].push(item);
-            return accum;
-        }, {});
-
-        // map through the ret and return the result
-        return Object.values(ret).map(value => ((definition.limit) ? QueryLimitMethods.limitTask(value, definition) : value));
-    }
-
-    /**
-     * 
      * @param {*} definition 
      * @param {*} cdata 
      * @returns 
      */
     static process(definition, cdata) {
         var staticMethods = {
-            groupBy: (cdata) => QueryLimitMethods.groupByTask(cdata, definition),
-            groupByStrict: (cdata) => QueryLimitMethods.groupByTask(cdata, definition, true),
-            orderBy: (cdata) => {
-                var checkParam = (definition['orderBy'] || 'ASC').split(':')
-                var order = checkParam.pop();
-                /**
-                 * sort option accepts multiple property
-                 * split the properties into array
-                 * as method params
-                 */
-                if (checkParam.length)
-                    cdata = QueryTaskPerformer.sort(cdata, checkParam[0].split(','));
-                /**
-                 * set reverse options if defined
-                 * only when been used as filter options in expressions
-                 */
-                if (order === 'DESC')
-                    cdata.reverse();
-
-                return cdata;
+            orderBy: (result) => {
+                var orderByFields = definition.orderBy.split(',').map(i => i.split(':'));
+                return result.sort((a, b) => {
+                    for (const field of orderByFields) {
+                        const key = field[0];
+                        const order = field[1] || 'asc';
+                        const direction = order.toLowerCase() === 'desc' ? -1 : 1;
+                        const aValue = modelGetter(key, a);
+                        const bValue = modelGetter(key, b);
+                        if (aValue < bValue) return -1 * direction;
+                        if (aValue > bValue) return 1 * direction;
+                    }
+                    return 0; // If equal, continue to the next field
+                });
             },
-            limit: (cdata) => ((!definition.groupBy && !definition.groupByStrict) ? QueryLimitMethods.limitTask(cdata, definition) : cdata)
+            limit: (cdata) => QueryLimitMethods.limitTask(cdata, definition)
         };
 
         cdata = Object.keys(staticMethods).reduce((accum, key) => ((definition[key]) ? staticMethods[key](accum) : accum), cdata);

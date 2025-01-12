@@ -7,6 +7,7 @@ class SelectQueryEvent {
     constructor(records, pagination, timing) {
         this.state = "select";
         this.timing = timing;
+        this.pagination = pagination;
         
         this.getResult = function () {
             if (!Array.isArray(records)) return records;
@@ -36,22 +37,6 @@ class SelectQueryEvent {
         this.getRow = function (row) {
             return records[row];
         };
-
-        Object.defineProperties(this, {
-            pagination: {
-                get: () => {
-                    return Object.create({
-                        totalRecords: records.length,
-                        previous: () => {
-
-                        },
-                        next: () => {
-
-                        }
-                    });
-                }
-            }
-        });
     }
 
     openCursor(fn) {

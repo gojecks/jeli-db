@@ -16,6 +16,14 @@ class CoreDataResolver {
         }
     }
 
+    get records(){
+        return this._records;
+    }
+
+    has(tableName){
+        return this._records.hasOwnProperty(tableName);
+    }
+
     tableRecordHolder() {
         return ({
             delete: {},
@@ -84,20 +92,35 @@ class CoreDataResolver {
      * @returns 
      */
     get(tbl) {
-        if (this._records[tbl]) {
+        if (this.has(tbl)) {
             return this.resolveSyncData(tbl);
         }
     
         return { data: this.tableRecordHolder(), columns: this.tableRecordHolder() };
     };
     
-    getAllPending() {
-        return Object.keys(this._records).reduce((accum, tblName) => {
-            accum.push(this.resolveSyncData(tblName));
-            return accum;
-        }, []);
+    getAllPending(ignoreTables) {
+        return Object.values(this.getAllPendingWithTables(ignoreTables));
     };
-    
+
+    getAllPendingWithTables(ignoreTables){
+        ignoreTables = ignoreTables || [];
+        return Object.keys(this._records).reduce((accum, tblName) => {
+            if(!inarray(tblName, ignoreTables)){
+               var transactions = this.resolveSyncData(tblName);
+               if (Object.keys(transactions).length){
+                accum[tblName] = transactions;
+               }
+            }
+
+            return accum;
+        }, {});
+    }
+    /**
+     * 
+     * @param {*} tbl 
+     * @param {*} checksum 
+     */
     isResolved(tbl, checksum) {
         var lStorage;
         if (this._records[tbl]) {
@@ -116,6 +139,8 @@ class CoreDataResolver {
                 table._hash = checksum;
             });
         }
+
+        return this;
     };
     
     destroy() {
@@ -149,6 +174,8 @@ class CoreDataResolver {
     
         for (var type in syncRecords.data) {
             var refs = Object.keys(syncRecords.data[type]);
+            if (!refs.length) continue;
+            // map data
             switch(type){
                 case('delete'):
                     syncData.data[type] = refs;

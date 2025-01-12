@@ -142,7 +142,11 @@ class DatabaseInstance {
                 alias: '',
                 lastModified: curTime,
                 _hash: GUID(),
-                _previousHash: ''
+                _previousHash: '',
+                policies: {
+                    read: ['*'],
+                    write: ['*']
+                }
             }, additionalConfig || {});
 
             /**
@@ -202,16 +206,11 @@ class DatabaseInstance {
         if (table) {
             //required table is an array
             if (isarray(table)) {
-                for (var tbl of table) {
+                table.forEach(tbl => {
                     tbl = tbl.split(' as ').map(trim);
-                    if (tbl.length > 1) {
-                        tableJoinMapping[tbl[1]] = tbl[0];
-                    } else {
-                        tableJoinMapping[tbl[0]] = tbl[0];
-                    }
-
+                    tableJoinMapping[tbl[1] || tbl[0]] = tbl[0];
                     validateTableSchema(tbl[0], tbl);
-                }
+                });
 
                 //change mode to read
                 isMultipleTable = table.length > 1;
@@ -281,7 +280,11 @@ class DatabaseInstance {
                     allowedMode: tables[tblName].allowedMode,
                     lastModified: tables[tblName].lastModified,
                     index: tables[tblName].index,
-                    alias: tables[tblName].alias || ''
+                    alias: tables[tblName].alias || '',
+                    policies: (tables[tblName].policies || {
+                        read: ['*'],
+                        write: ['*']
+                    })
                 }, true));
             }
         }
@@ -306,6 +309,13 @@ class DatabaseInstance {
 
     /**
      * perform many transaction in one command
+     * {
+     *  type: "insert|update|delete",
+     *  data: Object|Array,
+     *  query: Object|string<jQL>,
+     *  table: 'Table Name',
+     *  hardInsert: boolen
+     * }[]
      * @param {*} transactions 
      * @returns 
      */
@@ -315,45 +325,48 @@ class DatabaseInstance {
                 throw new TransactionErrorEvent('BatchTransaction', 'nothing to commit or invalid transaction format');
             }
 
-            var tables = transactions.map(tx => tx.table);
-            this.transaction(tables, "write").then(startBatchTransaction, err => reject(err));
-
-            function startBatchTransaction(tx) {
-                transactions.forEach(performTransaction);
-
-                function performTransaction(transaction) {
-                    if (isequal(transaction.type, "insert")) {
-                        tx.result.insert(transaction.data, false, transaction.table);
-                    } else if (isequal(transaction.type, "update")) {
-                        tx.result.update(transaction.data, transaction.query, transaction.table);
-                    } else if (isequal(transaction.type, "delete")) {
-                        tx.result.delete(transaction.query, transaction.table);
-                    }
+            var tx = this.transaction(transactions.map(tx => tx.table), "write");
+            function performTransaction(transaction) {
+                if (isequal(transaction.type, "insert")) {
+                    tx.insert(transaction.data, transaction.hardInsert, transaction.table);
+                } else if (isequal(transaction.type, "update")) {
+                    tx.update(transaction.data, transaction.query, transaction.table);
+                } else if (isequal(transaction.type, "delete")) {
+                    tx.delete(transaction.query, transaction.table);
                 }
+            }
 
-                var error = tx.result.getError(),
-                    time = performance.now(),
-                    ret = {
-                        state: "batch",
-                        result: {
-                            message: "Batch transaction complete"
-                        }
-                    };
-                /**
-                 * check if queries contains error
-                 */
-                if (error.length) {
-                    ret.result.message = error.join('\n');
-                    reject(ret);
-                    tx.result.cleanup();
-                } else {
-                    tx.result.execute()
-                        .then(function (res) {
-                            ret.result.transactions = res;
-                            ret.timing = performance.now() - time;
-                            resolve(ret);
-                        });
+            // perform transactions
+            transactions.forEach(performTransaction);
+            var error = tx.getError();
+            var time = performance.now();
+            var ret = {
+                state: "batch",
+                result: {
+                    message: "Batch transaction complete"
                 }
+            };
+
+            var final = passed => txRes => {
+                ret.result.transactions = txRes;
+                ret.timing = performance.now() - time;
+                if (!passed) return reject(ret);
+                // process syncing
+                this.syncAll().then(
+                    sync => resolve(Object.assign(ret.result, { sync })),
+                    sync => reject(Object.assign(ret.result, { sync }))
+                );
+            };
+
+            /**
+             * check if queries contains error
+             */
+            if (error.length) {
+                ret.result.message = error.join('\n');
+                reject(ret);
+                tx.cleanup();
+            } else {
+                tx.execute(false, true).then(final(true), final(false));
             }
         });
 
@@ -633,6 +646,43 @@ class DatabaseInstance {
 
             performTask(tasks[index], taskPerformerHandler, context);
         }
+    }
+
+    syncAll(stopOnFailedTransaction) {
+        var ignoreSync = privateApi.getConfigData('ignoreSync', this.name);
+        var recordResolver = privateApi.getActiveDB(this.name).get(constants.RECORDRESOLVERS);
+        var transactions = recordResolver.getAllPendingWithTables(ignoreSync);
+        var requestParams = privateApi.buildHttpRequestOptions(this.name, { path: '/database/push/many' });
+        requestParams.data = {
+            transactions,
+            stopOnFailedTransaction
+        };
+        if (!Object.keys(transactions).length) return Promise.resolve({ message: 'Nothing to Sync' });
+
+        return privateApi.$http(requestParams, this.name)
+            .then(res => {
+                Object.keys(res).forEach(tbl => {
+                    var tableRes = res[tbl];
+                    recordResolver.isResolved(tbl, tableRes._hash)
+                        .handleFailedRecords(tbl, tableRes.failed);
+                });
+                return res;
+            }, err => err);
+    }
+
+    sync(config) {
+        return new Promise((resolve, reject) => {
+            var connector = this.getConnector('sync-connector', { name: this.name, version: this.version });
+            if (!connector) return reject('Failed to laod sync connector');
+
+            connector
+                .Entity(config.table)
+                .configSync(null, config.force, config.syncData)
+                .processEntity({
+                    onSuccess: resolve,
+                    onError: reject
+                });
+        })
     }
 }
 

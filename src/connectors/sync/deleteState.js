@@ -16,7 +16,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         var resData = res.renamed || res.removed;
         var totalTask = Object.keys(deleteRecords[task]);
         var inc = 0;
-        var isDataBaseTask = ('database'  == task) && resData[appName];
+        var isDataBaseTask = ('database' == task) && resData[appName];
         // check if records are fully processed
         for (var i = 0; i < totalTask.length; i++) {
             var taskName = totalTask[i];
@@ -83,7 +83,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
 
     function fail(res) {
         if (res.data && res.data.removed) {
-            for(var tblName in res.data.removed) {
+            for (var tblName in res.data.removed) {
                 syncHelper.setMessage(res.data.removed[tblName].message || "Unable to perform requested action.");
             }
         }
@@ -98,13 +98,13 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
     function mainProcess() {
         var api = '/database/table/drop';
         var data = deleteRecords.table;
-        var message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server';
+        var message = `Droping ${JSON.stringify(Object.keys(data))} Tables from the server`;
         var taskName = "table";
         //check if database was remove from client
         if (deleteRecords.database[appName]) {
             api = '/database/drop';
             data = deleteRecords.database;
-            message = "Droping " + appName + " Application from the server";
+            message = `Droping ${appName} Application from the server`;
             taskName = "database";
         }
 
@@ -114,8 +114,8 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
          */
         var _renamedTables = Object.keys(deleteRecords.rename);
         if ((taskName == 'table') && _renamedTables.length) {
-            syncHelper.setMessage('Renaming Tables(' + JSON.stringify(_renamedTables) + ') on the server');
-            request("/database/table/rename", 'renamed', deleteRecords.rename)
+            syncHelper.setMessage(`Renaming Tables(${JSON.stringify(_renamedTables)}) on the server`);
+            request('/database/table/rename', { renamed: deleteRecords.rename })
                 .then(res => {
                     cleanUp('rename', res);
                     mainRequest()
@@ -129,10 +129,8 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
          * @param {*} ref 
          * @param {*} data 
          */
-        function request(path, ref, data) {
-            var request = syncHelper.setRequestData(appName, path, true, null);
-            request.data = { [ref]: data };
-            return DatabaseSyncConnector.coreApi.$http(request);
+        function request(path, data) {
+            return syncHelper.request(appName, path, null, data);
         }
 
         function mainRequest() {
@@ -142,7 +140,7 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
             }
             //set message to our console
             syncHelper.setMessage(message);
-            request(api, 'remove', data).then(done(taskName), fail);
+            request(api, { remove: data }).then(done(taskName), fail);
         }
 
         mainRequest();

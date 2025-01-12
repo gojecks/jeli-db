@@ -48,7 +48,7 @@ class DatabaseSyncConnector {
                                     if (resState) {
                                         //start sync state
                                         syncHelper.setMessage('Resource synchronized successfully');
-                                        startSyncState(config.name, false);
+                                        startSyncState(config.name, false, activeDB);
                                     } else {
                                         //failed to set resource
                                         syncHelper.setMessage('Resource synchronization failed');
@@ -68,7 +68,7 @@ class DatabaseSyncConnector {
                             deleteSyncState.mainProcess(config.name, $deleteManager.getRecords(), resourceChecker.resource);
                         } else {
                             //start sync state
-                            startSyncState(config.name, resourceChecker.resource);
+                            startSyncState(config.name, resourceChecker.resource, activeDB);
                         }
                     }, function (err) {
                         syncHelper.setMessage('Unable to pull database resource from server, please check your network');
@@ -83,8 +83,9 @@ class DatabaseSyncConnector {
             }
         }
 
-        function configSync(config, forceSync) {
+        function configSync(config, forceSync, allowDataSyncing) {
             networkResolver = Object.assign({}, networkResolver, config || {});
+            $process.getSet('allowDataSyncing', allowDataSyncing || false);
             $process.getSet('forceSync', forceSync);
             $process.getSet('networkResolver', networkResolver);
             $process.getSet('onMessage', syncHelper.setMessage);

@@ -1,9 +1,9 @@
 /**
  * Synchronization Helper
  */
-class syncHelper{
+class syncHelper {
     static _process = null;
-    static get process(){
+    static get process() {
         if (!syncHelper._process)
             syncHelper._process = new SyncProcess();
 
@@ -85,30 +85,13 @@ class syncHelper{
     /**
      * 
      * @param {*} appName 
-     * @param {*} state 
-     * @param {*} ignore 
+     * @param {*} path 
      * @param {*} tbl 
      */
-    static setRequestData(appName, state, ignore, tbl) {
-        var request = DatabaseSyncConnector.coreApi.buildHttpRequestOptions(appName, { tbl: tbl, path: state });
-        //ignore post data
-        if (!ignore) {
-            switch (state.toLowerCase()) {
-                case ('/database/sync'):
-                    request.data = DatabaseSyncConnector.coreApi.getTable(appName, tbl, true);
-                    request.data.action = "overwrite";
-                    break;
-                case ('/database/resource/add'):
-                    var resource = syncHelper.getResourceManagerInstance(appName).getResource();
-                    if (!resource.lastSyncedDate) {
-                        resource.lastSyncedDate = +new Date;
-                    }
-                    request.data = resource;
-                    break;
-            }
-        }
-
-        return request;
+    static request(appName, path, tbl, data) {
+       return  DatabaseSyncConnector.coreApi.$http(
+            DatabaseSyncConnector.coreApi.buildHttpRequestOptions(appName, { tbl, path, data })
+       );
     };
 
     /**
@@ -117,8 +100,7 @@ class syncHelper{
      * @param {*} requiredData 
      */
     static getSchema(appName, requiredTable) {
-        var request = syncHelper.setRequestData(appName, '/database/schema', false, requiredTable || [])
-        return DatabaseSyncConnector.coreApi.$http(request);
+        return syncHelper.request(appName, '/database/schema', requiredTable || []);
     };
 
     /**
@@ -126,7 +108,7 @@ class syncHelper{
      * @param {*} appName 
      */
     static pullResource(appName) {
-        return DatabaseSyncConnector.coreApi.$http(syncHelper.setRequestData(appName, '/database/resource', true));
+        return syncHelper.request(appName, '/database/resource');
     };
 
     /**
@@ -136,7 +118,11 @@ class syncHelper{
      */
     static syncResourceToServer(appName) {
         syncHelper.setMessage('Resource synchronization started');
-        return DatabaseSyncConnector.coreApi.$http(syncHelper.setRequestData(appName, '/database/resource/add', '', ''));
+        var resource = syncHelper.getResourceManagerInstance(appName).getResource();
+        if (!resource.lastSyncedDate) {
+            resource.lastSyncedDate = +new Date;
+        }
+        return syncHelper.request(appName, '/database/resource/add', null, resource);
     };
 
 
@@ -171,24 +157,26 @@ class syncHelper{
      * update the server database with client records
      * @param {*} appName 
      * @param {*} tbl 
-     * @param {*} data 
+     * @param {*} allowDataSyncing 
      * @param {*} state 
      */
-    static push(appName, tbl, data, state) {
+    static push(appName, tbl, allowDataSyncing) {
         var _activeDB = DatabaseSyncConnector.coreApi.getActiveDB(appName);
-        syncHelper.setMessage('Initializing Push State for table(' + tbl + ')');
-        //check state
-        state = state || 'push';
-        var request = syncHelper.setRequestData(appName, state, false, tbl);
+        syncHelper.setMessage(`Initializing Push State for table(${tbl})`);
+        var collection = DatabaseSyncConnector.coreApi.getTable(appName, tbl, true);
         //update the table and not overwrite
-        if (data) {
-            if (!data.columns.diff) {
-                data._hash = request.data._hash; //update the postData hash before posting
-                request.data = _activeDB.get(DatabaseSyncConnector.coreApi.constants.RECORDRESOLVERS).get(tbl);
+        if (allowDataSyncing) {
+            syncHelper.setMessage(`Setting pending records to sync for table(${tbl})`);
+            var recordResolver = _activeDB.get(DatabaseSyncConnector.coreApi.constants.RECORDRESOLVERS);
+            if (recordResolver.has(tbl)) {
+                var records = recordResolver.get(tbl);
+                if (Object.keys(records.data).length){
+                    collection.data = records.data;
+                }
             }
         }
 
-        return DatabaseSyncConnector.coreApi.$http(request);
+        return syncHelper.request(appName, '/database/sync', tbl, collection);
     };
 
     /**
@@ -196,10 +184,9 @@ class syncHelper{
      * @param {*} appName 
      * @param {*} tbl 
      */
-    static pullTable(appName, tbl, requestTableData) {
-        syncHelper.setMessage('---Retrieving ' + tbl + ' schema---');
-        var request = syncHelper.setRequestData(appName, '/database/pull', false, tbl);
-        return DatabaseSyncConnector.coreApi.$http(request);
+    static pullTable(appName, tbl) {
+        syncHelper.setMessage(`---Retrieving ${tbl} schema---`);
+        return syncHelper.request(appName, '/database/pull', tbl);
     };
 
     /**

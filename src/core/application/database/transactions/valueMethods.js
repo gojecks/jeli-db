@@ -43,10 +43,10 @@ class SelectHelpers {
 
                 return {
                     _as: _as,
-                    custom: SelectHelpers.replacer(select.split(" as ")[0].trim()),
+                    custom: SelectHelpers.replacer(select.split(' as ')[0].trim()),
                     field: field,
                     tCol: tCol,
-                    asx: (field === '*' && isequal(_as, field))
+                    asx: [field, _as].includes('*')
                 };
             });
 
@@ -79,9 +79,26 @@ class SelectHelpers {
  */
 
 class SelectMethods {
-    static COUNT(_, field, queryResult) {
+    /**
+     * 
+     * @param {*} type 
+     * @param {*} item 
+     * @param {*} key 
+     * @param {*} _ 
+     * @returns 
+     */
+    static _call(type, item, key, _) {
+        var callback = this[type.toUpperCase()];
+        if (callback) {
+            return callback(item, key, _);
+        }
+
+        return this.GET(item, key || type);
+    }
+
+    static COUNT(cdata, field, queryResult) {
         if (field) {
-            return queryResult.filter(function (item) { return item[field]; }).length;
+            return (Array.isArray(cdata) ? cdata : queryResult).filter(item => item[field]).length;
         }
         return queryResult.length
     }
@@ -114,7 +131,7 @@ class SelectMethods {
         return (+new Date(cdata[dates[0]] || today)) - (+new Date(cdata[dates[1]] || today));
     }
 
-    static DATE_IN_FUTURE(data, field){
+    static DATE_IN_FUTURE(data, field) {
         return (+new Date(SelectMethods.GET(data, field) || '') > Date.now());
     }
 
@@ -126,25 +143,41 @@ class SelectMethods {
         return modelGetter(field, cdata);
     }
 
-    static MIN(_, field, queryResult) {
-        var values = getNumberOnlyValues(field, queryResult);
+    static MIN(cdata, field, queryResult) {
+        var values = getNumberOnlyValues(field, (Array.isArray(cdata) ? cdata : queryResult));
         return Math.min.apply(Math, values);
     }
 
-    static MAX(_, field, queryResult) {
-        var values = getNumberOnlyValues(field, queryResult);
+    static MAX(cdata, field, queryResult) {
+        var values = getNumberOnlyValues(field, (Array.isArray(cdata) ? cdata : queryResult));
         return Math.max.apply(Math, values);
     }
 
-    static SUM(_, field, queryResult) {
-        var values = getNumberOnlyValues(field, queryResult);
-        return values.reduce(function (a, b) {
-            return a + b;
-        }, 0);
+    static SUM(item, field, queryResult) {
+        var counts = [];
+        if (Array.isArray(item)) {
+            counts = item.map(a => this.SUM(a, field));
+        } else if (field && Array.isArray(item[field])) {
+            counts = item[field];
+        } else {
+            counts = getNumberOnlyValues(field, queryResult);
+        }
+
+        return counts.reduce((a, b) => (a + b), 0);
     }
 
     static AVG(cdata, field, queryResult) {
-        return this.SUM(cdata, field) / queryResult.length;
+        var total = 0;
+        var sum = 0;
+        if (Array.isArray(cdata)) {
+            sum = this.SUM(cdata, field);
+            total = queryResult.reduce((accum, item) => (accum + item.length), 0);
+        } else {
+            sum = this.SUM(queryResult, field);
+            total = queryResult.length;
+        }
+
+        return sum / total;
     }
 
     static DIV(cdata, fields) {
@@ -194,6 +227,22 @@ class SelectMethods {
         values = values.split(':');
         return getStrAtPos(cdata[values[0]], parseInt(values[1]), parseInt(values[2]));
     }
+
+    static LAST(cdata, field) {
+        if (!Array.isArray(cdata)) {
+            return cdata;
+        }
+
+        return cdata[cdata.length - 1];
+    }
+
+    static FIRST(cdata, field){
+        if (!Array.isArray(cdata)) {
+            return cdata;
+        }
+
+        return cdata[0];
+    }
 }
 
 class ValueMethods {
@@ -211,20 +260,20 @@ class ValueMethods {
         return expr[0];
     }
 
-    static createInstance(fields, queryResult){
+    static createInstance(fields, queryResult) {
         return new this(fields, queryResult);
     }
-    
+
     constructor(fields, queryResult) {
         this.requiredFields = null;
         this.queryResult = queryResult || [];
 
-        this.setField = function(fields) {
+        this.setField = function (fields) {
             this.requiredFields = SelectHelpers.parseFields(fields);
             return this;
         };
-    
-        this.setData = function(data) {
+
+        this.setData = function (data) {
             this.queryResult = data;
             return this;
         };
@@ -240,12 +289,7 @@ class ValueMethods {
      * @returns 
      */
     getValue(field, cdata) {
-        var selectFn = SelectMethods[field[0]];
-        if (typeof selectFn == 'function' && !cdata.hasOwnProperty(field[0])) {
-            return selectFn(cdata, field[1], this.queryResult);
-        }
-
-        return SelectMethods.GET(cdata, field[0]);
+        return SelectMethods._call(field[0], cdata, field[1], this.queryResult);
     }
 
     first() {
@@ -264,17 +308,18 @@ class ValueMethods {
         var odata = {};
         for (var field of this.requiredFields) {
             if (isequal(field.field, '*')) {
-                resolveAsterixQuery(field);
+                resolveAsterixQuery(field, cData[curField.tCol] || cData);
             } else {
-                odata[field._as] = this.getValue(field.custom, cData);
+               var value = this.getValue(field.custom, cData);
+               resolveAsterixQuery(field, value);
             }
         }
 
-        function resolveAsterixQuery(curField) {
+        function resolveAsterixQuery(curField, value) {
             if (curField.asx) {
-                Object.assign(odata, cData[curField.tCol]);
+                Object.assign(odata, value);
             } else {
-                odata[curField._as] = cData[curField.tCol] || cData;
+                odata[curField._as] = value;
             }
         }
 
@@ -283,16 +328,16 @@ class ValueMethods {
 
     getAll(customOnly) {
         return this.queryResult.reduce((accum, item) => {
-            if (customOnly){
+            if (customOnly) {
                 var value = this.getValue(this.requiredFields[0].custom, item);
-                if (Array.isArray(value)) 
+                if (Array.isArray(value))
                     accum.push.apply(accum, value);
-                else 
-                    accum.push(value); 
+                else
+                    accum.push(value);
             } else {
-                accum.push(this.getData(item)); 
+                accum.push(this.getData(item));
             }
-            
+
             return accum;
         }, []);
     }

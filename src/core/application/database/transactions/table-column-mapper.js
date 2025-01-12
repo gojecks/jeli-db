@@ -31,9 +31,10 @@ function getDefaultColumnValue(defaultValue, ref, tableInfo) {
  * @param {*} tableInfo 
  * @returns 
  */
-function columnObjFn(tableInfo) {
+function tableModelMapper(tableInfo) {
     var columnKeys = Object.keys(tableInfo.columns[0]);
     function parser(data, ref) {
+        data = (data || {});
         return columnKeys.reduce(function(accum, prop) {
             var def = tableInfo.columns[0][prop];
             var hasProp = data.hasOwnProperty(prop);

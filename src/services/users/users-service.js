@@ -38,6 +38,7 @@ class UserService {
     remove(userRef) {
         return this.dbInstance.api({ path: '/user', data: [userRef], method: 'DELETE' });
     }
+    
     update(userData) {
         //post our request to server
         return this.dbInstance.api({ path: '/user', data: [userData], method: 'PUT' });
