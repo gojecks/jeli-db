@@ -67,7 +67,7 @@ module.exports = {
         }
     },
    SqlAdapter: {
-        dest: './dist/adapters/sql.js',
+        dest: './dist/adapters/sql/index.js',
         src: [
             './packages/sql-adapter/src/**.js',
             './packages/sql-adapter/index.js'
@@ -75,6 +75,26 @@ module.exports = {
         options: {
             banner: "(function (root, factory) { if (typeof define === 'function' && define.amd) { define([], factory); } else if (typeof module === 'object' && module.exports) { module.exports = factory(); } else { root.sqlAdapter = factory(); } }(typeof self !== 'undefined' ? self : this, function () {",
             footer: '\n\nreturn SqlAdapter; \n\n}))'
+        }
+    },
+    IndexDBAdapter: {
+        dest: './dist/adapters/indexeddb/index.js',
+        src: [
+            './packages/indexeddb-adapter/*.js',
+        ],
+        options: {
+            banner: "(function (root, factory) { if (typeof define === 'function' && define.amd) { define([], factory); } else if (typeof module === 'object' && module.exports) { module.exports = factory(); } else { root.IndexedDBAdapter = factory(); } }(typeof self !== 'undefined' ? self : this, function () {",
+            footer: '\n\nreturn IndexedDBAdapter; \n\n}))'
+        }
+    },
+    FlatFileAdapter: {
+        dest: './dist/adapters/flat-file/index.js',
+        src: [
+            './packages/flat-file-adapter/*.js',
+        ],
+        options: {
+            banner: "(function (root, factory) { if (typeof define === 'function' && define.amd) { define([], factory); } else if (typeof module === 'object' && module.exports) { module.exports = factory(); } else { root.FlatFileAdapter = factory(); } }(typeof self !== 'undefined' ? self : this, function () {",
+            footer: '\n\nreturn FlatFileAdapter; \n\n}))'
         }
     }
 }

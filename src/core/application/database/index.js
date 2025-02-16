@@ -258,7 +258,7 @@ class DatabaseInstance {
      */
     close(flag) {
         //drop the DB if allowed
-        privateApi.closeDB(this.name, flag);
+        return privateApi.closeDB(this.name, flag);
     }
 
     /**
@@ -704,7 +704,7 @@ class DatabaseLoginInstance {
      */
     close(flag) {
         //drop the DB if allowed
-        privateApi.closeDB(this.name, flag);
+        return privateApi.closeDB(this.name, flag);
     };
 }
 
@@ -728,7 +728,7 @@ class DatabaseDeletedInstance {
      */
     close(flag) {
         //drop the DB if allowed
-        privateApi.closeDB(this.name, flag);
+        return privateApi.closeDB(this.name, flag);
     }
 }
 

@@ -15,22 +15,19 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         var delRecordManager = DatabaseSyncConnector.coreApi.storageFacade.get(delRecordName, appName);
         var resData = res.renamed || res.removed;
         var totalTask = Object.keys(deleteRecords[task]);
-        var inc = 0;
         var isDataBaseTask = ('database' == task) && resData[appName];
         // check if records are fully processed
-        for (var i = 0; i < totalTask.length; i++) {
-            var taskName = totalTask[i];
+        totalTask.forEach(taskName => {
             if (resData.hasOwnProperty(taskName)) {
                 if (('object' !== typeof resData[taskName]) && resData[taskName]) {
                     delete delRecordManager[appName][task][taskName];
-                    inc++;
                 } else {
                     syncHelper.setMessage(resData[taskName].message);
                 }
             } else {
-                syncHelper.setMessage('Unable to remove ' + task + "(" + taskName + ') from the server');
+                syncHelper.setMessage(`Unable to remove ${task} (${taskName}) from the server`);
             }
-        }
+        });
 
         /**
          * check is request type was database
@@ -40,15 +37,21 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         }
 
         //update the storage
-        DatabaseSyncConnector.coreApi.storageFacade.set(delRecordName, delRecordManager, appName);
+        DatabaseSyncConnector
+            .coreApi
+            .storageFacade
+            .set(delRecordName, delRecordManager, appName);
         /**
          * reset deletedRecords
          */
         if (inc == totalTask.length) {
             if (isDataBaseTask) {
-                DatabaseSyncConnector.coreApi.closeDB(appName, true);
+                DatabaseSyncConnector
+                    .coreApi
+                    .closeDB(appName, true);
             } else {
-                DatabaseSyncConnector.coreApi
+                DatabaseSyncConnector
+                    .coreApi
                     .getActiveDB(appName)
                     .get(DatabaseSyncConnector.coreApi.constants.RESOLVERS)
                     .deleteManager()
@@ -63,23 +66,17 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
      * 
      * @param {*} taskName 
      */
-    function done(taskName) {
-        return function (res) {
-            /**
-             * cleanup
-             */
-            if (res) {
-                cleanUp(taskName, res);
-            }
-
-
-            if (taskName != 'database') {
-                startSyncState(appName, serverResource, true);
-            } else {
-                syncHelper.finalizeProcess(appName);
-            }
+    function done(taskName, res){
+        if (res) {
+            cleanUp(taskName, res);
         }
-    };
+
+        if (taskName != 'database') {
+            startSyncState(appName, serverResource, true);
+        } else {
+            syncHelper.finalizeProcess(appName);
+        }
+    }
 
     function fail(res) {
         if (res.data && res.data.removed) {
@@ -135,18 +132,16 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
 
         function mainRequest() {
             if (!Object.keys(data).length) {
-                done(taskName)();
-                return;
+                return done(taskName);
             }
             //set message to our console
             syncHelper.setMessage(message);
-            request(api, { remove: data }).then(done(taskName), fail);
+            request(api, { remove: data }).then(res => done(taskName, res), fail);
         }
 
         mainRequest();
     }
-    /**
-     * get the Application API
-     */
+
+    // get the Application API
     mainProcess();
 }

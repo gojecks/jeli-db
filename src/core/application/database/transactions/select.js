@@ -252,31 +252,37 @@ function transactionSelect(selectFields, definition) {
             var key = ValueMethods.callMethod(lookup.key, data);
             var fields = ValueMethods.callMethod(lookup.fields, data);
             var valueByIndex = getLookUpTableIndex(lookupTable, tableName, on, fields);
+            /**
+             * lookupAndAssign
+             * @param {*} currentData 
+             * @param {*} total 
+             */
+            var lookupAndAssign = (currentData, total) => {
+                var thenValue = valueByIndex(key ? currentData[key] : currentData, total);
+                if (thenValue) {
+                    if (lookup.merge)
+                        Object.assign(currentData, thenValue);
+                    else if (lookup.as)
+                        currentData[lookup.as] = thenValue;
+                    else
+                        currentData = thenValue;
+                } else if(lookup.strict) {
+                    currentData = null;
+                }
+
+                return currentData;
+            };
+
             // we expect data to be array of foreignKeys to resolve
             if (isarray(data) && hasGroupBy) {
                 var total = data.length;
-                for (var i = 0; i < total; i++) {
-                    var value = data[i];
-                    var thenValue = valueByIndex(key ? value[key] : value, total);
-                    if (thenValue) {
-                        if (lookup.merge)
-                            data[i] = Object.assign(value, thenValue);
-                        else if (lookup.as)
-                            value[lookup.as] = thenValue;
-                        else
-                            data[i] = thenValue;
-                    }
-                }
+                data = data.reduce((accum, item) => {
+                    var lkValue = lookupAndAssign(item, total);
+                    if (lkValue) accum.push(lkValue);
+                    return accum;
+                }, []);
             } else {
-                var thenValue = valueByIndex(key ? data[key] : data, 1);
-                if (thenValue) {
-                    if (lookup.merge)
-                        Object.assign(data, thenValue);
-                    else if (lookup.as)
-                        data[lookup.as] = thenValue;
-                    else
-                        data = thenValue;
-                }
+                data = lookupAndAssign(data, 1);
             }
 
             lookupTable = null;
@@ -396,6 +402,10 @@ function transactionSelect(selectFields, definition) {
                 result = Object.assign({}, (result._data || result));
                 performResolve(queryDefinition.resolve, result);
                 result = performLookup(queryDefinition.lookup, result);
+
+                // return when result is null
+                // could happen due to strict matcher for lookup
+                if (!result) return;
 
                 if (group) {
                     var key = group.map(k => modelGetter(k, result)).sort().join(':');

@@ -14,10 +14,7 @@ class UserService {
             },
             validateCode: function (requestBody) {
                 return dbInstance.api({ path: "/password/code/validate", data: requestBody })
-                    .then(function (res) {
-                        //resolve the promise
-                        return new AuthorizeUserInstance(res.result);
-                    });
+                    .then(res => new AuthorizeUserInstance(res.result), err => err);
             },
             validate: function (postData) {
                 return dbInstance.api({ path: '/user/password/validate', data: postData });
@@ -30,10 +27,7 @@ class UserService {
         //Put the Data
         //use the db API Method
         return this.dbInstance.api({ path: '/user', data: [newInfo], method: 'POST' })
-            .then(function (res) {
-                //Put the new user
-                return new AddUserEventInstance(res, newInfo);
-            });
+            .then(res => new AddUserEventInstance(res, newInfo), err => err);
     }
     remove(userRef) {
         return this.dbInstance.api({ path: '/user', data: [userRef], method: 'DELETE' });
@@ -45,16 +39,11 @@ class UserService {
     }
     isExists(queryData) {
         return this.dbInstance.api({ path: '/user/exists', data: queryData })
-            .then(function (res) {
-                return (res.result);
-            });
+            .then((res) => (res.result), err => err);
     }
     authorize(queryData) {
         return this.dbInstance.api({ path: '/user/authorize', data: queryData })
-            .then(function (res) {
-                //resolve the promise
-                return (new AuthorizeUserInstance(res.result));
-            }, err => err);
+            .then(res => (new AuthorizeUserInstance(res.result)) , err => err);
     }
     /**
      *
@@ -101,6 +90,6 @@ class UserService {
      */
     getOidcToken(data) {
         return this.dbInstance.api({ path: '/user/openid/token', data })
-            .then(res => this.createAuthorizeInstance(res.result));
+            .then(res => this.createAuthorizeInstance(res.result), err => err);
     }
 };

@@ -249,3 +249,18 @@ function stringEqualToObject(str) {
         return accum
     }, {});
 }
+
+/**
+ * @param {*} ttl 
+ * @returns number
+ */
+function getDateTimeFromTTL(ttl){
+    var format = ttl.split(/\d/).pop();
+    var now = new Date();
+    // generate time from now based on format
+   return ({
+        d: c => now.setSeconds(60 * 60 * 24) * c,
+        w: c => now.setSeconds(60 * 60 * 24 * 7) * c,
+        m: c => now.setSeconds(60 * 60 * 24 * 30) * c
+    })[format]( parseInt(ttl) || 1);
+}

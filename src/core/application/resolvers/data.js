@@ -202,7 +202,7 @@ class CoreDataResolver {
      */
     handleFailedRecords(tbl, failedRecords) {
         var syncRecords = this._records[tbl];
-        function handleFailedError(key) {
+        var handleFailedError = (key) => {
             if (failedRecords[key].length) {
                 switch(key) {
                     case ('insert'):
@@ -223,6 +223,24 @@ class CoreDataResolver {
                         console.log('new Ref Mapping:', newRefs);
                     break;
                     case ('update'):
+                        // remove the missing refs from DB since it doesn't exist
+                        var tableData = privateApi.getTableData(this.name, tbl);
+                        var toRemove = 0;
+                        for(var i=0; i < tableData.length; i++){
+                            if (failedRecords[key].includes(tableData[i]._ref)){
+                                toRemove++;
+                                tableData.splice(i, 1);
+                                i--;
+                            }
+
+                            // break away from loop
+                            if (toRemove == failedRecords[key].length){
+                                break;
+                            }
+
+                        }
+                        privateApi.storageFacade.broadcast(this.name, DB_EVENT_NAMES.TRANSACTION_DELETE, [tbl, failedRecords[key]]);
+                    break;
                     case('delete'):
                         if (syncRecords && syncRecords.data){
                             failedRecords[key].forEach(ref => delete syncRecords.data[key][ref]);

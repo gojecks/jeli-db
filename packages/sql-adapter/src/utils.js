@@ -24,3 +24,11 @@ function logError(tx, txError) {
     console.log(txError);
     console.groupEnd();
 }
+
+function jsonParserTypes(value){
+    try {
+        return JSON.parse(value);
+    } catch {
+        return value;
+    }
+}

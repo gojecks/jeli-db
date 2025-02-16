@@ -38,7 +38,8 @@ function Database(name, version) {
         schemaPath: null,
         /**
          * set to always load schema from frontendOnly
-         * value true | { loadData: [TABLE_NAMES] }
+         * value true | { loadData: [TABLE_NAMES], maximumRetries: 10, ttl: 1d }
+         * ttl = limit // define in d=days,w=weeks,m=month
          */ 
         useFrontendOnlySchema: false,
         // set to true to ignore syncing data to server
@@ -51,6 +52,7 @@ function Database(name, version) {
          * introduced in version 2.0.0
          * it is advised to only use this in dev env and not in prod
          * versions should always be upgraded when schema changes to keep everything in sync
+         * 
          */
         alwaysCheckSchema: false,
         /**
@@ -197,10 +199,16 @@ function Database(name, version) {
          * Only if onUpgrade Function is initilaized
          * set upgrade mode
          **/
-        var dbChecker = privateApi.get(name) || false;
+        var dbChecker = privateApi.get(name, ['version', 'tables', privateApi.storeMapping.nextSchemaSyncDate]) || false;
         jeliInstance.result = DatabaseInstance.createInstance(name, version, dbChecker && dbChecker.version);
         var schemaManager = SchemaManager.createInstance(jeliInstance.result, version, dbChecker.version || 1, dbConfig.schemaPath);
-        var _allDone = () => resolve(jeliInstance);
+        var _allDone = (nextSyncDate) => {
+            if (nextSyncDate){
+                _activeDBApi.get(constants.STORAGE).setItem(privateApi.storeMapping.nextSchemaSyncDate, nextSyncDate); 
+            }
+            resolve(jeliInstance);
+        };
+
         // returns a next function for eventing
         var nextCallack = eventType => () => dbPromiseExtension.call(eventType, [jeliInstance, _allDone]);
 
@@ -225,8 +233,8 @@ function Database(name, version) {
                 /**
                  * check for updated schema from FO service
                  */
-                if (dbConfig.useFrontendOnlySchema && dbConfig.alwaysCheckSchema) {
-                    ServerSchemaLoader(name, version).then(_allDone, reject);
+                if (dbConfig.useFrontendOnlySchema && dbConfig.alwaysCheckSchema && (dbChecker[privateApi.storeMapping.nextSchemaSyncDate] || 0) <= Date.now()) {
+                    ServerSchemaLoader(name, version, dbConfig.useFrontendOnlySchema).then(_allDone, reject);
                 } else {
                     _allDone();
                 }
@@ -235,8 +243,6 @@ function Database(name, version) {
                 // DB is already created but versioning is different
                 jeliInstance.message = name + " DB was successfully upgraded to version(" + version + ")";
                 jeliInstance.type = "upgradeMode";
-                // update the version
-                dbChecker.version = version;
                 // save the version
                 _activeDBApi.get(constants.STORAGE).setItem('version', version);
                 /**

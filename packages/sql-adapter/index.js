@@ -9,7 +9,8 @@ function SqlAdapter(config, storageUtils, next) {
     var _sqlFacade = null;
     var _privateStore = {};
     var _errorTables = [];
-    var type;
+    var type = null;
+    var getDataName = collection => `${collection}:data`;
 
     class StorageFacade {
         /**
@@ -51,13 +52,15 @@ function SqlAdapter(config, storageUtils, next) {
             return true;
         }
 
-        static clear(ignoreClearing) {
+        static clear(onDone) {
+            onDone = onDone || noop;
             _sqlFacade.query('DELETE FROM _JELI_STORE_', [])
-                .then(function () {
-                    if (ignoreClearing) {
-                        _privateStore = {};
-                    }
-                });
+                .then(() => {
+                    // empty data
+                    _privateStore = {};
+                    // onDone
+                    onDone(true);
+                }, () => onDone(false));
         }
 
         static isExists(key) {
@@ -86,14 +89,6 @@ function SqlAdapter(config, storageUtils, next) {
             function loadDBData() {
                 var resource = _privateStore[storageUtils.storeMapping.resourceName];
                 var tableNames = Object.keys((resource || {}).resourceManager || {});
-                var jsonParserTypes = value => {
-                    try {
-                        return JSON.parse(value);
-                    } catch {
-                        return value;
-                    }
-                };
-
                 if (!_privateStore.version || !tableNames.length)
                     return (next || noop)();
 
@@ -107,7 +102,7 @@ function SqlAdapter(config, storageUtils, next) {
                     var columns = StorageFacade.getItem(current).columns[0];
                     var columnNames = Object.keys(columns || {});
 
-                    _privateStore[current + ":data"] = [];
+                    _privateStore[getDataName(current)] = [];
                     /**
                      * check if table has data before querying database
                      */
@@ -150,7 +145,7 @@ function SqlAdapter(config, storageUtils, next) {
                             });
 
                             // store the data
-                            _privateStore[current + ":data"].push(data);
+                            _privateStore[getDataName(current)].push(data);
                         }
 
                         nextQuery();
@@ -199,14 +194,11 @@ function SqlAdapter(config, storageUtils, next) {
 
 
     class EventRegistry {
-        static _getName(tbl) {
-            return `${tbl}:data`;
-        }
 
         static insert(tbl, data, insertData) {
             _privateStore[tbl].lastInsertId += data.length;
             if (insertData) {
-                _privateStore[EventRegistry._getName(tbl)].push.apply(_privateStore[EventRegistry._getName(tbl)], data);
+                _privateStore[getDataName(tbl)].push.apply(_privateStore[getDataName(tbl)], data);
             }
 
             _sqlFacade.insert(tbl, data);
@@ -230,7 +222,7 @@ function SqlAdapter(config, storageUtils, next) {
             _sqlFacade.alterTable.apply(_sqlFacade, arguments)
                 .then(function () {
                     if (action) {
-                        var tblData = _privateStore[tableName + ":data"];
+                        var tblData = _privateStore[getDataName(tableName)];
                         if (tblData.length) {
                             var columnData = tblData[0]._data[columnName];
                         }
@@ -273,7 +265,7 @@ function SqlAdapter(config, storageUtils, next) {
             var data = definition.data || [];
             delete definition.data;
             StorageFacade.setItem(tbl, definition);
-            _privateStore[EventRegistry._getName(tbl)] = data;
+            _privateStore[getDataName(tbl)] = data;
             EventRegistry.insert(tbl, data.splice(0), true);
         }
 
@@ -281,7 +273,7 @@ function SqlAdapter(config, storageUtils, next) {
             _sqlFacade.dropTable(tbl)
                 .then(function () {
                     StorageFacade.removeItem(tbl);
-                    StorageFacade.removeItem(EventRegistry._getName(tbl));
+                    StorageFacade.removeItem(getDataName(tbl));
                 });
         }
 
@@ -309,8 +301,8 @@ function SqlAdapter(config, storageUtils, next) {
             // rename cache first
             _privateStore[newTable] = _privateStore[oldTable];
             _privateStore[newTable].TBL_NAME = newTable;
-            _privateStore[EventRegistry._getName(newTable)] = _privateStore[EventRegistry._getName(oldTable)];
-            delete _privateStore[EventRegistry._getName(oldTable)];
+            _privateStore[getDataName(newTable)] = _privateStore[getDataName(oldTable)];
+            delete _privateStore[getDataName(oldTable)];
             delete _privateStore[oldTable];
 
             _sqlFacade.query('update _JELI_STORE_ set _rev=? where _rev=?', [newTable, oldTable]);
@@ -353,15 +345,14 @@ function SqlAdapter(config, storageUtils, next) {
                     }])
                         .then(function () {
                             tblInstance.each(createAndInsert);
-                            (cb || noop)();
-                            StorageFacade.clear();
+                            StorageFacade.clear(callback);
                         });
                 });
 
             function createAndInsert(tblName) {
                 bkInstance.createTable(tblName, ['_ref unique', '_data'])
                     .then(function () {
-                        bkInstance.insert(tblName, _privateStore[EventRegistry._getName(tblName)])
+                        bkInstance.insert(tblName, _privateStore[getDataName(tblName)])
                     });
             }
         }

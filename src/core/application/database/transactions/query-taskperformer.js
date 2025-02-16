@@ -40,6 +40,7 @@ class QueryTaskPerformer {
      * @returns 
      */
     static run(data, logic, callback, limit) {
+        if (!data || !data.length) return [];
         /**
          * return data when logic is undefined
          */

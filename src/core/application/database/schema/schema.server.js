@@ -2,23 +2,46 @@
  * 
  * @param {*} dbName 
  * @param {*} version 
+ * @param {*} config 
+ * @param {*} lastLoadedTime 
+ * @returns Promise
  */
-function ServerSchemaLoader(dbName, version, config) {
+function ServerSchemaLoader(dbName, version, config, lastLoadedTime) {
     var activeDB = privateApi.getActiveDB(dbName);
-    return new Promise(function (resolve, reject) {
-        privateApi.$http(privateApi.buildHttpRequestOptions(dbName, { path: '/database/resource' }))
-            .then(syncResponse => {
-                if (syncResponse.resource) {
-                    /**
-                     * Database BE return the exists flag set to false
-                     * if the database is not yet created
-                     */
-                    saveAndSyncDownTables(syncResponse.resource);
-                } else {
-                    //no resource found on the server
-                    handleFailedSync(syncResponse);
-                }
-            }, handleNetworkError('resource', "Failed to initialize DB"));
+    config = Object.assign({ loadData: [], maximumRetries: 5, ttl: '1w' }, ('object' == typeof config) ? config : {});
+
+    return new Promise((resolve, reject) => {
+        var retryCount = 1;
+        var timer = 1000;
+        // generate time from now based on format
+        var nextSyncDate = getDateTimeFromTTL((config.ttl || '1w'));
+
+        function schemaLoadRetries(err) {
+            if (!config.maximumRetries || (config.maximumRetries == retryCount)) {
+                console.log('[SchemaLoader] failed to load resource, aborting');
+                return handleNetworkError('resource', 'Failed to initialize DB')(err);
+            }
+
+            console.log('[SchemaLoader] Scheduled retries');
+            ++retryCount;
+            setTimeout(loadResource, (timer * retryCount));
+        }
+
+        function loadResource() {
+            privateApi.$http(privateApi.buildHttpRequestOptions(dbName, { path: '/database/resource' }))
+                .then(syncResponse => {
+                    if (syncResponse.resource) {
+                        /**
+                         * Database BE return the exists flag set to false
+                         * if the database is not yet created
+                         */
+                        saveAndSyncDownTables(syncResponse.resource);
+                    } else {
+                        //no resource found on the server
+                        handleFailedSync(syncResponse);
+                    }
+                }, schemaLoadRetries);
+        }
 
 
         /**
@@ -40,26 +63,26 @@ function ServerSchemaLoader(dbName, version, config) {
          * @param {*} dbResource 
          */
         function loadSchema(tableNames, dbResource) {
-            if (!tableNames.length) {
-                return resolve();
+            if (!tableNames || !tableNames.length) {
+                return resolve(nextSyncDate);
             }
 
             var request = privateApi.buildHttpRequestOptions(dbName, { path: '/database/schema', tbl: tableNames || [] });
-            Object.assign(request, { data: config });
+            Object.assign(request, { data: { loadData: config.loadData } });
             privateApi.$http(request)
                 .then(function (mergeResponse) {
                     // Create a new version of the DB
                     var dbTables = {};
                     for (var tbl in mergeResponse.schemas) {
                         // set an empty data 
-                        if (mergeResponse.schemas[tbl]){
+                        if (mergeResponse.schemas[tbl]) {
                             // extend table
                             dbTables[tbl] = Object.assign(mergeResponse.schemas[tbl], dbResource[tbl]);
                         }
                     }
                     // register DB to QueryDB
                     privateApi.storageFacade.broadcast(dbName, DB_EVENT_NAMES.RESOLVE_SCHEMA, [version, dbTables]);
-                    resolve();
+                    resolve(nextSyncDate);
                 }, handleNetworkError('schema', "Unable to load schema, please try again.", function () {
                     // reload the schema when network is stable
                     loadSchema(tableNames, dbResource);
@@ -119,5 +142,8 @@ function ServerSchemaLoader(dbName, version, config) {
                 reject(errorInstance);
             };
         }
+
+        // loadResource
+        loadResource();
     });
 };

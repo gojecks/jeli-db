@@ -6,7 +6,8 @@ class privateApi {
     static storeMapping = {
         delRecordName: "_d_",
         resourceName: "_r_",
-        pendingSync: "_l_"
+        pendingSync: "_l_",
+        nextSchemaSyncDate: '_nsd_'
     };
     /**
     * 
@@ -45,8 +46,8 @@ class privateApi {
         broadcast: (db, eventName, args) => {
             privateApi.getStorage(db).broadcast(eventName, args);
         },
-        drop: name => {
-            privateApi.getStorage(name).clear();
+        drop: (name, next) => {
+            privateApi.getStorage(name).clear(next);
         }
     };
 
@@ -147,7 +148,7 @@ class privateApi {
          */
         if (!db || !db.isExists(tableName)) return [];
 
-        return db.getItem(tableName + ":data");
+        return db.getItem(`${tableName}:data`) || [];
     }
 
     /**
@@ -162,7 +163,7 @@ class privateApi {
     };
 
     static generateStruct(cache) {
-        var ret = { tables: {}, version: cache.version };
+        var ret = { tables: {}, version: cache.version, _nsd_: cache[this.storeMapping.nextSchemaSyncDate] };
         var resources = cache[privateApi.storeMapping.resourceName];
         if (resources && resources.resourceManager) {
             Object.keys(resources.resourceManager).forEach(attachObject);
@@ -242,22 +243,23 @@ class privateApi {
      * @param {*} removeFromStorage 
      */
     static closeDB(name, removeFromStorage) {
-        var openedDb = privateApi.databaseContainer.get(name);
-        if (!openedDb) return;
-
-        openedDb.decrementInstance();
-        if (!openedDb.instance) {
-            openedDb.close();
-            if (removeFromStorage) {
-                openedDb
-                    .get(constants.RESOURCEMANAGER)
-                    .removeResource();
-                // destroy the DB instance
-                privateApi.storageFacade.drop(name);
-                privateApi.databaseContainer.delete(name);
+        return new Promise((resolve) => {
+            var openedDb = privateApi.databaseContainer.get(name);
+            if (!openedDb) return resolve(null);
+    
+            openedDb.decrementInstance();
+            if (!openedDb.instance) {
+                openedDb.close();
+                if (removeFromStorage) {
+                    openedDb
+                        .get(constants.RESOURCEMANAGER)
+                        .removeResource();
+                    // destroy the DB instance
+                    privateApi.storageFacade.drop(name, resolve);
+                    privateApi.databaseContainer.delete(name);
+                }
             }
-        }
-
+        });
     };
 
     /**
@@ -483,7 +485,7 @@ class privateApi {
                 headers: {
                     Authorization: "Bearer *",
                     'X-REQ-OPTS': Base64Fn.encode(
-                        `${networkResolver.organisation}:${dbName}:${(tbl || '')}:${(Math.floor(+new Date / 1000) * 1000)}:${networkResolver.nonce}`
+                        `${networkResolver.organisation}:${dbName}:${(tbl || '')}:${(Math.floor(+new Date / 1000) * 1000)}:${networkResolver.nonce || ''}`
                     )
                 },
                 requestState: requestState,
@@ -667,7 +669,7 @@ class privateApi {
                     .handleFailedRecords(tbl, (res && res.failed));
                 return res;
             };
-            
+
             //process the request
             //Synchronize PUT STATE
             if (!data && type) {
