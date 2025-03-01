@@ -210,6 +210,7 @@ class CoreDataResolver {
                         var records = privateApi.getDataByRefs(tableData, failedRecords[key].map(item => item.ref));
                         var newRefs = [];
                         records.forEach((record, i) => {
+                            if (syncRecords && !syncRecords.data) return;
                             var item = failedRecords[key][i];
                             if (item.exists[0]){
                                 // generate a new GUID
@@ -218,7 +219,8 @@ class CoreDataResolver {
                                 newRefs.push([item._ref, record._ref]);
                                 syncRecords.data[key][record._ref] = true; 
                             }
-                            delete syncRecords.data[key][item.ref];
+                            
+                            delete syncRecords.data[key][item._ref];
                         });
                         console.log('new Ref Mapping:', newRefs);
                     break;
