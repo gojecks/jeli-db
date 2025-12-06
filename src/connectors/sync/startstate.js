@@ -194,7 +194,7 @@ function startSyncState(appName, serverResource, activeDB) {
                     allowPushState(false);
                 }
             } else {
-                SyncConflictChecker(appName, currentProcessTbl, $process, networkResolver)
+                syncHelper.SyncConflictChecker(appName, currentProcessTbl, $process, networkResolver)
                     .then(function (response) {
                         // if columns was updated
                         // Push all records to the server
@@ -211,7 +211,7 @@ function startSyncState(appName, serverResource, activeDB) {
                             }, failedConflictResolver);
                     });
             }
-        };
+        }
 
         //Pull State
         function SyncPull() {
@@ -243,8 +243,9 @@ function startSyncState(appName, serverResource, activeDB) {
      * @param {*} state 
      */
     function finalize(state) {
-        if (state && 'function' == typeof syncHelper[state]) {
-            syncHelper[state](appName);
+        const callback = syncHelper[state];
+        if (callback) {
+            callback(appName);
         }
         //remove deleteRecords
         DatabaseSyncConnector.coreApi.storageFacade.remove(DatabaseSyncConnector.coreApi.storeMapping.delRecordName);
@@ -277,13 +278,13 @@ function startSyncState(appName, serverResource, activeDB) {
      * @param {*} response 
      */
     function finalizePull(response) {
-        if ((response.state.toLowerCase() == 'error')) {
+        if ((response.state.toLowerCase() !== 'error')) {
             corePromiseResolve({
                 state: 'Success',
                 status: 200,
                 data: pullRecordList
             });
-        } {
+        } else {
             corePromiseReject(response);
         }
         cleanUp();
@@ -322,7 +323,11 @@ function startSyncState(appName, serverResource, activeDB) {
      */
     function startProcess() {
         if (syncState.tables.length) {
-            processQueue(queue, 'push');
+            syncHelper.getSchema(appName, syncState.tables)
+            .then(tableSchemas => {
+                $process.getSet('schemas', tableSchemas.schemas);
+                processQueue(queue, 'push');
+            }, () => finishQueue('push', {failedState: syncState.tables}))
         } else {
             DatabaseSyncConnector.coreApi.updateDB(appName, null, null, Date.now());
             finishQueue('push', { state: 'success' });

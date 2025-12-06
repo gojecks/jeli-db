@@ -20,6 +20,8 @@ class ResourceManager {
         this._resource = resource || this._resource;
         //set and save the resource
         privateApi.storageFacade.set(_name || privateApi.storeMapping.resourceName, this._resource, this.appName);
+
+        return this;
     }
 
     $isExists() {
@@ -89,16 +91,20 @@ class ResourceManager {
         }
     }
     getTableDifferences(resource) {
-        var tables = this.getTableNames();
+        const tables = this.getTableNames();
         if (!resource || !tables) {
             return tables || [];
         }
 
-        var resourceControl = this.getResource();
-        return tables.reduce(function (accum, tbl) {
+        const resourceControl = this.getResource();
+        return tables.reduce((accum, tbl) => {
             if (resource.resourceManager && resource.resourceManager.hasOwnProperty(tbl)) {
-                if (resourceControl.resourceManager[tbl]._hash !== resource.resourceManager[tbl]._hash)
+                if (
+                    resourceControl.resourceManager[tbl]._hash !== resource.resourceManager[tbl]._hash && 
+                    resourceControl.resourceManager[tbl].lastSyncedDate > resource.resourceManager[tbl].lastSyncedDate
+                ){
                     accum.push(tbl);
+                }
             } else {
                 accum.push(tbl);
             }

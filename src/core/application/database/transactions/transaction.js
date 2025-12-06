@@ -38,13 +38,12 @@ class TableTransaction {
              * @param {*} type 
              * @param {*} refs 
              * @param {*} tableName 
-             * @param {*} record 
              */
-            this.updateOfflineCache = function (type, refs, tableName, record) {
+            this.updateOfflineCache = function (type, refs, tableName) {
                 var ignoreSync = privateApi.getConfigData('ignoreSync', dbName);
                 // check for sync ignore in db configuration
                 if ((!ignoreSync || (Array.isArray(ignoreSync) && !ignoreSync.includes(tableName)) && refs.length)){
-                    this._recordResolvers.setData(tableName, type, refs, (record || true));
+                    this._recordResolvers.setData(tableName, type, refs);
                 }
             }
 
@@ -141,7 +140,6 @@ class TableTransaction {
 
                     var type = typeof cData[key];
                     var requiredType = (columns[key].type || 'string').toUpperCase();
-
                     if (!_typeValidator.validate(cData[key], requiredType)) {
                         /**
                          * Allow null value when NOT_NULL is not configured 

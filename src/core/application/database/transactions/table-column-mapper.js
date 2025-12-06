@@ -32,14 +32,14 @@ function getDefaultColumnValue(defaultValue, ref, tableInfo) {
  * @returns 
  */
 function tableModelMapper(tableInfo) {
-    var columnKeys = Object.keys(tableInfo.columns[0]);
+    var columnKeys = Object.keys(tableInfo.columns[0] || {});
     function parser(data, ref) {
         data = (data || {});
         return columnKeys.reduce(function(accum, prop) {
             var def = tableInfo.columns[0][prop];
             var hasProp = data.hasOwnProperty(prop);
-            var value = hasProp ? data[prop] : def.NOT_NULL ? "" : null;
-            if (def.defaultValue && (!hasProp || (hasProp && [null, undefined, ""].includes(value)))) {
+            var value = hasProp ? data[prop] : def.NOT_NULL ? '' : null;
+            if (def.defaultValue && (!hasProp || (hasProp && [null, undefined, ''].includes(value)))) {
                 value = getDefaultColumnValue(def.defaultValue, ref, tableInfo);
             }
 

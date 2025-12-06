@@ -4,9 +4,9 @@
  * @param {*} changeDetection 
  * @param {*} support 
  */
-function AjaxSetup(interceptor) {
-    var CacheMechanism = new Map();
-    var unsafeHeaders = {
+class AjaxSetup {
+    static CacheMechanism = new Map();
+    static unsafeHeaders = {
         'Accept-Charset': true,
         'Accept-Encoding': true,
         'Connection': true,
@@ -27,12 +27,21 @@ function AjaxSetup(interceptor) {
         'Via': true
     };
 
+    static interceptor = Object.create({
+        resolveInterceptor: (type, options) => {
+            if (_globalInterceptors.has(type)) {
+                _globalInterceptors.get(type).forEach((interceptor) => interceptor(options));
+            }
+            return options;
+        }
+    })
+
     /**
      * 
      * @param {*} string 
      * @param {*} tError 
      */
-    function parseJSON(string, tError) {
+    static parseJSON(string, tError) {
         var content;
         try {
             content = JSON.parse(string);
@@ -53,7 +62,7 @@ function AjaxSetup(interceptor) {
      * @param {*} name 
      * @returns any
      */
-    function getResponseHeaders(request, name) {
+    static getResponseHeaders(request, name) {
         if (!isobject(name)) {
             return request.getResponseHeader(name);
         } else {
@@ -68,9 +77,9 @@ function AjaxSetup(interceptor) {
     /**
      * set Request Headers
      */
-    function setHeaders(request, options) {
+    static setHeaders(request, options) {
         for (var name in options.headers) {
-            if (unsafeHeaders[name] || /^(Sec-|Proxy-)/.test(name)) {
+            if (this.unsafeHeaders[name] || /^(Sec-|Proxy-)/.test(name)) {
                 throw new Error("Refused to set unsafe header \"" + name + "\"");
             }
 
@@ -82,23 +91,19 @@ function AjaxSetup(interceptor) {
      * 
      * @param {*} options 
      */
-    function processRequest(options) {
+    static processRequest(options) {
         //check if header requires withCredentials flag
         if (options.xhrFields && options.xhrFields.withCredentials) {
             //set the withCredentials Flag
             request.withCredentials = true;
         }
 
-        if (options.contentType && !options.headers['Content-Type']) {
-            options.headers['Content-Type'] = 'application/json';
-        }
-
-
         if (!isstring(options.data)) {
             if (isequal(options.type, 'get')) {
                 options.data = serialize(options.data);
             } else {
                 options.data = JSON.stringify(options.data);
+                options.headers['Content-Type'] = 'application/json';
             }
         }
 
@@ -119,7 +124,7 @@ function AjaxSetup(interceptor) {
      * @param {*} options 
      * @returns 
      */
-    function getCacheId(options) {
+    static getCacheId(options) {
         return (isobject(options.cache) && options.cache.id) ? options.cache.id : options.url;
     }
 
@@ -129,175 +134,162 @@ function AjaxSetup(interceptor) {
      * @param {*} cacheId 
      * @param {*} cache 
      */
-    function storeCache(data, cacheId, cache) {
+    static storeCache(data, cacheId, cache) {
         if (!cacheId) return;
-        var ttl = ((isobject(cache) && cache.ttl) ? cache.ttl : (isnumber(cache)) ? cache : 15);
-        var expiresAt = new Date().setMilliseconds(60 * ttl * 1000);
-        CacheMechanism.set(cacheId, {
+        const ttl = ((isobject(cache) && cache.ttl) ? cache.ttl : (isnumber(cache)) ? cache : 15);
+        const expiresAt = new Date().setMilliseconds(60 * ttl * 1000);
+        this.CacheMechanism.set(cacheId, {
             data: data,
             expiresAt: expiresAt
         });
-        var now = Date.now();
-        CacheMechanism.forEach(function(item, key) {
-            if (now > item.expiresAt) {
-                CacheMechanism.delete(key);
+
+        this.CacheMechanism.forEach((item, key) => {
+            if (Date.now() > item.expiresAt) {
+                this.CacheMechanism.delete(key);
             }
         });
     }
 
+    /**
+     * @param {*} options 
+     * @returns 
+     */
+    static getOptions(options) {
+        return Object.assign({
+            url: "",
+            type: 'GET',
+            processData: true,
+            contentType: true,
+            headers: {
+                'Accept': 'text/javascript, application/json, text/html, application/xml, text/xml, */*'
+            },
+            asynchronous: true,
+            data: '',
+            xhr: null,
+            getResponseHeader: null,
+            cache: null
+        }, options);
+    }
 
     /**
      * 
-     * @param {*} url 
-     * @param {*} options 
+     * @param {*} resolve 
+     * @param {*} reject 
      */
-    return function(url, options) {
+    static sendRequest(request, options) {
+        request.open(options.type, options.url, options.asynchronous);
+        //handle before send
+        //function recieves the XMLHTTPREQUEST
+        if (options.beforeSend && isfunction(options.beforeSend)) {
+            options.beforeSend.apply(options.beforeSend, [request]);
+        }
+
+        this.setHeaders(request, options);
+        let body = null;
+        if (inarray(options.type, ['post', 'put', 'delete'])) {
+            body = options.data;
+        }
+        //send the request
+        try {
+            request.send(body);
+        } catch (e) {
+            if (options.error) {
+                options.error();
+            }
+        }
+    }
+
+    static request(url, options) {
         if (isundefined(options) && isobject(url)) {
             options = url;
         }
 
-        var dbPromiseExtension = new DBPromiseExtension(function(e) {}, ['progress']);
-        var request = null;
-        var response = {};
-
-        /**
-         * make sure request is not in errorState before processing 
-         */
-        if (!options.isErrorState) {
-            options = Object.assign({
-                url: "",
-                type: 'GET',
-                processData: true,
-                contentType: true,
-                headers: {
-                    'Accept': 'text/javascript, application/json, text/html, application/xml, text/xml, */*'
-                },
-                asynchronous: true,
-                data: '',
-                xhr: null,
-                getResponseHeader: null,
-                cache: null
-            }, options);
-            options.url = options.url || url;
-            options.type = options.type.toLowerCase();
-            request = options.xhr || new XMLHttpRequest();
-            /**
-             * $httpProvider Interceptor
-             * Request Interceptor
-             **/
-            if (interceptor) {
-                options = interceptor.resolveInterceptor('request', options);
-                if (!options) {
-                    throw new Error('$HTTP: Interceptor should return a value');
-                }
-            }
-        }
-
-        function cleanup() {
-            options = null;
-            request = null;
-            response = null;
-        }
-
-        /**
-         * 
-         * @param {*} resolve 
-         * @param {*} reject 
-         */
-        function sendRequest() {
-            request.open(options.type, options.url, options.asynchronous);
-            //handle before send
-            //function recieves the XMLHTTPREQUEST
-            if (options.beforeSend && isfunction(options.beforeSend)) {
-                options.beforeSend.apply(options.beforeSend, [request]);
-            }
-
-            setHeaders(request, options);
-            var body = null;
-            if (inarray(options.type, ['post', 'put', 'delete'])) {
-                body = options.data;
-            }
-            //send the request
-            try {
-                request.send(body);
-            } catch (e) {
-                if (options.error) {
-                    options.error();
-                }
-            }
-        }
-
-        return new DBPromise(function(resolve, reject) {
+        const dbPromiseExtension = new DBPromiseExtension(noop, ['progress']);
+        return new DBPromise((resolve, reject) => {
             if (options.isErrorState) {
                 return reject({
                     message: options.isErrorState
                 });
             }
 
+            const request = options.xhr || new XMLHttpRequest();
+            /**
+             * $httpProvider Interceptor
+             * Request Interceptor
+             **/
+            if (this.interceptor) {
+                options = this.interceptor.resolveInterceptor('request', options);
+                if (!options) {
+                    throw new Error('$HTTP: Interceptor should return a value');
+                }
+            }
+
             // check for cacheOptions
             var cacheId = null;
             if (options.cache) {
-                cacheId = getCacheId(options);
-                var cacheResult = CacheMechanism.get(cacheId);
-                var now = Date.now();
+                cacheId = this.getCacheId(options);
+                const cacheResult = this.CacheMechanism.get(cacheId);
+                const now = Date.now();
                 if (cacheResult && cacheResult.expiresAt > now) {
                     //intercept response
-                    if (interceptor) interceptor.resolveInterceptor('response', {
-                        status: 200,
-                        fromCache: true,
-                        path: options.url
-                    });
+                    if (this.interceptor) {
+                        this.interceptor.resolveInterceptor('response', {
+                            status: 200,
+                            fromCache: true,
+                            path: options.url
+                        });
+                    }
+
                     return resolve(cacheResult.data);
                 } else {
                     // remove the cache
-                    CacheMechanism.delete(cacheId);
+                    this.CacheMechanism.delete(cacheId);
                 }
             }
+
             // process requestData
             if (options.processData) {
-                processRequest(options);
+                this.processRequest(options);
             }
 
-            request.addEventListener('loadend', function(event) {
+            request.addEventListener('loadend', () => {
                 if (request.readyState == 4) {
-                    response.contentType = options.dataType || request.mimeType || request.getResponseHeader('content-type') || '';
-                    response.status = request.status;
-                    response.path = options.url;
-                    response.success = (
-                        (request.status >= 200 && request.status < 300) ||
-                        request.status == 304 ||
-                        (request.status == 0 && request.responseText)
-                    );
+                    const response = {
+                        contentType: options.dataType || request.mimeType || request.getResponseHeader('content-type') || '',
+                        status: request.status,
+                        path: options.url,
+                        success: (
+                            (request.status >= 200 && request.status < 300) ||
+                            request.status == 304 ||
+                            (request.status == 0 && request.responseText)
+                        )
+                    };
                     //intercept response
-                    if (interceptor) {
-                        interceptor.resolveInterceptor('response', response);
+                    if (this.interceptor) {
+                        this.interceptor.resolveInterceptor('response', response);
                     }
 
                     //send the response header
-                    var _csrfToken = request.getResponseHeader('X-CSRF-TOKEN');
+                    const _csrfToken = request.getResponseHeader('X-CSRF-TOKEN');
                     if (_csrfToken) {
                         $cookie('X-CSRF-TOKEN', _csrfToken);
                     }
 
-                    var result = parseJSON((request.responseText || '').trim(), false);
+                    const result = this.parseJSON((request.responseText || '').trim(), false);
                     if (response.success) {
                         resolve(result);
                         if (options.cache) {
-                            storeCache(result, cacheId, options.cache);
+                            this.storeCache(result, cacheId, options.cache);
                         }
                     } else {
                         reject(result);
                     }
-
-                    cleanup();
                 }
             });
             // add progress listener
-            request.addEventListener('progress', function(event) {
-                dbPromiseExtension.call('progress', [event.loaded, event.total])
-            });
+            request.addEventListener('progress', event => dbPromiseExtension.call('progress', [event.loaded, event.total]));
 
-            sendRequest();
+            this.sendRequest(request, options);
         }, dbPromiseExtension.handlers);
-    };
+    }
 }

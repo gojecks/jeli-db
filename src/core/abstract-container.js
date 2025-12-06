@@ -5,8 +5,9 @@
  * @return AbstractContainer INSTANCE
  */
 class AbstractContainer extends Map{
-    constructor(){
+    constructor(name){
         super();
+        this.name = name;
         this.instance = 0;
         this._open = false;
         this._closed = false;
@@ -21,9 +22,17 @@ class AbstractContainer extends Map{
     }
 
     open() {
+        if (this.opened) return true;
+        if (this.closed) return !this.incrementInstance();
+
         this._open = true;
         this._closed = false;
-        return this;
+        // set all required handlers
+        this.set(constants.DATATYPES, new DataTypeHandler())
+        .set(constants.RESOLVERS, new openedDBResolvers())
+        .set(constants.RESOURCEMANAGER, new ResourceManager(this.name))
+        .set(constants.RECORDRESOLVERS, new CoreDataResolver(this.name));
+        return false;
     }
     
     close() {

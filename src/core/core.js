@@ -73,9 +73,7 @@ function Database(name, version) {
          * @param {*} state 
          * @param {*} triggerState 
          */
-        function (_, next) {
-            next();
-        }, ['onUpgrade', 'onCreate']);
+        (_, next) => next(), ['onUpgrade', 'onCreate']);
 
     /**
      * 
@@ -121,7 +119,7 @@ function Database(name, version) {
          * so that debugging is not posible when in production
          **/
         _activeDBApi = privateApi.getActiveDB(name);
-        if (privateApi.isOpen(name)) {
+        if (_activeDBApi.open()) {
             if (!dbConfig.isLoginRequired) {
                 errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
             }
@@ -131,7 +129,7 @@ function Database(name, version) {
         } else if (!_activeDBApi.instance) {
             //set production flag
             //register our configuration
-            requestMapping = new RequestMapping(name);
+            requestMapping = RequestMapping.createInstance(name);
             _activeDBApi
                 .incrementInstance()
                 .get(constants.RESOLVERS)
@@ -199,12 +197,13 @@ function Database(name, version) {
          * Only if onUpgrade Function is initilaized
          * set upgrade mode
          **/
-        var dbChecker = privateApi.get(name, ['version', 'tables', privateApi.storeMapping.nextSchemaSyncDate]) || false;
+        const nextSyncDataVar = privateApi.storeMapping.nextSchemaSyncDate;
+        var dbChecker = privateApi.get(name, ['version', 'tables', nextSyncDataVar]) || false;
         jeliInstance.result = DatabaseInstance.createInstance(name, version, dbChecker && dbChecker.version);
         var schemaManager = SchemaManager.createInstance(jeliInstance.result, version, dbChecker.version || 1, dbConfig.schemaPath);
         var _allDone = (nextSyncDate) => {
             if (nextSyncDate){
-                _activeDBApi.get(constants.STORAGE).setItem(privateApi.storeMapping.nextSchemaSyncDate, nextSyncDate); 
+                _activeDBApi.get(constants.STORAGE).setItem(nextSyncDataVar, nextSyncDate); 
             }
             resolve(jeliInstance);
         };
@@ -233,7 +232,7 @@ function Database(name, version) {
                 /**
                  * check for updated schema from FO service
                  */
-                if (dbConfig.useFrontendOnlySchema && dbConfig.alwaysCheckSchema && (dbChecker[privateApi.storeMapping.nextSchemaSyncDate] || 0) <= Date.now()) {
+                if (dbConfig.useFrontendOnlySchema && dbConfig.alwaysCheckSchema && (dbChecker[nextSyncDataVar] || 0) <= Date.now()) {
                     ServerSchemaLoader(name, version, dbConfig.useFrontendOnlySchema).then(_allDone, reject);
                 } else {
                     _allDone();
@@ -324,11 +323,11 @@ Database.registerGlobalInterceptor = function (type, fn) {
     return this;
 };
 
-Database.plugins = new PluginsInstance();
-Database.storageAdapter = new StorageAdapter();
-Database.connectors =  new ConnectorAdapter();
+Database.plugins = PluginsInstance;
+Database.storageAdapter = StorageAdapter;
+Database.connectors =  ConnectorAdapter;
 // register instance of ApiMapper
-Database.API = (new ApiMapper);
+Database.API = ApiMapper;
 Database.EVENT_TYPES = {
     ONCREATE: 'onCreate',
     ONUPGRADE: 'onUpgrade'

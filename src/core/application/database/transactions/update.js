@@ -1,11 +1,11 @@
 /**
  * 
- * @param {*} record 
- * @param {*} query 
- * @param {*} tableName 
+ * @param {*} updateRecords 
+ * @param {*} isMany 
+ * @returns 
  */
-function transactionUpdate(record, query, tableName) {
-    tableName = tableName || this.rawTables[0];
+function transactionUpdate(updateRecords) {
+    var tableName = this.rawTables[0];
     var tableInfo = this.getTableInfo(tableName);
     var time = performance.now();
     var columns = tableInfo.columns[0];
@@ -17,31 +17,23 @@ function transactionUpdate(record, query, tableName) {
     var rowsToUpdate = [];
 
     // return setData when its an object
-    if (isstring(record)) {
-        //convert String Data to Object
-        record = stringEqualToObject(record);
-    } else if(!isobject(record)) {
-        this.setDBError('Unable to update Table(' + tableName + '), unaccepted dataType recieved');
+    if (!Array.isArray(updateRecords)) {
+        this.setDBError(`Unable to update Table(${tableName}), unaccepted dataType recieved`);
     }
 
-    /**
-     * validate and update column with ON_UPDATE configuration
-     */
-    this.performTableAction(tableInfo, record, 'ON_UPDATE');
-    validator(record, 0);
 
     /**
      * @param {*} record 
      * @param {*} data 
      */
-    function collectRecords(record, hasExpressions){
+    function collectRecords(record, hasExpressions) {
         var keys = Object.keys(record);
         return data => {
             if (!hasExpressions) {
                 return record;
             } else {
-                return keys.reduce((accum, key)=> {
-                    if (key == '$exp'){
+                return keys.reduce((accum, key) => {
+                    if (key == '$exp') {
                         var obj = record[key];
                         accum[obj.key] = data[obj.key];
                     } else {
@@ -53,31 +45,39 @@ function transactionUpdate(record, query, tableName) {
         };
     }
 
+    /**
+     * validate and update column with ON_UPDATE configuration
+     */
+    updateRecords.forEach(record => {
+        this.performTableAction(tableInfo, record[1], 'ON_UPDATE');
+        validator(record[1], 0);
+        record[2] = collectRecords(record[1], record[1].hasOwnProperty('$exp'));
+    });
+
     this.executeState.push(['update', (disableOfflineCache) => {
         //Execute Function 
         //Kill Process if error was Found
-        if (this.hasError() || !record){
+        if (this.hasError() || !updateRecords) {
             throw new TransactionErrorEvent('update', this.getError(fieldErrors));
         }
 
-        var hasExpressions = record.hasOwnProperty('$exp');
-        var cRecords = collectRecords(record, hasExpressions);
-        QueryTaskPerformer.run(tableData, query, (previous, idx) => {
+        QueryTaskPerformer.runMany(tableData, updateRecords.map(record => record[0]), (previous, idx, matchIndex) => {
             //set the current Value
-            tableData[idx]._data = QueryTaskPerformer.extend(true, previous._data, record);
+            const record = updateRecords[matchIndex];
+            tableData[idx]._data = QueryTaskPerformer.extend(true, previous._data, record[1]);
             updated++;
             // store the ref to be updated
             rowsToUpdate.push({
                 _ref: previous._ref,
-                _data: cRecords(previous._data)
+                _data: record[2](previous._data)
             });
             // update refs
-            refs.push(previous._ref);
-        });
+            refs.push([previous._ref, record[1]]);
+        }, updateRecords.length);
 
         //push records to our resolver
-        if (!disableOfflineCache){
-            this.updateOfflineCache('update', refs, tableName, record);
+        if (!disableOfflineCache) {
+            this.updateOfflineCache('update', refs, tableName);
         }
 
         // broadcast our event

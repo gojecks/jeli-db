@@ -34,7 +34,7 @@
            var serverKeys = Object.keys(serverData);
             _changes.delete = serverKeys.filter(key => !clientKeys.includes(key)).length;
             _changes.insert = clientKeys.filter(key => !serverKeys.includes(key)).length;
-            this.counter++;
+            this.counter += (_changes.delete + _changes.insert);
         }
    
         for(var key of clientKeys){

@@ -286,7 +286,8 @@ function SqlAdapter(config, storageUtils, next) {
             StorageFacade.setItem(tbl, _privateStore[tbl]);
         }
 
-        static onTruncateTable() {
+        static onTruncateTable(tableName) {
+            _privateStore[getDataName(tableName)].length = 0;
             return _sqlFacade.delete.apply(_sqlFacade, arguments);
         };
 

@@ -89,9 +89,9 @@ class syncHelper {
      * @param {*} tbl 
      */
     static request(appName, path, tbl, data) {
-       return  DatabaseSyncConnector.coreApi.$http(
+        return DatabaseSyncConnector.coreApi.$http(
             DatabaseSyncConnector.coreApi.buildHttpRequestOptions(appName, { tbl, path, data })
-       );
+        );
     };
 
     /**
@@ -133,7 +133,8 @@ class syncHelper {
     static killState(appName) {
         syncHelper.process.getProcess(appName)
             .getSet('networkResolver')
-            .handler.onError({ type: 'sync', message: "Completed with Errors, please check log" });
+            .handler
+            .onError({ type: 'sync', message: "Completed with Errors, please check log" });
         syncHelper.process.destroyProcess(appName);
     };
 
@@ -145,7 +146,8 @@ class syncHelper {
         var completed = message => {
             syncHelper.process.getProcess(appName)
                 .getSet('networkResolver')
-                .handler.onSuccess({ type: "sync", message });
+                .handler
+                .onSuccess({ type: "sync", message });
             syncHelper.process.destroyProcess(appName);
         };
 
@@ -170,7 +172,7 @@ class syncHelper {
             var recordResolver = _activeDB.get(DatabaseSyncConnector.coreApi.constants.RECORDRESOLVERS);
             if (recordResolver.has(tbl)) {
                 var records = recordResolver.get(tbl);
-                if (Object.keys(records.data).length){
+                if (Object.keys(records.data).length) {
                     collection.data = records.data;
                 }
             }
@@ -208,10 +210,10 @@ class syncHelper {
      */
     static syncDownTables(appName, tables, resource, version) {
         var $resource = syncHelper.getResourceManagerInstance(appName);
-        return syncHelper
+        return this
             .getSchema(appName, tables)
             .then(function (pendingTables) {
-                var _onSchemaTables = {}
+                var _onSchemaTables = {};
                 for (var tbl in pendingTables.schemas) {
                     if (resource.resourceManager[tbl]) {
                         $resource.putTableResource(tbl, resource.resourceManager[tbl]);
@@ -225,6 +227,61 @@ class syncHelper {
                 DatabaseSyncConnector.coreApi.storageFacade.broadcast(appName, eventName, [version, _onSchemaTables]);
                 _onSchemaTables = null;
             });
-    };
+    }
+
+    /**
+     * Checks for conflict between server and client records
+     * @param {*} appName
+     * @param {*} tbl 
+     * @param {*} $process 
+     * @param {*} networkResolver 
+     * @returns 
+     */
+    static SyncConflictChecker(appName, tbl, $process, networkResolver) {
+        var clientSchema = DatabaseSyncConnector.coreApi.getTable(appName, tbl);
+        var serverSchema = $process.getSet('schemas')[tbl];
+        // getLatest from server
+        if (!this.entity) {
+            this.entity = [tbl];
+        }
+
+        return new Promise((resolve, reject) => {
+            // Perform Merge
+            // client table was found
+            if (serverSchema) {
+                //process server tables
+                var snapshot = new SnapShot(serverSchema, clientSchema);
+                var log = {};
+                log[tbl] = snapshot.getSnap();
+                $process.getSet('syncLog', log);
+                //@Local Table was found  
+                if (!clientSchema) {
+                    //ignore deleted tables
+                    var checkDeletedTables = networkResolver.deletedRecords.table[tbl];
+                    if (checkDeletedTables) {
+                        if (checkDeletedTables !== serverSchema._hash) {
+                            this.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server');
+                        }
+                    } else {
+                        this.setMessage('Synchronizing New Table(' + tbl + ') to your local DB');
+                    }
+                }
+
+                if (snapshot.hashChanges) {
+                    this.setMessage('Table(' + tbl + ') was updated on the server');
+                    //reject the promise
+                    reject({ status: "error", schema: serverSchema, isLocalLastModified: snapshot.isLocalLastModified });
+                    return;
+                }
+                //update
+                resolve({ status: "success", changes: snapshot.counter });
+            } else {
+                //data have changed after last pull
+                this.setMessage('Table schema was not found on the SERVER');
+                //update
+                resolve({ status: "success", changes: 1 });
+            }
+        });
+    }
 
 }

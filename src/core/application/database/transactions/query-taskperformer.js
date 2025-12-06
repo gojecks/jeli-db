@@ -55,9 +55,10 @@ class QueryTaskPerformer {
         var len = 0;
         var matchFound = 0;
         while (data.length > len) {
-            if (limit && matchFound == limit)
+            if (limit && matchFound == limit){
                 return searchResult;
-
+            }
+                
             if (logicPerformer(data[len], len)) {
                 matchFound++;
                 callback(data[len], len);
@@ -66,6 +67,29 @@ class QueryTaskPerformer {
         }
 
         return searchResult;
+    }
+
+    static runMany(data, conditions, callback, limit) {
+        if (!data || !data.length) return null;
+        conditions = conditions.map(condition => this.externalQuery(condition));
+        var len = 0;
+        var matchFound = 0;
+        var totalCond = conditions.length;
+
+        while (data.length > len) {
+            if (limit && matchFound == limit){
+                break;
+            }
+            
+            for(var i = 0; i < totalCond; i++){
+                if (conditions[i](data[len], len)) {
+                    matchFound++;
+                    callback(data[len], len, i);
+                }
+            }
+            
+            len++;
+        }
     }
 
     /**
@@ -89,7 +113,12 @@ class QueryTaskPerformer {
                 }
 
                 for (var key in condition) {
-                    if (!QueryTaskPerformer.match(condition[key], modelGetter(key, conditionValue), conditionValue)) {
+                    // multiple fields matcher
+                    if (key.includes(':')){
+                        if (!key.split(':').some(field => QueryTaskPerformer.match(condition[key], modelGetter(field, conditionValue), conditionValue))){
+                            return false;
+                        }
+                    } else if (!QueryTaskPerformer.match(condition[key], modelGetter(key, conditionValue), conditionValue)) {
                         return false;
                     }
                 }
@@ -163,7 +192,17 @@ class QueryTaskPerformer {
                     arr = [];
                     modelSetter(exp.key, record, arr);
                 }
-                arr.push.apply(arr, exp.value || []);
+
+                if (exp.value){
+                    var values = !Array.isArray(exp.value) ? [exp.value] : exp.value;
+                    var uniqueKeys = (exp.uniqueKey ? arr.map(t => t[exp.uniqueKey]) : []);
+                    for(var value of values){
+                        var checkValue = ((typeof value == 'string') ? value : value[exp.uniqueKey] || '~');
+                        if (!uniqueKeys.length || !uniqueKeys.includes(checkValue)){
+                            arr.push(value);
+                        }
+                    }
+                }
             },
             /**
              * @param {*} arr 
@@ -195,7 +234,11 @@ class QueryTaskPerformer {
                     var len = arr.length;
                     while (len--) {
                         if (executor(arr[len])) {
-                            Object.assign(arr[len], exp.value);
+                            if (exp.repl){
+                                arr[len] = exp.value;
+                            } else {
+                                Object.assign(arr[len], exp.value);
+                            }
                         }
                     }
                 }

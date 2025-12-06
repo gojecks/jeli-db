@@ -105,22 +105,11 @@ class TableInstance {
     truncate(flag) {
         //empty the table
         if (!flag) {
-            return dbErrorPromiseObject("Table (" + this.tableInfo.TBL_NAME + ") Was not found in " + this.tableInfo.DB_NAME + " DataBase or invalid flag passed");
+            return dbErrorPromiseObject(`Table (${this.tableInfo.TBL_NAME}) Was not found in ${this.tableInfo.DB_NAME} DataBase or invalid flag passed`);
         }
-
-        // update the DB
-        var tableData = privateApi.getTableData(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME);
-        tableData.length = 0;
-        privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, function (table) {
-            table._hash = "";
-            table._records = table.lastInsertId = 0;
-        });
-
-        /**
-         * broadcast event
-         */
-        privateApi.storageFacade.broadcast(this.tableInfo.DB_NAME, DB_EVENT_NAMES.TRUNCATE_TABLE, [this.tableInfo.TBL_NAME]);
-        return dbSuccessPromiseObject("truncate", this.tableInfo.TBL_NAME + " was truncated");
+    
+        privateApi.truncateTable(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME);
+        return dbSuccessPromiseObject('truncate', `${this.tableInfo.TBL_NAME} was truncated`);
     };
 
     /**

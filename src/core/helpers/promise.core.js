@@ -4,7 +4,12 @@
    * @param {*} message 
    */
   function dbSuccessPromiseObject(state, message) {
-      return ({ state: state, status: "success", result: { message: message }, code: 200 });
+    return ({ 
+        state: state, 
+        status: "success", 
+        result: (typeof message == 'object' ? message : {message}), 
+        code: 200 
+    });
   }
 
   /**

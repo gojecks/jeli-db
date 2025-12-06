@@ -9,7 +9,7 @@ class SocketChannel {
         // list of repicients in this channel
         this.recipients = [];
         this.socketContext = socketContext;
-        this.events = (new RealtimeEvent);
+        this.events = (new RealtimeSocketEvent);
     }
     /**
      *

@@ -7,15 +7,21 @@ class OperatorMethod {
         return false
     }
 
+    static _toNumber(value){
+        if(Array.isArray(value)) return value.length;
+        else if('string' == typeof value) return /^[0-9.]+$/.test(value) ? Number(value) : value.length;
+        return value;
+    }
+
     static lte(queryValue, recordValue) {
-        return queryValue <= recordValue;
+        return this._toNumber(queryValue) <= recordValue;
     }
     static gte(queryValue, recordValue) {
-        return queryValue >= recordValue;
+        return this._toNumber(queryValue) >= recordValue;
     }
 
     static lt(queryValue, recordValue) {
-        return queryValue < recordValue;
+        return this._toNumber(queryValue) < recordValue;
     }
     /**
      * Min-Max
@@ -29,7 +35,7 @@ class OperatorMethod {
     }
     
     static gt(queryValue, recordValue) {
-        return queryValue > recordValue;
+        return this._toNumber(queryValue) > recordValue;
     }
     static inclause =  inarray;
     static inarray = inarray;

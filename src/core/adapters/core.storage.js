@@ -4,17 +4,14 @@
  * e.g StorageAdapter.add('SQL', ADAPTER_INSTANCE);
  */
 class StorageAdapter {
-    constructor() {
-        this.storageAdapterContainer = new Map();
-    }
-
+    static storageAdapterContainer = new Map();
     /**
      * 
      * @param {*} name 
      * @param {*} adapter 
      * @param {*} replace 
      */
-    add(name, adapter, replace) {
+    static add(name, adapter, replace) {
         var store = (storeName) => {
             if (!this.storageAdapterContainer.has(storeName) || replace) {
                 this.storageAdapterContainer.set(storeName, adapter);
@@ -34,7 +31,7 @@ class StorageAdapter {
         return this;
     }
 
-    get(adapterName) {
+    static get(adapterName) {
         return this.storageAdapterContainer.get(adapterName);
     }
 }

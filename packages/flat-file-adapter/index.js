@@ -289,7 +289,9 @@ function FlatFileAdapter(config, storageUtils, CB) {
     _eventRegistry.set('onCreateTable', onCreateTable);
     _eventRegistry.set('onDropTable', _publicApi.removeItem);
     _eventRegistry.set('onUpdateTable', onUpdateTableEvent);
-    _eventRegistry.set('onTruncateTable', saveEvent);
+    _eventRegistry.set('onTruncateTable', tableName => {
+        saveEvent(tableName)
+}   );
     _eventRegistry.set('onResolveSchema', onResolveSchemaEvent);
     _eventRegistry.set('onRenameTable', onRenameTableEvent);
     _eventRegistry.set('onRenameDataBase', onRenameDataBaseEvent);

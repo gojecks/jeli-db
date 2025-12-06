@@ -9,7 +9,7 @@ class SocketService {
         }
         this.channelsRepository = new Map();
         this.destroyed = false;
-        this.events = new RealtimeEvent();
+        this.events = new RealtimeSocketEvent();
         this.pingSent = false;
         this.retryTime = 0;
         this.timerId = null;

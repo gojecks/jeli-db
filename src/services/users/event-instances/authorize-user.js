@@ -2,10 +2,10 @@
  * 
  * @param {*} res 
  */
-class AuthorizeUserInstance {
+class AuthorizeUserSuccessInstance {
     constructor(res) {
         this.state = "authorize";
-        this.message = "";
+        this.message = res.message || '';
         this.getUserInfo = function () {
             return res.userInfo;
         };
@@ -15,15 +15,23 @@ class AuthorizeUserInstance {
         };
 
         this.getTokens = function () {
-            return res.tokens;
+            return res.tokens || res;
         };
 
         this.isPasswordReset = function () {
-            return res.forcePasswordReset;
+            return !!res.forcePasswordReset;
         };
 
         this.isDisabled = function () {
-            return res.userInfo.disabled;
+            return !!(res.userInfo?.disabled);
         };
+    }
+}
+
+
+class AuthorizeUserErrorInstance {
+    state = "authorize";
+    constructor(err){
+        
     }
 }

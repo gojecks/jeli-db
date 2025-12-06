@@ -3,6 +3,8 @@
  * @param {*} options 
  */
 class RealtimeConnector {
+    errorCount = 0;
+    emptyResponseCount = 0;
     /**
      * 
      * @param {*} options 
@@ -12,9 +14,14 @@ class RealtimeConnector {
         this.isExistingDBMode = isExistingMode;
         this.options = Object.assign({
             url: "/database/updates",
-            trial: 1,
+            maxErrorCount: 10,
             maximumTrial: 10, // once thredshold is reched we destroy realtime connectivity
-            maximumConcurrentFailure: 3,
+            maximumEmptyResponse: 10,
+            // maximum default sleep time is set to 1min
+            // if counter exceed this time
+            // it will reset back to user timer
+            // timer must be less than maximumSleepTimer
+            maximumSleepTimer: 300000,
             timer: 1000,
             withRef: false,
             payload: null,
@@ -35,10 +42,9 @@ class RealtimeConnector {
         this.socketConnected = false;
         this.pausePolling = true;
         this.types = ["insert", "update", "delete"];
-        this.events = new RealtimeEvent();
+        this.events = new RealtimeSocketEvent();
         this.destroyed = false;
         this.socketInstance = new SocketService(this);
-        this.onupdateEvent = new OnupdateEventHandler(this.options.dbName, this.types);
     }
     /**
      *
@@ -65,18 +71,6 @@ class RealtimeConnector {
         Object.assign(request, { data });
         return request;
     }
-
-    /**
-     * 
-     * @returns Number
-     */
-    static getSleepTimer(options) {
-        var inc = 1;
-        if (options.trial >= options.maximumConcurrentFailure) {
-            inc = options.trial;
-        }
-        return (options.timer * inc);
-    };
 
     /**
      * 
@@ -123,15 +117,8 @@ class RealtimeConnector {
         requestData.payload = _queryPayload;
         requestData.ref = context.ref;
         requestData.type = context.types;
-
-        if (context.options.syncId) {
-            requestData.syncId = context.options.syncId;
-        }
-
-        if (context.options.socketEnabled && context.options.socketRedial) {
-            console.log('socketServerEndpoint requested')
-            requestData.socketEnabled = true;
-        }
+        requestData.syncId = context.options.syncId;
+        requestData.socketEnabled = (context.options.socketEnabled && context.options.socketRedial);
 
         return requestData;
     };
@@ -170,7 +157,9 @@ class RealtimeConnector {
      * @param {*} records
      */
     _handleIncomingData(records) {
-        var handleDbUpdateData = ctbl => {
+        if (!records) return;
+        let eventData = {};
+        const handleDbUpdateData = ctbl => {
             var data = records[ctbl];
             RealtimeConnector.coreApi
                 .resolveUpdate(this.dbName, ctbl, data, false)
@@ -183,12 +172,13 @@ class RealtimeConnector {
                             }
                         });
                     // set the record
-                    this.onupdateEvent.setData(ctbl, cdata);
+                    eventData[ctbl] = cdata;
                 });
         };
 
         Promise.all(Object.keys(records).map(handleDbUpdateData)).then(() => {
-            this.events.emit('defaults', [this.onupdateEvent]);
+            this.events.emit('defaults', [new RealTimeEvent(this.options.dbName, this.types, eventData)]);
+            eventData = null;
         });
     }
     /**
@@ -217,7 +207,8 @@ class RealtimeConnector {
                 return this.disconnect();
 
             // update promise handler
-            this.options.trial = 1;
+            this.emptyResponseCount = 0;
+            this.errorCount = 0;
             this.options.syncId = res.syncId;
             this._handleIncomingData(res.records);
             initiatePolling(res.syncId ? 10 : (ctimer || 60000));
@@ -228,7 +219,7 @@ class RealtimeConnector {
          * error polling
          */
         var errorPolling = fromError => {
-            if (fromError && this.options.trial >= this.options.maximumTrial) {
+            if (this.errorCount >= this.options.maxErrorCount) {
                 this.pausePolling = true;
                 console.log('[Realtime] syncing paused due to maximumTrial threshold reached.');
                 this.events.emit('paused', {
@@ -238,12 +229,29 @@ class RealtimeConnector {
                 return;
             }
 
-            if (this.socketConnected)
+            if (this.socketConnected) {
                 return _pausePolling();
+            }
+
+            var timer = this.options.timer;
+            if (fromError) {
+                this.errorCount++;
+            } else {
+                this.emptyResponseCount++;
+                const timerLesser = (timer < this.options.maximumSleepTimer);
+                if (timerLesser && this.emptyResponseCount >= this.options.maximumEmptyResponse) {
+                    timer = (this.options.timer * (this.emptyResponseCount - this.options.maximumEmptyResponse));
+                    if (timerLesser) {
+                        // reset maximum error count
+                        this.emptyResponseCount = 0;
+                        timer = this.options.maximumSleepTimer;
+                    }
+                }
+            }
+
 
             // increment error count
-            this.options.trial++;
-            return initiatePolling(RealtimeConnector.getSleepTimer(this.options));
+            return initiatePolling(timer);
         };
 
         var pollCallback = () => {

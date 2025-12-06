@@ -82,7 +82,8 @@ function DefaultStorage(config, storageUtils, callback) {
         }
         
         static update(tbl) {
-            publicApi.setItem(getStoreKey(tbl), _privateStore[getStoreKey(tbl)]);
+            const storeKey = getStoreKey(tbl);
+            publicApi.setItem(storeKey, _privateStore[storeKey]);
         }
 
         static delete(tableName, delItem) {
@@ -121,6 +122,8 @@ function DefaultStorage(config, storageUtils, callback) {
             publicApi.setItem(tbl, _privateStore[tbl]);
         }
         static onTruncateTable(tableName){
+            // empty the record
+            _privateStore[getStoreKey(tableName)] = [];
             this.update(tableName)
         }
 

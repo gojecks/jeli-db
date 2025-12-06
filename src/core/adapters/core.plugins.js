@@ -2,16 +2,13 @@
  * core custom pluginFn
  */
 class PluginsInstance {
-    //used to hold customPlugins
-    constructor(){
-        this._pluginsContainer = new Map();
-    }
-    
-    get(pluginId) {
+    static _pluginsContainer = new Map();
+    //used to hold customPlugins    
+    static get(pluginId) {
         return this._pluginsContainer.get(pluginId);
     }
 
-    jQl(name, plugin) {
+    static jQl(name, plugin) {
         if (name && isobject(plugin) && !this._pluginsContainer.has(name)) {
             this._pluginsContainer.set(name, plugin);
         } else {
@@ -21,7 +18,7 @@ class PluginsInstance {
         return this;
     }
     
-    disablePlugins(list) {
+    static disablePlugins(list) {
         if (isarray(list)) {
             for (var i = 0; i < list.length; i++) {
                 if (!this._pluginsContainer.has(list[i])) {
@@ -31,7 +28,7 @@ class PluginsInstance {
         }
     }
     
-    enablePlugins(list) {
+    static enablePlugins(list) {
         if (isarray(list)) {
             for (var i = 0; i < list.length; i++) {
                 if (!this._pluginsContainer.has(list[i])) {

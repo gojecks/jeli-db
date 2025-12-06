@@ -66,8 +66,8 @@ class DatabaseInstance {
      * }
      */
     api(path, data) {
-        var options = isobject(path) ? path : { path, data };
-        var httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
+        const options = isobject(path) ? path : { path, data };
+        const httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
         // no request Match found
         if (httpRequestOptions.isErrorState) {
             console.log('Invalid or missing api: ' + options.path);
@@ -91,13 +91,10 @@ class DatabaseInstance {
             }
         }
 
-        return privateApi.$http(httpRequestOptions).then(function (res) {
-            var ret = dbSuccessPromiseObject('api', "");
-            ret.result = res;
-            return ret;
-        }, function (err) {
-            return (err || { message: "There was an error please try again later" });
-        });
+        return privateApi.$http(httpRequestOptions).then(
+            res => dbSuccessPromiseObject('api', res), 
+            err => (err || { message: "There was an error please try again later" })
+        );
     }
 
     table(tableName, mode) {
@@ -108,6 +105,26 @@ class DatabaseInstance {
         }
 
         return tableInstance;
+    }
+
+    truncate(syncToServer){
+        return new Promise((resolve, reject) => {
+            const databaseInstance = privateApi.getActiveDB(this.name);
+            const _resource = databaseInstance.get(constants.RESOURCEMANAGER);
+            const tableList = _resource.getTableNames();
+            if (tableList && tableList.length) {
+                tableList.forEach(tableName => {
+                    privateApi.truncateTable(this.name, tableName);
+                });
+            }
+
+            if (!syncToServer) {
+                resolve(dbSuccessPromiseObject('truncateDB', 'Database truncated successfully.'));
+            } else {
+                this.api({ path: '/v2/database/truncate'})
+                    .then(res => resolve(dbSuccessPromiseObject('truncateDB', res.result)) , err => reject(dbErrorPromiseObject('truncateDB', err)))
+            }
+        });
     }
 
     /**
@@ -599,10 +616,30 @@ class DatabaseInstance {
                 } else if (taskPerformerObj.requiresParam && taskType.length < 2) {
                     taskPerformerHandler.error(dbErrorPromiseObject("command requires parameters but got none,\n type help -[command]"));
                 } else {
+                    const collectValue = key => {
+                        if(typeof key == 'object'){
+                            if (key.startsWith){
+                                return task.reduce((accum, v) => {
+                                    if (typeof v == 'string' && v.startsWith(key.startsWith)){
+                                        accum.push(v)
+                                    }
+    
+                                    return accum;
+                                }, []);
+                            } else if (key.slice){
+                                return task.splice(key.slice.start, (key.slice.end || task.length))
+                            }
+                        }
+
+                        return key;
+                    }
                     // map the query to the mapper object
                     if (taskPerformerObj.map) {
                         task = Object.keys(taskPerformerObj.map)
-                            .reduce((accum, key) => (accum[key] = task[taskPerformerObj.map[key]], accum), {});
+                            .reduce((accum, key) => {
+                                const mValue = taskPerformerObj.map[key];
+                                return (accum[key] = (typeof mValue == 'number' ? jSonParser(task[mValue]) : collectValue(mValue)), accum);
+                            }, {});
                     }
 
                     try {
@@ -622,25 +659,17 @@ class DatabaseInstance {
         function startMultipleTask(context) {
             var index = 0;
             var taskPerformerHandler = Object({
-                onSuccess: next(1),
-                onError: next(0)
+                onSuccess: next,
+                onError: next
             });
             var responses = [];
-
-            function next(pos) {
-                return function (res) {
-                    index++;
-                    if (!pos) {
-                        responses.length = 0;
-                        handler.onError(res);
-                    } else {
-                        responses.push(res);
-                        if (tasks.length > index) {
-                            performTask(tasks[index], taskPerformerHandler, context, res);
-                        } else {
-                            handler.onSuccess(responses);
-                        }
-                    }
+            function next(res) {
+                index++;
+                responses.push(res);
+                if (tasks.length > index) {
+                    performTask(tasks[index], taskPerformerHandler, context, res);
+                } else {
+                    handler.onSuccess(responses);
                 }
             }
 

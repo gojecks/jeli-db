@@ -11,6 +11,7 @@ class SchemaManager{
     }
 
     static loadSchema(version, schemaFilePath) {
+        if (!schemaFilePath) return Promise.reject({message: 'Invalid schema filePath'});
         var path = schemaFilePath + "version_" + version + '.json';
         return fetch(path).then(res => res.json());
     }
@@ -46,7 +47,7 @@ class SchemaManager{
     upgrade(cb) {
         var performUpgrade = () => {
             this.previousVersion++;
-            SchemaManager.loadSchema(previousVersion, this.schemaFilePath)
+            SchemaManager.loadSchema(this.previousVersion, this.schemaFilePath)
                 .then((schema) => {
                     this.schemaProcess.process(schema, next);
                 }, next);

@@ -3,54 +3,44 @@
  * @param {*} appName 
  */
 class RequestMapping {
+    static createInstance(name){
+        return new this(name);
+    }
+
     constructor(appName) {
-        var customApiRepository = [];
-        var isResolvedCustom = false;
+        this.customApiRepository = [];
+        this.isResolvedCustom = false;
         this.appName = appName;
-        /**
-         *
-         * @param {*} stateName
-         */
-        this.get = function (url, method) {
-            return Database.API.find(url, customApiRepository, method)[0];
-        };
+    }
 
-        /**
-         *
-         * @param {*} stateName
-         * @param {*} config
-         */
-        this.set = function (config) {
-            if (config) {
-                if (isarray(config)) {
-                    customApiRepository = customApiRepository.concat(config);
-                } else if (!customApiRepository.some(function (api) { return api.URL == config.URL; })) {
-                    customApiRepository.push(config);
+    /**
+     *
+     * @param {*} stateName
+     */
+    get(url, method) {
+        return Database.API.find(url, this.customApiRepository, method)[0];
+    }
+
+    /**
+     *
+     * @param {*} stateName
+     * @param {*} config
+     */
+    set(config) {
+        if (config) {
+            if (isarray(config)) {
+                config.forEach(conf => this.set(conf));
+            } else {
+                const conf = this.customApiRepository.find((api) => (api.URL == config.URL));
+                if (conf){
+                    Object.assign(conf, config);
+                } else {
+                    this.customApiRepository.push(config);
                 }
             }
+        }
 
-            return this;
-        };
-
-        Object.defineProperties(this, {
-            isResolvedCustom: {
-                get: function () {
-                    isResolvedCustom = false;
-                },
-                set: function () {
-                    if (isResolvedCustom) return;
-                    isResolvedCustom = true;
-                }
-            },
-            customApiRepository: {
-                get: function () {
-                    return customApiRepository;
-                },
-                set: function (value) {
-                    customApiRepository = Object.assign(customApiRepository, value);
-                }
-            }
-        });
+        return this;
     }
     
     getAllByClass(className) {
@@ -60,9 +50,7 @@ class RequestMapping {
         return this.getAllBy('CTRL_NAME', className);
     }
     getAllBy(name, value) {
-        return this.customApiRepository.filter(function (api) {
-            return api[name] === value;
-        });
+        return this.customApiRepository.filter((api) => api[name] === value);
     }
     getAllClientApis() {
         return copy(Database.API.get(), true);
@@ -80,7 +68,7 @@ class RequestMapping {
         }
 
         this.isResolvedCustom = true;
-        var requestOptions = privateApi.buildHttpRequestOptions(this.appName, { path: '/functions' });
+        const requestOptions = privateApi.buildHttpRequestOptions(this.appName, { path: '/functions' });
         return privateApi.$http(requestOptions)
             .then(res => {
                 if (isarray(res)) {
@@ -93,9 +81,7 @@ class RequestMapping {
      * @param {*} url
      */
     removeApi(url) {
-        this.customApiRepository = this.customApiRepository.filter(function (api) {
-            return (url !== api.URL);
-        });
+        this.customApiRepository = this.customApiRepository.filter(url => (url !== api.URL));
     }
 }
 
@@ -103,21 +89,17 @@ class RequestMapping {
  * register static method to Core
  */
 class ApiMapper {
-    constructor() {
-        this.coreApiRepository = [];
-    }
+    static coreApiRepository = [];
 
-    get(url) {
-        if (url)
-            return this.find(url)[0];
-        return this.coreApiRepository;
+    static get(url) {
+        return (url ? this.find(url)[0] : this.coreApiRepository);
     }
 
     /**
      *
      * @param {*} apiList
      */
-    set(apiList) {
+    static set(apiList) {
         if (isarray(apiList)) {
             this.coreApiRepository.push.apply(this.coreApiRepository, apiList);
         } else if (isobject(apiList)) {
@@ -129,13 +111,13 @@ class ApiMapper {
      *
      * @param {*} url
      */
-    remove(url) {
+    static remove(url) {
         this.coreApiRepository = this.coreApiRepository.filter(function (api) {
             return !isequal(api.URL, url);
         });
     }
     
-    clear() {
+    static clear() {
         this.coreApiRepository.length = 0;
     }
     /**
@@ -144,7 +126,7 @@ class ApiMapper {
      * @param {*} data
      * @returns
      */
-    find(key, customApiRepository, method) {
+    static find(key, customApiRepository, method) {
         return this.coreApiRepository.concat(customApiRepository || []).filter(function (api) {
             return isequal(api.URL, key) && (!method || method === api.METHOD);
         });

@@ -151,11 +151,9 @@ function inarray(a, b) {
  * @param {*} str 
  */
 function jSonParser(str) {
-    if (isjsonstring(str)) {
-        try {
-            str = JSON.parse(str);
-        } catch (e) { }
-    }
+    try {
+        str = JSON.parse(str);
+    } catch (e) { }
     return str;
 }
 

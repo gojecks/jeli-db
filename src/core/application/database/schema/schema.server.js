@@ -8,7 +8,7 @@
  */
 function ServerSchemaLoader(dbName, version, config, lastLoadedTime) {
     var activeDB = privateApi.getActiveDB(dbName);
-    config = Object.assign({ loadData: [], maximumRetries: 5, ttl: '1w' }, ('object' == typeof config) ? config : {});
+    config = Object.assign({ loadData: [], maximumRetries: 5, ttl: null }, ('object' == typeof config) ? config : {});
 
     return new Promise((resolve, reject) => {
         var retryCount = 1;
@@ -109,10 +109,9 @@ function ServerSchemaLoader(dbName, version, config, lastLoadedTime) {
                 }
             }
 
-            resource.setResource(serverResource);
             //Get the DB schema 
             //for each Table
-            var tableNames = resource.getTableDifferences(localResource);
+            const tableNames = resource.setResource(serverResource).getTableDifferences(localResource);
             loadSchema(tableNames, serverResource.resourceManager);
         }
 

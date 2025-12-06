@@ -1,27 +1,30 @@
 class openedDBResolvers {
-    constructor() {
-        this.networkResolver = ({
-            serviceHost: null,
-            dirtyCheker: true,
-            conflictResolver: null,
-            resolveDeletedTable: (currentProcessTbl) => confirm('Are you sure you want to drop table ' + currentProcessTbl),
-            logger: [],
-            logService: function () { },
-            interceptor: function () { },
-            deletedRecords: {
-                table: {},
-                database: {},
-                rename: {}
-            },
-            handler: {
-                onSuccess: function () { },
-                onError: function () { }
-            },
-            appKey: "*",
-            inProduction: false,
-            ignoreSync: [],
-            $ajax: false
-        });
+    networkResolver = ({
+        serviceHost: null,
+        dirtyCheker: true,
+        conflictResolver: null,
+        resolveDeletedTable: (currentProcessTbl) => confirm('Are you sure you want to drop table ' + currentProcessTbl),
+        logger: [],
+        logService: noop,
+        interceptor: noop,
+        deletedRecords: {
+            table: {},
+            database: {},
+            rename: {}
+        },
+        handler: {
+            onSuccess: noop,
+            onError: noop
+        },
+        appKey: "*",
+        inProduction: false,
+        ignoreSync: [],
+        $ajax: false
+    });
+    constructor() { }
+
+    get() {
+        return this.networkResolver;
     }
 
     /**
@@ -54,6 +57,7 @@ class openedDBResolvers {
     has(name) {
         return this.networkResolver.hasOwnProperty(name);
     }
+
     trigger(fn) {
         setTimeout(() => fn.call(this), 1);
         return this;

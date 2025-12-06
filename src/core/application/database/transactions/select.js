@@ -368,6 +368,9 @@ function transactionSelect(selectFields, definition) {
 
             clause.isArrayResult = true;
             clause.value = performSelect(QueryTaskPerformer.run(clauseTable, clause.where), clause);
+            if (clause.extend) {
+                clause.value.push.apply(clause.value, clause.extend);
+            }
         }
     };
 
@@ -454,9 +457,7 @@ function transactionSelect(selectFields, definition) {
         var runner = queryRunner();
         this.rawTables, this.isMultipleTable
         if (this.isMultipleTable) {
-            for (var i = 0; i < this.rawTables.length; i++) {
-                runner(rawTables[i]);
-            }
+            this.rawTables.forEach( tbl => runner(tbl));
         } else if (queryDefinition.join) {
             /**
             * when queryDefinition.filterBefore is set to true

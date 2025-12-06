@@ -4,46 +4,34 @@
  */
 class UserService {
     constructor(dbInstance) {
-        this.dbInstance = dbInstance;
-        this.password = {
-            forgot: function (requestBody) {
-                return dbInstance.api({ path: '/password/reset', data: requestBody });
-            },
-            resendCode: function (identifier) {
-                return dbInstance.api({ path: '/password/code/resend', data: { identifier } });
-            },
-            validateCode: function (requestBody) {
-                return dbInstance.api({ path: "/password/code/validate", data: requestBody })
-                    .then(res => new AuthorizeUserInstance(res.result), err => err);
-            },
-            validate: function (postData) {
-                return dbInstance.api({ path: '/user/password/validate', data: postData });
-            }
-        };
+        this.request = payload => dbInstance.api(payload);
+        this.password = new UserPasswordService(this.request);
     }
     
     add(uInfo) {
-        var newInfo = ({ _ref: GUID(), _data: Object.assign({ time: (+new Date) }, uInfo) });
         //Put the Data
         //use the db API Method
-        return this.dbInstance.api({ path: '/user', data: [newInfo], method: 'POST' })
-            .then(res => new AddUserEventInstance(res, newInfo), err => err);
+        return this.request({ path: '/user', data: Object.assign({ time: (+new Date) }, uInfo), method: 'POST' })
+            .then(res => new AddUserEventInstance(res), err => err);
     }
+    
     remove(userRef) {
-        return this.dbInstance.api({ path: '/user', data: [userRef], method: 'DELETE' });
+        return this.request({ path: '/user', data: [userRef], method: 'DELETE' });
     }
     
     update(userData) {
         //post our request to server
-        return this.dbInstance.api({ path: '/user', data: [userData], method: 'PUT' });
+        return this.request({ path: '/user', data: userData, method: 'PUT' });
     }
+
     isExists(queryData) {
-        return this.dbInstance.api({ path: '/user/exists', data: queryData })
+        return this.request({ path: '/user/exists', data: queryData })
             .then((res) => (res.result), err => err);
     }
+    
     authorize(queryData) {
-        return this.dbInstance.api({ path: '/user/authorize', data: queryData })
-            .then(res => (new AuthorizeUserInstance(res.result)) , err => err);
+        return this.request({ path: '/user/authorize', data: queryData })
+            .then(res => (new AuthorizeUserSuccessInstance(res.result || res)) , err => err);
     }
     /**
      *
@@ -51,7 +39,7 @@ class UserService {
      * @returns
      */
     reAuthorize(data) {
-        return this.dbInstance.api({ path: '/user/reauthorize', data });
+        return this.request({ path: '/user/reauthorize', data });
     }
     /**
      * api to query users table
@@ -59,21 +47,21 @@ class UserService {
      * @returns
      */
     search(queryData) {
-        return this.dbInstance.api({ path: '/user/search', data: queryData });
+        return this.request({ path: '/user/search', data: queryData });
     }
     /**
      *
      * @param {*} postData
      */
     removeAuthority(postData) {
-        return this.dbInstance.api({ path: '/database/user/remove', data: postData });
+        return this.request({ path: '/database/user/remove', data: postData });
     }
     /**
      *
      * @param {*} postData
      */
     addAuthority(postData) {
-        return this.dbInstance.api({ path: '/database/user/add', data: postData });
+        return this.request({ path: '/database/user/add', data: postData });
     }
     /**
      *
@@ -81,7 +69,7 @@ class UserService {
      * returns AuthorizeUserInstance
      */
     createAuthorizeInstance(authInfo) {
-        return new AuthorizeUserInstance(authInfo);
+        return new AuthorizeUserSuccessInstance(authInfo);
     }
     /**
      *
@@ -89,7 +77,7 @@ class UserService {
      * @returns Promise
      */
     getOidcToken(data) {
-        return this.dbInstance.api({ path: '/user/openid/token', data })
-            .then(res => this.createAuthorizeInstance(res.result), err => err);
+        return this.request({ path: '/user/openid/token', data })
+            .then(res => this.createAuthorizeInstance(res.result || res), err => err);
     }
 };

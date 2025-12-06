@@ -140,7 +140,10 @@ function IndexedDBAdapter(config, storageUtils, CB) {
         static update = saveData;
         static delete = saveData;
         static onAlterTable = saveData;
-        static onTruncateTable = saveData;
+        static onTruncateTable(tableName){
+            _privateStore[setName(tableName)] = [];
+            saveData(tableName);
+        }
         static onCreateTable = createTable
         static onDropTable(tbl) {
             publicApis.removeItem(tbl);

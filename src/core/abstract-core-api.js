@@ -65,28 +65,28 @@ class privateApi {
      */
     static setActiveDB(name) {
         // open the DB
-        if (!privateApi.databaseContainer.has(name)) {
-            privateApi.databaseContainer.set(name, new AbstractContainer());
-            privateApi._activeDatabase = name;
-        } else if (!isequal(privateApi._activeDatabase, name)) {
-            privateApi._activeDatabase = name;
+        if (!this.databaseContainer.has(name)) {
+            this.databaseContainer.set(name, new AbstractContainer(name));
+            this._activeDatabase = name;
+        } else if (!isequal(this._activeDatabase, name)) {
+            this._activeDatabase = name;
         }
 
         return this;
     };
 
     static getStorage(db) {
-        return privateApi.databaseContainer.get(db || privateApi._activeDatabase).get(constants.STORAGE);
+        return this.databaseContainer.get(db || this._activeDatabase).get(constants.STORAGE);
     }
 
     static tableExists(dbName, tableName) {
-        return privateApi.getStorage(dbName).isExists(tableName);
+        return this.getStorage(dbName).isExists(tableName);
     }
 
     static renameDatabaseContainer(oldName, newName) {
-        if (privateApi.databaseContainer.has(oldName)) {
-            privateApi.databaseContainer.set(newName, privateApi.databaseContainer.get(oldName));
-            privateApi.databaseContainer.delete(oldName)
+        if (this.databaseContainer.has(oldName)) {
+            this.databaseContainer.set(newName, this.databaseContainer.get(oldName));
+            this.databaseContainer.delete(oldName)
         }
     }
 
@@ -96,11 +96,11 @@ class privateApi {
      * @param {*} properties 
      */
     static get(name, properties) {
-        if (!privateApi.databaseContainer.has(name)) {
+        if (!this.databaseContainer.has(name)) {
             return null;
         }
 
-        var _db = privateApi.getStorage(name).getItem();
+        const _db = this.getStorage(name).getItem();
         if (properties) {
             if (isarray(properties)) {
                 var _ret = {};
@@ -123,8 +123,8 @@ class privateApi {
      * @param {*} tableName 
      */
     static getTable(dbName, tableName, extendable) {
-        var db = privateApi.getStorage(dbName);
-        var ret = null;
+        const db = this.getStorage(dbName);
+        let ret = null;
 
         if (!db.isExists(tableName)) {
             return ret;
@@ -142,7 +142,7 @@ class privateApi {
      * @returns
      */
     static getTableData(dbName, tableName) {
-        var db = privateApi.getStorage(dbName);
+        const db = this.getStorage(dbName);
         /**
          * check for table existence
          */
@@ -163,8 +163,8 @@ class privateApi {
     };
 
     static generateStruct(cache) {
-        var ret = { tables: {}, version: cache.version, _nsd_: cache[this.storeMapping.nextSchemaSyncDate] };
-        var resources = cache[privateApi.storeMapping.resourceName];
+        const ret = { tables: {}, version: cache.version, _nsd_: cache[this.storeMapping.nextSchemaSyncDate] };
+        const resources = cache[this.storeMapping.resourceName];
         if (resources && resources.resourceManager) {
             Object.keys(resources.resourceManager).forEach(attachObject);
         }
@@ -189,9 +189,9 @@ class privateApi {
      * @returns 
      */
     static getDBTableNames(db, removeIgnoredTables) {
-        var tableNames = Object.keys(privateApi.get(db || privateApi._activeDatabase, 'tables'));
+        let tableNames = Object.keys(this.get(db || this._activeDatabase, 'tables'));
         if (removeIgnoredTables) {
-            var ignoreSync = this.getConfigData('ignoreSync', db);
+            const ignoreSync = this.getConfigData('ignoreSync', db);
             if (Array.isArray(ignoreSync))
                 tableNames = tableNames.filter(tbl => !ignoreSync.includes(tbl));
         }
@@ -205,7 +205,7 @@ class privateApi {
      * @param {*} tbl 
      */
     static getTableCheckSum(db, tbl) {
-        var table = privateApi.getTable(db, tbl);
+        var table = this.getTable(db, tbl);
         return ({
             current: table._hash,
             previous: table._previousHash
@@ -217,25 +217,8 @@ class privateApi {
      * @param {*} name 
      */
     static isOpen(name) {
-        var openedDB = privateApi.databaseContainer.get(name);
-        if (openedDB.opened) {
-            return true
-        }
-
-        if (openedDB.closed) {
-            return !openedDB.open().incrementInstance();
-        }
-
-        openedDB
-            .open()
-            .set(constants.DATATYPES, new DataTypeHandler())
-            .set(constants.RESOLVERS, new openedDBResolvers())
-            .set(constants.RESOURCEMANAGER, new ResourceManager(name))
-            .set(constants.RECORDRESOLVERS, new CoreDataResolver(name));
-
-
-        openedDB = null;
-    };
+        return this.databaseContainer.get(name).open();        
+    }
 
     /**
      * 
@@ -244,9 +227,9 @@ class privateApi {
      */
     static closeDB(name, removeFromStorage) {
         return new Promise((resolve) => {
-            var openedDb = privateApi.databaseContainer.get(name);
+            var openedDb = this.databaseContainer.get(name);
             if (!openedDb) return resolve(null);
-    
+
             openedDb.decrementInstance();
             if (!openedDb.instance) {
                 openedDb.close();
@@ -255,8 +238,8 @@ class privateApi {
                         .get(constants.RESOURCEMANAGER)
                         .removeResource();
                     // destroy the DB instance
-                    privateApi.storageFacade.drop(name, resolve);
-                    privateApi.databaseContainer.delete(name);
+                    this.storageFacade.drop(name, resolve);
+                    this.databaseContainer.delete(name);
                 }
             }
         });
@@ -267,7 +250,7 @@ class privateApi {
      * @param {*} req 
      */
     static getActiveDB(requestDB) {
-        return privateApi.databaseContainer.get(requestDB || privateApi._activeDatabase);
+        return this.databaseContainer.get(requestDB || this._activeDatabase);
     };
 
     /**
@@ -276,7 +259,7 @@ class privateApi {
      * @param {*} db 
      */
     static getConfigData(prop, db) {
-        return privateApi.getActiveDB(db).get(constants.RESOLVERS).getResolvers(prop) || '';
+        return this.getActiveDB(db).get(constants.RESOLVERS).getResolvers(prop) || '';
     };
 
     /**
@@ -288,25 +271,25 @@ class privateApi {
         /**
          * check if database exists before proceeding
          */
-        if (privateApi.databaseContainer.has(db)) {
-            var databaseInstance = privateApi.getActiveDB(db);
-            var _resource = databaseInstance.get(constants.RESOURCEMANAGER);
-            var databaseResources = (_resource.getResource() || {});
-            var removeAll = (databaseResources.lastSyncedDate && !forceDelete);
+        if (this.databaseContainer.has(db)) {
+            const databaseInstance = this.getActiveDB(db);
+            const _resource = databaseInstance.get(constants.RESOURCEMANAGER);
+            const databaseResources = (_resource.getResource() || {});
+            const removeAll = (databaseResources.lastSyncedDate && !forceDelete);
             databaseInstance.close();
 
             // destroy the DB instance
             // drop all tables
-            var tableList = _resource.getTableNames();
+            const tableList = _resource.getTableNames();
             if (tableList) {
-                tableList.forEach(function (tableName) {
-                    privateApi.storageFacade.broadcast(db, DB_EVENT_NAMES.DROP_TABLE, [tableName]);
+                tableList.forEach((tableName) => {
+                    this.storageFacade.broadcast(db, DB_EVENT_NAMES.DROP_TABLE, [tableName]);
                 });
             }
             // remove other storage
-            var storage = databaseInstance.get(constants.STORAGE);
-            storage.removeItem(privateApi.storeMapping.pendingSync);
-            storage.removeItem('version');
+            const storageAdapter = databaseInstance.get(constants.STORAGE);
+            storageAdapter.removeItem(this.storeMapping.pendingSync);
+            storageAdapter.removeItem('version');
             _resource.removeResource();
 
 
@@ -314,22 +297,35 @@ class privateApi {
              * only store deleted records when db is synced
              */
             if (removeAll) {
-                privateApi.updateDeletedRecord('database', {
+                this.updateDeletedRecord('database', {
                     db: db,
                     lastSyncedDate: databaseResources.lastSyncedDate
                 });
             } else {
                 databaseInstance.get(constants.RECORDRESOLVERS).destroy();
-                privateApi.databaseContainer.delete(db);
+                this.databaseContainer.delete(db);
             }
-
-            databaseInstance = _resource = null;
 
             return dbSuccessPromiseObject('drop', 'Database(' + db + ') have been dropped.');
         }
 
         return dbErrorPromiseObject('Unable to drop Database(' + db + ') or it does not exists.');
     };
+
+    /**
+     * Truncate a table
+     * @param {*} dbName 
+     * @param {*} tableName 
+     */
+    static truncateTable(dbName, tableName) {
+        // update the DB
+        this.updateDB(dbName, tableName, function (table) {
+            table._hash = '';
+            table._records = table.lastInsertId = 0;
+        });
+        // broadcast event
+        this.storageFacade.broadcast(dbName, DB_EVENT_NAMES.TRUNCATE_TABLE, [tableName]);
+    }
 
     /**
      * 
@@ -466,26 +462,25 @@ class privateApi {
      * @returns 
      */
     static buildHttpRequestOptions(dbName, reqOptions) {
-        var options = {};
-        var networkResolver = privateApi.getActiveDB(dbName).get(constants.RESOLVERS).networkResolver;
+        let options = { isErrorState: true };
+        const resolver = this.getActiveDB(dbName).get(constants.RESOLVERS).get();
         // requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
-        var requestState = networkResolver.requestMapping.get(reqOptions.path, reqOptions.method);
+        const requestState = resolver.requestMapping.get(reqOptions.path, reqOptions.method);
         if (requestState) {
-            var cToken = $cookie('X-CSRF-TOKEN');
-            var tbl = reqOptions.tbl || requestState.tbl;
-            var cache = reqOptions.cache || requestState.CACHE || null;
+            let tbl = reqOptions.tbl || requestState.tbl;
+            const cToken = $cookie('X-CSRF-TOKEN');
+            const cache = reqOptions.cache || requestState.CACHE || null;
             if (isarray(tbl)) tbl = JSON.stringify(tbl);
             // configure request options
-            options = Object({
-                url: (reqOptions.URL || networkResolver.serviceHost || '') + requestState.URL,
+            options = AjaxSetup.getOptions({
+                url: (reqOptions.URL || resolver.serviceHost || '') + requestState.URL,
                 $appName: dbName,
-                type: requestState.METHOD,
+                type: (requestState.METHOD || 'GET').toLowerCase(),
                 dataType: 'json',
-                contentType: 'application/json',
                 headers: {
                     Authorization: "Bearer *",
                     'X-REQ-OPTS': Base64Fn.encode(
-                        `${networkResolver.organisation}:${dbName}:${(tbl || '')}:${(Math.floor(+new Date / 1000) * 1000)}:${networkResolver.nonce || ''}`
+                        `${resolver.organisation}:${dbName}:${(tbl || '')}:${(Math.floor(+new Date / 1000) * 1000)}:${resolver.nonce || ''}`
                     )
                 },
                 requestState: requestState,
@@ -502,14 +497,11 @@ class privateApi {
             }
 
             //initialize our network interceptor
-            if (networkResolver.interceptor) {
-                networkResolver.interceptor(options, requestState);
+            if (resolver.interceptor) {
+                resolver.interceptor(options, requestState);
             }
-        } else {
-            options.isErrorState = true;
         }
-        // remove networkResolver instance
-        networkResolver = null;
+
         return options;
     };
 
@@ -662,8 +654,8 @@ class privateApi {
     static autoSync(appName, tbl, type, data) {
         var ignoreSync = privateApi.getConfigData('ignoreSync', appName);
         if (!inarray(tbl, (ignoreSync || []))) {
-            var recordResolver = privateApi.getActiveDB(appName).get(constants.RECORDRESOLVERS);
-            var handleResult = res => {
+            const recordResolver = privateApi.getActiveDB(appName).get(constants.RECORDRESOLVERS);
+            const handleResult = res => {
                 recordResolver
                     .isResolved(tbl, res._hash)
                     .handleFailedRecords(tbl, (res && res.failed));
@@ -673,14 +665,14 @@ class privateApi {
             //process the request
             //Synchronize PUT STATE
             if (!data && type) {
-                var dataToSync = recordResolver.get(tbl);
+                const dataToSync = recordResolver.get(tbl);
                 data = dataToSync.data;
             }
 
             // make sure there is data to push
-            var haveDataToProcess = Object.keys(data).some(key => (data[key].length > 0));
+            const haveDataToProcess = Object.keys(data).some(key => (data[key].length > 0));
             if (haveDataToProcess) {
-                var requestParams = privateApi.buildHttpRequestOptions(appName, { tbl, path: '/database/push' });
+                const requestParams = privateApi.buildHttpRequestOptions(appName, { tbl, path: '/database/push' });
                 requestParams.data = data;
                 return privateApi.$http(requestParams)
                     .then(handleResult, handleResult);
@@ -695,24 +687,12 @@ class privateApi {
      * @param {*} options 
      */
     static $http = (function () {
-        var interceptor = Object.create({
-            resolveInterceptor: function (type, options) {
-                if (_globalInterceptors.has(type)) {
-                    _globalInterceptors.get(type).forEach(function (interceptor) {
-                        interceptor(options);
-                    });
-                }
-                return options;
-            }
-        });
-
-        var $ajax = AjaxSetup(interceptor);
-        var checkedUserDefined = false;
-        var userDefinedAjax = null;
+        let userDefinedAjaxChecked = false;
+        let userDefinedAjax = null;
         return function (options) {
             // one time  check for user custom ajax
-            if (!checkedUserDefined) {
-                checkedUserDefined = true;
+            if (!userDefinedAjaxChecked) {
+                userDefinedAjaxChecked = true;
                 userDefinedAjax = privateApi.getConfigData('$ajax', options.$appName);
             }
 
@@ -721,7 +701,7 @@ class privateApi {
                 return userDefinedAjax(options);
             }
 
-            return $ajax(options);
+            return AjaxSetup.request(options);
         };
     })();
 }

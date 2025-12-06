@@ -37,9 +37,8 @@ class CoreDataResolver {
      * @param {*} tbl 
      * @param {*} type 
      * @param {*} refs 
-     * @param {*} data 
      */
-    setData(tbl, type, refs, data) {
+    setData(tbl, type, refs) {
         if (!this._records.hasOwnProperty(tbl)) {
             //set the record
             this._records[tbl] = { data: this.tableRecordHolder(), columns: {} };
@@ -53,8 +52,8 @@ class CoreDataResolver {
             },
             update: () => {
                refs.forEach(ref => {
-                    if (!this._records[tbl].data.insert[ref]) {
-                        this._records[tbl].data.update[ref] = data;
+                    if (!this._records[tbl].data.insert[ref[0]]) {
+                        this._records[tbl].data.update[ref[0]] = ref[1];
                     }
                 });
             },
@@ -202,58 +201,60 @@ class CoreDataResolver {
      */
     handleFailedRecords(tbl, failedRecords) {
         var syncRecords = this._records[tbl];
-        var handleFailedError = (key) => {
-            if (failedRecords[key].length) {
-                switch(key) {
-                    case ('insert'):
-                        var tableData = privateApi.getTableData(this.name, tbl); 
-                        var records = privateApi.getDataByRefs(tableData, failedRecords[key].map(item => item.ref));
-                        var newRefs = [];
-                        records.forEach((record, i) => {
-                            if (syncRecords && !syncRecords.data) return;
-                            var item = failedRecords[key][i];
-                            if (item.exists[0]){
-                                // generate a new GUID
-                                record._ref = GUID();
-                                // push refs to update
-                                newRefs.push([item._ref, record._ref]);
-                                syncRecords.data[key][record._ref] = true; 
-                            }
-                            
-                            delete syncRecords.data[key][item._ref];
-                        });
-                        console.log('new Ref Mapping:', newRefs);
-                    break;
-                    case ('update'):
-                        // remove the missing refs from DB since it doesn't exist
-                        var tableData = privateApi.getTableData(this.name, tbl);
-                        var toRemove = 0;
-                        for(var i=0; i < tableData.length; i++){
-                            if (failedRecords[key].includes(tableData[i]._ref)){
-                                toRemove++;
-                                tableData.splice(i, 1);
-                                i--;
-                            }
+        const actions = {
+            insert: () => {
+                const tableData = privateApi.getTableData(this.name, tbl); 
+                const records = privateApi.getDataByRefs(tableData, failedRecords.insert.map(item => item.ref));
+                const newRefs = [];
+                records.forEach((record, i) => {
+                    if (!syncRecords || !syncRecords.data) return;
+                    const item = failedRecords.insert[i];
+                    if (item.exists[0]){
+                        // generate a new GUID
+                        record._ref = GUID();
+                        // push refs to update
+                        newRefs.push([item._ref, record._ref]);
+                        syncRecords.data.insert[record._ref] = true; 
+                    }
+                    
+                    delete syncRecords.data.insert[item._ref];
+                });
+                console.log('new Ref Mapping:', newRefs);
+            },
+            update: () => {
+                // remove the missing refs from DB since it doesn't exist
+                const tableData = privateApi.getTableData(this.name, tbl);
+                let toRemove = 0;
+                for(var i=0; i < tableData.length; i++){
+                    if (failedRecords.update.includes(tableData[i]._ref)){
+                        toRemove++;
+                        tableData.splice(i, 1);
+                        i--;
+                    }
 
-                            // break away from loop
-                            if (toRemove == failedRecords[key].length){
-                                break;
-                            }
+                    // break away from loop
+                    if (toRemove == failedRecords.update.length){
+                        break;
+                    }
 
-                        }
-                        privateApi.storageFacade.broadcast(this.name, DB_EVENT_NAMES.TRANSACTION_DELETE, [tbl, failedRecords[key]]);
-                    break;
-                    case('delete'):
-                        if (syncRecords && syncRecords.data){
-                            failedRecords[key].forEach(ref => delete syncRecords.data[key][ref]);
-                        }
-                    break;
+                }
+                privateApi.storageFacade.broadcast(this.name, DB_EVENT_NAMES.TRANSACTION_DELETE, [tbl, failedRecords.update]);
+            },
+            delete: () => {
+                if (syncRecords && syncRecords.data){
+                    for(const ref of failedRecords.delete){
+                        delete syncRecords.data.delete[ref];
+                    }
                 }
             }
-        }
+        };
     
         // update the storage
-        Object.keys(failedRecords || {}).forEach(handleFailedError);
+        Object.keys(failedRecords || {}).forEach(type => {
+            if (failedRecords[type].length) {
+                actions[type]();
+            }
+        });
         privateApi.storageFacade.set(privateApi.storeMapping.pendingSync, this._records, this.name);
     }
 }
