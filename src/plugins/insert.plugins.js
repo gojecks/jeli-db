@@ -1,5 +1,5 @@
 Database.plugins.jQl('insert', {
-    help: ['insert -[data] -[tbl_name] (optional: [-replace -columnName] -hard  -skip)'],
+    help: ['insert -[data] -[tbl_name] (optional: [-replace -columnName] -hard -skip -ignoreSync)'],
     requiresParam: true,
     fn: insertPluginFn
 });
@@ -11,27 +11,24 @@ function insertPluginFn(query, handler) {
         options = query.slice(3),
         replaceCall = inarray('replace', options),
         skipProcessing = inarray('skip', options),
-        hardInsert = inarray('hard', options);
+        hardInsert = inarray('hard', options),
+        ignoreSync = inarray('ignoreSync', options)
 
-    return function(db) {
-        db
-            .transaction(tblName, "writeonly")
-            .onSuccess(function(tx) {
-                var instance = tx.result.dataProcessing(!skipProcessing);
-                /**
-                 * check for insert or replace call
-                 */
-                if (replaceCall) {
-                    instance = instance.insertReplace(data, options[1]);
-                } else {
-                    instance = instance.insert(data, hardInsert);
-                }
+    return function (db) {
+        var instance = db.transaction(tblName, "writeonly");
+        instance.dataProcessing(!skipProcessing);
+        /**
+         * check for insert or replace call
+         */
+        if (replaceCall) {
+            instance = instance.insertReplace(data, options[1]);
+        } else {
+            instance = instance.insert(data, hardInsert);
+        }
 
-                instance
-                    .execute()
-                    .then(handler.onSuccess, handler.onError)
-                    .catch(handler.onError);
-            })
-            .onError(handler.onError)
+        instance
+            .execute(ignoreSync)
+            .then(handler.onSuccess, handler.onError)
+            .catch(handler.onError);
     }
 };

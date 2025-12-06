@@ -18,7 +18,7 @@ function constructFolderName(config, fpath) {
  * @param {*} CB 
  * @returns 
  */
-function FlatFileSupport(config, storageUtils, CB) {
+function FlatFileAdapter(config, storageUtils, CB) {
     var _eventRegistry = new Map();
     var pendingSaving = [];
     var __locked__ = {};
@@ -30,7 +30,7 @@ function FlatFileSupport(config, storageUtils, CB) {
      * @param {*} handler 
      */
     function _readDir(dirPath, handler) {
-        fs.readdir(dirPath, function(err, filenames) {
+        fs.readdir(dirPath, function (err, filenames) {
             if (err) {
                 handler.onError(err);
                 return;
@@ -68,7 +68,7 @@ function FlatFileSupport(config, storageUtils, CB) {
      * @param {*} removeFile 
      */
     function _clearData(fileList) {
-        fileList.forEach(function(fileName) {
+        fileList.forEach(function (fileName) {
             var filePath = getFilePath(fileName);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
@@ -99,7 +99,7 @@ function FlatFileSupport(config, storageUtils, CB) {
         fs.writeFile(getFilePath(fileName),
             JSON.stringify(_privateStore[fileName], null, config.prettify || 0),
             'utf-8',
-            function(err) {
+            function (err) {
                 /**
                  * unlock file
                  */
@@ -124,11 +124,12 @@ function FlatFileSupport(config, storageUtils, CB) {
     /**
      * public API to be used 
      */
-    var _publicApi = Object({
-        isExists: function(name) {
+    class _publicApi {
+        static isExists(name) {
             return _privateStore.hasOwnProperty(name);
-        },
-        getItem: function(name) {
+        }
+
+        static getItem(name) {
             if (!name) return null;
             var item = _privateStore[name];
             var isData = name.includes(':');
@@ -142,30 +143,34 @@ function FlatFileSupport(config, storageUtils, CB) {
             }
 
             return item;
-        },
-        setItem: function(name, value) {
+        }
+
+        static setItem(name, value) {
             _privateStore[name] = value || _privateStore[name];
             writeFile(name);
-        },
-        clear: function() {
+        }
+
+        static clear(callback) {
             _clearData(Object.keys(_privateStore));
             _privateStore = {};
-        },
-        removeItem: function(name) {
+            (callback || noop)(true); 
+        }
+
+        static removeItem(name) {
             delete _privateStore[name];
             _clearData([name]);
-        },
+        }
 
-        save: function(name) {
+        static save(name) {
             this.setItem(name);
-        },
+        }
 
-        broadcast: function(eventName, args) {
+        static broadcast(eventName, args) {
             if (_eventRegistry.has(eventName)) {
                 _eventRegistry.get(eventName).apply(null, args);
             }
-        },
-    });
+        }
+    };
 
 
 
@@ -190,7 +195,7 @@ function FlatFileSupport(config, storageUtils, CB) {
      */
     function onUpdateTableEvent(tbl, updates) {
         // save the data
-        Object.keys(updates).forEach(function(key) {
+        Object.keys(updates).forEach(function (key) {
             _privateStore[tbl].schema[key] = updates[key];
         });
 
@@ -204,7 +209,7 @@ function FlatFileSupport(config, storageUtils, CB) {
      */
     function onResolveSchemaEvent(version, tables) {
         _publicApi.setItem('version', version);
-        Object.keys(tables).forEach(function(tblName) {
+        Object.keys(tables).forEach(function (tblName) {
             onCreateTable(tblName, tables[tblName]);
         });
     }
@@ -252,7 +257,7 @@ function FlatFileSupport(config, storageUtils, CB) {
      */
     function onRenameDataBaseEvent(oldName, newName, cb) {
         var resource = _publicApi.getItem(storageUtils.storeMapping.resourceName);
-        Object.keys(resource.resourceManager).forEach(function(tbl) {
+        Object.keys(resource.resourceManager).forEach(function (tbl) {
             _privateStore[tbl].schema.DB_NAME = newName;
             _privateStore[tbl].schema.lastModified = +new Date;
         });
@@ -266,7 +271,7 @@ function FlatFileSupport(config, storageUtils, CB) {
         }
         // change the dbName variable
         config.name = newName;
-        (cb || function() {})();
+        (cb || function () { })();
     }
 
     /**
@@ -284,7 +289,9 @@ function FlatFileSupport(config, storageUtils, CB) {
     _eventRegistry.set('onCreateTable', onCreateTable);
     _eventRegistry.set('onDropTable', _publicApi.removeItem);
     _eventRegistry.set('onUpdateTable', onUpdateTableEvent);
-    _eventRegistry.set('onTruncateTable', saveEvent);
+    _eventRegistry.set('onTruncateTable', tableName => {
+        saveEvent(tableName)
+}   );
     _eventRegistry.set('onResolveSchema', onResolveSchemaEvent);
     _eventRegistry.set('onRenameTable', onRenameTableEvent);
     _eventRegistry.set('onRenameDataBase', onRenameDataBaseEvent);
@@ -292,10 +299,10 @@ function FlatFileSupport(config, storageUtils, CB) {
     try {
         fs.mkdirSync(constructFolderName(config), { recursive: true });
         _readDir(constructFolderName(config), {
-            onSuccess: function() {
+            onSuccess: function () {
                 CB();
             },
-            onError: function(err) {
+            onError: function (err) {
                 console.log('error reading file');
             }
         });

@@ -16,6 +16,14 @@ class CoreDataResolver {
         }
     }
 
+    get records(){
+        return this._records;
+    }
+
+    has(tableName){
+        return this._records.hasOwnProperty(tableName);
+    }
+
     tableRecordHolder() {
         return ({
             delete: {},
@@ -28,42 +36,38 @@ class CoreDataResolver {
      * 
      * @param {*} tbl 
      * @param {*} type 
-     * @param {*} data 
+     * @param {*} refs 
      */
-    setData(tbl, type, data) {
+    setData(tbl, type, refs) {
         if (!this._records.hasOwnProperty(tbl)) {
             //set the record
             this._records[tbl] = { data: this.tableRecordHolder(), columns: {} };
         }
     
         var taskHandler = {
-            insert: (records) => {
-               records.forEach(ref => {
+            insert: () => {
+               refs.forEach(ref => {
                     this._records[tbl].data.insert[ref] = true;
                 });
             },
-            update: (records) => {
-               records.forEach(ref => {
-                    if (!this._records[tbl].data.insert[ref]) {
-                        this._records[tbl].data.update[ref] = true;
+            update: () => {
+               refs.forEach(ref => {
+                    if (!this._records[tbl].data.insert[ref[0]]) {
+                        this._records[tbl].data.update[ref[0]] = ref[1];
                     }
                 });
             },
-            delete: (records) => {
-                records.forEach(ref => {
+            delete: () => {
+                refs.forEach(ref => {
                     delete this._records[tbl].data['insert'][ref];
                     delete this._records[tbl].data['update'][ref];
                     this._records[tbl].data.delete[ref] = true;
                 });
-            },
-            insertReplace: () => {
-                taskHandler.insert(data.insert);
-                taskHandler.update(data.update);
             }
         };
     
-        if (data.length || isobject(data)){
-            taskHandler[type](data);
+        if (refs.length){
+            taskHandler[type]();
             privateApi.storageFacade.set(privateApi.storeMapping.pendingSync, this._records, this.name);
         }
     }
@@ -87,21 +91,35 @@ class CoreDataResolver {
      * @returns 
      */
     get(tbl) {
-        if (this._records[tbl]) {
+        if (this.has(tbl)) {
             return this.resolveSyncData(tbl);
         }
     
         return { data: this.tableRecordHolder(), columns: this.tableRecordHolder() };
     };
     
-    getAllPending() {
-        var _this = this;
-        return Object.keys(this._records).reduce(function(accum, tblName) {
-            accum.push(_this.resolveSyncData(tblName));
-            return accum;
-        }, []);
+    getAllPending(ignoreTables) {
+        return Object.values(this.getAllPendingWithTables(ignoreTables));
     };
-    
+
+    getAllPendingWithTables(ignoreTables){
+        ignoreTables = ignoreTables || [];
+        return Object.keys(this._records).reduce((accum, tblName) => {
+            if(!inarray(tblName, ignoreTables)){
+               var transactions = this.resolveSyncData(tblName);
+               if (Object.keys(transactions).length){
+                accum[tblName] = transactions;
+               }
+            }
+
+            return accum;
+        }, {});
+    }
+    /**
+     * 
+     * @param {*} tbl 
+     * @param {*} checksum 
+     */
     isResolved(tbl, checksum) {
         var lStorage;
         if (this._records[tbl]) {
@@ -120,6 +138,8 @@ class CoreDataResolver {
                 table._hash = checksum;
             });
         }
+
+        return this;
     };
     
     destroy() {
@@ -152,11 +172,22 @@ class CoreDataResolver {
          */
     
         for (var type in syncRecords.data) {
-            var records = Object.keys(syncRecords.data[type]);
-            if (type === "delete") {
-                syncData.data[type] = records;
-            } else {
-                syncData.data[type] = privateApi.getDataByRefs(tableData, records);
+            var refs = Object.keys(syncRecords.data[type]);
+            if (!refs.length) continue;
+            // map data
+            switch(type){
+                case('delete'):
+                    syncData.data[type] = refs;
+                break;
+                case('update'):
+                    syncData.data[type] = refs.map(_ref => ({
+                        _ref,
+                        _data: syncRecords.data[type][_ref]
+                    }));
+                break;
+                case('insert'):
+                    syncData.data[type] = privateApi.getDataByRefs(tableData, refs);
+                break;
             }
         }
     
@@ -170,38 +201,60 @@ class CoreDataResolver {
      */
     handleFailedRecords(tbl, failedRecords) {
         var syncRecords = this._records[tbl];
-        Object.keys(failedRecords || {}).forEach(handleFailedError);
-        function handleFailedError(key) {
-            if (failedRecords[key].length) {
-                switch(key) {
-                    case ('insert'):{
-                        var tableData = privateApi.getTableData(this.name, tbl); 
-                        var records = privateApi.getDataByRefs(tableData, failedRecords[key].map(item => item.ref));
-                        var newRefs = [];
-                        records.forEach((record, i) => {
-                            var item = failedRecords[key][i];
-                            if (item.exists[0]){
-                                // generate a new GUID
-                                record._ref = GUID();
-                                // push refs to update
-                                newRefs.push([item._ref, record._ref]);
-                                syncRecords.data[key][record._ref] = true; 
-                            }
-                            delete syncRecords.data[key][item.ref];
-                        });
-                        console.log('new Ref Mapping:', newRefs);
+        const actions = {
+            insert: () => {
+                const tableData = privateApi.getTableData(this.name, tbl); 
+                const records = privateApi.getDataByRefs(tableData, failedRecords.insert.map(item => item.ref));
+                const newRefs = [];
+                records.forEach((record, i) => {
+                    if (!syncRecords || !syncRecords.data) return;
+                    const item = failedRecords.insert[i];
+                    if (item.exists[0]){
+                        // generate a new GUID
+                        record._ref = GUID();
+                        // push refs to update
+                        newRefs.push([item._ref, record._ref]);
+                        syncRecords.data.insert[record._ref] = true; 
                     }
-                    case ('update'):
-                    case('delete'):
-                        if (syncRecords && syncRecords.data){
-                            failedRecords[key].forEach(ref => delete syncRecords.data[key][ref]);
-                        }
-                    break;
+                    
+                    delete syncRecords.data.insert[item._ref];
+                });
+                console.log('new Ref Mapping:', newRefs);
+            },
+            update: () => {
+                // remove the missing refs from DB since it doesn't exist
+                const tableData = privateApi.getTableData(this.name, tbl);
+                let toRemove = 0;
+                for(var i=0; i < tableData.length; i++){
+                    if (failedRecords.update.includes(tableData[i]._ref)){
+                        toRemove++;
+                        tableData.splice(i, 1);
+                        i--;
+                    }
+
+                    // break away from loop
+                    if (toRemove == failedRecords.update.length){
+                        break;
+                    }
+
+                }
+                privateApi.storageFacade.broadcast(this.name, DB_EVENT_NAMES.TRANSACTION_DELETE, [tbl, failedRecords.update]);
+            },
+            delete: () => {
+                if (syncRecords && syncRecords.data){
+                    for(const ref of failedRecords.delete){
+                        delete syncRecords.data.delete[ref];
+                    }
                 }
             }
-        }
+        };
     
         // update the storage
+        Object.keys(failedRecords || {}).forEach(type => {
+            if (failedRecords[type].length) {
+                actions[type]();
+            }
+        });
         privateApi.storageFacade.set(privateApi.storeMapping.pendingSync, this._records, this.name);
     }
 }

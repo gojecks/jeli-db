@@ -3,50 +3,54 @@
  * @param {*} databaseInstance 
  * @returns 
  */
-function SessionService(databaseInstance) {
-    this.databaseInstance = databaseInstance;
-    var SessionApi = function(definition) {
+class SessionService {
+    constructor(databaseInstance) {
+        this.createSession = function (definition) {
+            return new SessionApi(definition, databaseInstance);
+        };
+    }
+}
+
+class SessionApi {
+    constructor(definition, databaseInstance) {
         this.definition = definition;
+        this.databaseInstance = databaseInstance;
         this.check();
-    };
-    
+    }
     /**
      * @Method : check
      */
-    SessionApi.prototype.check = function() {
+    check() {
         return new Promise((resolve, reject) => {
-            this.get().then(res =>  {
+            this.get().then(res => {
                 if (!res.result.data) {
-                    databaseInstance.api('/session/create', this.definition).then(resolve, reject);
+                    this.databaseInstance.api('/session/create', this.definition).then(resolve, reject);
                 } else {
-                   resolve(res);
+                    resolve(res);
                 }
             }, reject);
         });
     }
-
     /**
      * @Method : get
      */
-    SessionApi.prototype.get = function() {
-        return databaseInstance.api('/session', this.definition);
-    };
-
+    get() {
+        return this.databaseInstance.api('/session', this.definition);
+    }
     /**
      * @Method : put
      */
-    SessionApi.prototype.put = function(postData) {
-        return databaseInstance.api('/session/update', Object.assign({ content: postData }, this.definition));
-    };
-
+    put(postData) {
+        return this.databaseInstance.api('/session/update', Object.assign({ content: postData }, this.definition));
+    }
     /**
      * @Method : destroy
      */
-    SessionApi.prototype.destroy = function() {
-        return databaseInstance.api('/session/remove', this.definition);
-    };
+    destroy() {
+        return this.databaseInstance.api('/session/remove', this.definition);
+    }
+};
 
-    this.createSession = function(definition){
-        return new SessionApi(definition)
-    };
-}
+
+
+

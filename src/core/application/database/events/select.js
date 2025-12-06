@@ -3,65 +3,87 @@
  * @param {*} records 
  * @param {*} timing 
  */
-function SelectQueryEvent(records, timing) {
-    this.state = "select";
-    this.timing = timing;
-    this.getResult = function() {
-        return records.splice(0, records.length);
-    };
+class SelectQueryEvent {
+    constructor(records, pagination, timing) {
+        this.state = "select";
+        this.timing = timing;
+        this.pagination = pagination;
+        
+        this.getResult = function () {
+            if (!Array.isArray(records)) return records;
+            return records.splice(0, records.length);
+        };
 
-    this.first = function() {
-        return records[0];
-    };
+        this.first = function (prop) {
+            var record = (!Array.isArray(records)) ? records : records[0];
+            return ((record && prop) ? record[prop] : record);
+        };
 
-    this.last = function () {
-        return records[records.length - 1];
+        this.last = function (prop) {
+            var record = (!Array.isArray(records)) ? records : records[records.length - 1];
+            return ((record && prop) ? record[prop] : record);
+        }
+
+        this.limit = function (start, end) {
+            if (!Array.isArray(records)) return records;
+            return records.slice(start, end);
+        };
+
+        this.jDBNumRows = function () {
+            if (Array.isArray(records)) return records.length;
+            return Object.values(records)[0];
+        };
+
+        this.getRow = function (row) {
+            return records[row];
+        };
     }
 
-    this.limit = function(start, end) {
-        return records.slice(start, end);
-    };
-
-    this.jDBNumRows = function() {
-        return records.length;
-    };
-
-    this.getRow = function(row) {
-        return records[row];
-    };
+    openCursor(fn) {
+        var start = 0;
+        var total = this.jDBNumRows();
+        var cursorEvent = Object.create({
+            result: {
+                value: [],
+            },
+            continue: () => {
+                //increment the start cursor point
+                if (total > start) {
+                    cursorEvent.result.value = this.getRow(start);
+                    start++;
+                    fn(cursorEvent);
+                }
+            },
+            prev: function () {
+                //decrement the start point
+                if (start) {
+                    start--;
+                }
+    
+                cursorEvent.continue();
+            },
+            index: function () {
+                return start;
+            },
+            hasNext: function () {
+                return total > start;
+            }
+        });
+    
+        //initialize the cursor event
+        cursorEvent.continue();
+    }
 }
 
-SelectQueryEvent.prototype.openCursor = function(fn) {
-    var start = 0;
-    var total = this.jDBNumRows();
-    var cursorEvent = ({
-        result: {
-            value: [],
-        },
-        continue: () => {
-            //increment the start cursor point
-            if (total > start) {
-                cursorEvent.result.value = this.getRow(start);
-                start++;
-                fn(cursorEvent);
-            }
-        },
-        prev: function() {
-            //decrement the start point
-            if (start) {
-                start--;
-            }
+class SelectPagination{
+    constructor(context, pagination, totalRecords){
+        this.totalRecords = totalRecords;
+        this.next = function(){
 
-            cursorEvent.continue();
-        },
-        index: function() {
-            return start;
-        },
-        hasNext: function(){
-            return total > start;
-        }
-    });
+        };
 
-    //initialize the cursor event
-    cursorEvent.continue();
-};
+        this.previous = function(){
+
+        };
+    }
+}

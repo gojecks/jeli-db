@@ -1,5 +1,11 @@
 Database.plugins.jQl('drop', {
     help: ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ] -localOnly'],
+    map: {
+        type: 1,
+        name: 2,
+        flag: 3,
+        localOnly: 4
+    },
     requiresParam: true,
     fn: dropPluginFn
 });
@@ -21,22 +27,14 @@ function dropPluginFn(query, handler) {
             }
         };
 
-        if (query.length > 2) {
-            var flag = query[3] || false;
-            var ref = query[1].charAt(0);
+        if (query.type) {
+            var ref = query.type.charAt(0);
             if (ref == 't'){
-                return db.table(query[2])
-                .onSuccess(function(tbl) {
-                    var state = tbl.result.drop(flag);
-                    successCallback(state, "table");
-                })
-                .onError(handler.onError);
+                var response = db.table(query.name).drop(query.flag);
+                return successCallback(response, "table");
             } else if(ref == 'd') {
-                return db.drop(flag, query[2], query[4])
-                .onSuccess(function(state) {
-                    successCallback(state, query[1]);
-                })
-                .onError(handler.onError);
+                var response = db.drop(query.flag, query.name, query.localOnly);
+                return successCallback(response, query.type);
             }
         }
         

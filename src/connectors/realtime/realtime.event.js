@@ -1,47 +1,58 @@
-function RealtimeEvent() {
-    this._eventHandlers = {
-        subscribed: [],
-        disconnected: []
-    };
-}
 /**
  * 
- * @param {*} eventName 
- * @param {*} callback 
+ * @param {*} dbName
+ * @param {*} types 
  */
-RealtimeEvent.prototype.on = function(eventName, callback) {
-    if (!this._eventHandlers.hasOwnProperty(eventName)) {
-        this._eventHandlers[eventName] = [];
+class RealTimeEvent {
+    constructor(dbName, types, data) {
+        this.eventName = "db.update";
+        this.time = +new Date;
+        this.dbName = dbName;
+        this.types = types || ['insert', 'update', 'delete'];
+        Object.defineProperty(this, 'data', {
+            get: () => data
+        });
     }
 
-    this._eventHandlers[eventName].push(callback);
+    getRecord(type, tblName){
+        var record = {};
+        if (type && this.data.hasOwnProperty(tblName)) {
+            record = this.data[tblName][type] || {};
+        }
 
-    return this;
-};
-
-RealtimeEvent.prototype.off = function(eventName) {
-    if (this._eventHandlers.hasOwnProperty(eventName)) {
-        this._eventHandlers[eventName].length = 0;
+        return record;
     }
-};
-
-RealtimeEvent.prototype.emit = function(eventName, args) {
-    var eventCallbacks = this._eventHandlers[eventName] || this._eventHandlers.subscribed;
-    for (var callback of eventCallbacks) {
-        callback.apply(null, args);
+    
+    isTableUpdated(tableName) {
+        return this.data.hasOwnProperty(tableName);
     }
-};
 
-RealtimeEvent.prototype.subscribe = function(callback) {
-    var index = this._eventHandlers.subscribed.length;
-    this._eventHandlers.subscribed.push(callback);
-    return () => {
-        this._eventHandlers.subscribed.splice(index, 1);
+    getData(type, tblName) {
+        var record = this.getRecord(type, tblName);
+        return record.data || [];
     }
-};
 
-RealtimeEvent.prototype._removeHandlers = function(type) {
-    Object.keys(this._eventHandlers).forEach((event) => {
-        this.off(event);
-    });
-};
+    getRefs(type, tblName) {
+        var record = this.getRecord(type, tblName);
+        return record.refs || [];
+    }
+
+    getCheckSum(tblName) {
+        return this.data[tblName].checksum;
+    }
+
+    getAllUpdates() {
+        return this.data;
+    }
+
+    getTable(tblName) {
+        return this.data[tblName];
+    }
+
+    count(tblName, type) {
+        var count = type => this.getData(type, tblName).length;
+        if (type) return count(type);
+
+        return this.types.reduce((accum, type) => (accum += count(type), accum), 0);
+    }
+}

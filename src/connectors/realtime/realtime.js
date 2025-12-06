@@ -2,268 +2,299 @@
  * 
  * @param {*} options 
  */
-function RealtimeConnector(options) {
-    this.options = Object.assign({
-        url: "/database/updates",
-        trial: 1,
-        maximumTrial: 10, // once thredshold is reched we destroy realtime connectivity
-        maximumConcurrentFailure: 3,
-        timer: 1000,
-        withRef: false,
-        payload: null,
-        heartBeatEnabled: false,
-        socketRedial: true,
-        socketEnabled: false,
-        socketTotalRedial: 3, // redial
-        socketPingTime: 300000, // 5min of inactivity
-        socketReconnectTime: 3000, // 3 seconds,
-        socketSubProtocols: ['json']
-    }, options || {});
-
+class RealtimeConnector {
+    errorCount = 0;
+    emptyResponseCount = 0;
     /**
-     * private properties
+     * 
+     * @param {*} options 
+     * @param {*} isExistingMode 
      */
-    this.timerId = null;
-    this.pausePolling = true;
-    this.types = ["insert", "update", "delete"];
-    this.events = new RealtimeEvent();
-    this.destroyed = false;
-    this.socketInstance = new SocketService(this);
-    var onupdateEvent = new OnupdateEventHandler(this.options.dbName, this.types);
+    constructor(options, isExistingMode) {
+        this.isExistingDBMode = isExistingMode;
+        this.options = Object.assign({
+            url: "/database/updates",
+            maxErrorCount: 10,
+            maximumTrial: 10, // once thredshold is reched we destroy realtime connectivity
+            maximumEmptyResponse: 10,
+            // maximum default sleep time is set to 1min
+            // if counter exceed this time
+            // it will reset back to user timer
+            // timer must be less than maximumSleepTimer
+            maximumSleepTimer: 300000,
+            timer: 1000,
+            withRef: false,
+            payload: null,
+            heartBeatEnabled: false,
+            socketDomain: null,
+            socketRedial: true,
+            socketEnabled: false,
+            socketTotalRedial: 3, // redial
+            socketPingTime: 300000, // 5min of inactivity
+            socketReconnectTime: 3000, // 3 seconds,
+            socketSubProtocols: ['json']
+        }, options || {});
 
-    Object.defineProperties(this, {
-        ref: {
-            get: function () {
-                return this.options.type;
-            }
-        },
-        dbName: {
-            get: function () {
-                return this.options.dbName;
-            }
-        },
-        tbl: {
-            get: function () {
-                return this.options.tableName;
-            }
-        },
-        onupdateEvent: {
-            get: function () {
-                return onupdateEvent;
-            }
-        }
-    });
-}
-
-RealtimeConnector.prototype.start = function (callback) {
-    if (RealtimeConnector.$privateApi.getNetworkResolver('serviceHost', this.dbName)) {
         /**
-         * start the polling
+         * private properties
          */
-        if (callback) this.events.subscribe(callback);
-        // enable polling
-        this.pausePolling = false;
-        this._startPolling(this.options.timer);
+        this.timerId = null;
+        this.socketConnected = false;
+        this.pausePolling = true;
+        this.types = ["insert", "update", "delete"];
+        this.events = new RealtimeSocketEvent();
+        this.destroyed = false;
+        this.socketInstance = new SocketService(this);
     }
-};
-
-RealtimeConnector.prototype.disconnect = function () {
-    this.destroyed = true;
-    clearTimeout(this.timerId);
-    this.events.emit('disconnected', [true]);
-    this.events._removeHandlers();
-};
-
-/**
- * Handle response data sent from realtime polling or socket events
- * @param {*} records 
- */
-RealtimeConnector.prototype._handleIncomingData = function(records) {
-   this.onupdateEvent.setData(records);
-   this.events.emit('defaults', [this.onupdateEvent]);
-};
-
-/**
- * 
- * @param {*} context 
- */
-RealtimeConnector.prototype._startPolling = function (ctimer) {
     /**
-     * 
-     * @param {*} res 
+     *
+     * @param {*} options
+     * @param {*} socketMode
+     * @returns RealtimeConnector
      */
-    var processResponse = res => {
-        /**
-         * store our socketServerEndpoint
-         * to be used when client creates a socket
-         */
-        if (res.socketServerEndpoint) {
-            this.events.emit('socket.connect', [res.socketServerEndpoint]);
-            // disable socketRedial on next request
-            this.options.socketRedial = false;
+    static createInstance(options, socketMode) {
+        if (socketMode) {
+            return new SocketService(options);
         }
 
-        if (res.type == 'message') {
-            return errorPolling(false);
-        } else if (res.destroy) {
-            return this.disconnect();
-        }
-
-        // update promise handler
-        this.options.trial = 1;
-        this.options.syncId = res.syncId;
-        this._handleIncomingData(res.records);
-        initiatePolling(res.syncId ? 100 : (ctimer || 60000));
-    };
-
-
-    /**
-     * error polling
-     */
-    var errorPolling = fromError => {
-        if (fromError && this.options.trial >= this.options.maximumTrial) {
-            this.pausePolling = true;
-            console.log('[Realtime] syncing paused due to maximumTrial threshold reached.');
-            this.events.emit('paused', {
-                message: 'Maximum trial thredshold reached'
-            });
-
-            return;
-        }
-        // increment error count
-        this.options.trial++;
-        return initiatePolling(getSleepTimer(this.options));
-    };
-
-    var pollCallback = () => {
-        // stop action if context is paused and no syncId defined
-        if (this.pausePolling && !this.options.syncId) return;
-
-        RealtimeConnector.$privateApi.$http(getRequestData(this))
-            .then(res => processResponse(res), () => errorPolling(true))
-            .catch(() => errorPolling(true));
-    };
-
+        return new RealtimeConnector(options);
+    }
 
     /**
      * 
-     * @param {*} timer 
+     * @param {*} context 
      * @returns 
      */
-    var initiatePolling = (timer) => {
-        if (this.destroyed) return;
-        this.timerId = setTimeout(pollCallback, timer);
-    };
-
-    // start the long polling
-    initiatePolling();
-
-    // listen to socket events
-    this.events.on('socket.connected', () => {
-        console.log('socket connected');
-        this.pausePolling = true;
-        clearTimeout(this.timerId);
-    })
-        .on('socket.disconnected', () => {
-            console.log('socket disconnected, starting socket reconnect..');
-            this.options.socketRedial = true;
-            this.pausePolling = false;
-            // start a new polling process to request a socket connection
-            initiatePolling();
-        })
-}
-
-/**
- * 
- * @param {*} options 
- * @param {*} socketMode 
- * @returns RealtimeConnector
- */
-RealtimeConnector.createInstance = function (options, socketMode) {
-    if (socketMode) {
-        return new SocketService(options);
+    static getRequestData(context) {
+        var request = RealtimeConnector.coreApi.buildHttpRequestOptions(context.dbName, { path: context.options.url });
+        var data = this.generatePayload(context);
+        Object.assign(request, { data });
+        return request;
     }
 
-    return new RealtimeConnector(options);
-};
-
-/**
- * 
- * @param {*} context 
- * @returns 
- */
-function getRequestData(context) {
-    var request = RealtimeConnector.$privateApi.buildHttpRequestOptions(context.dbName, { path: context.options.url });
-    var data = generatePayload(context);
-    Object.assign(request, { data });
-    return request;
-}
-
-/**
- * 
- * @returns Number
- */
-function getSleepTimer(options) {
-    var inc = 1;
-    if (options.trial >= options.maximumConcurrentFailure) {
-        inc = options.trial;
-    }
-    return (options.timer * inc);
-};
-
-/**
- * 
- * @param {*} context 
- * @returns 
- */
-function generatePayload(context) {
-    // get payload, payload could be function that contains logic for generation
-    var payload = ((typeof context.options.payload == 'function') ? context.options.payload() : context.options.payload);
-    var dbName = context.dbName;
-    var _queryPayload = {};
-    var requestData = {};
-    // update type is DB
-    if (context.ref == 'db') {
-        if (!payload || payload.id) {
-            RealtimeConnector.$privateApi.getDbTablesNames(dbName).forEach(function (name) {
-                _queryPayload[name] = {};
-            });
-        } else {
-            _queryPayload = payload;
-        }
-    } else {
-        _queryPayload[context.tbl] = {
-            query: payload.id ? undefined : payload
-        };
-    }
     /**
      * 
-     * @param {*} ctbl 
+     * @param {*} context 
+     * @returns 
      */
-    function writeCheckSumAndSyncId(ctbl) {
-        var checkSum = RealtimeConnector.$privateApi.getTableCheckSum(dbName, ctbl);
-        if (!checkSum.current) {
-            checkSum.previous = "";
+    static generatePayload(context) {
+        // get payload, payload could be function that contains logic for generation
+        var payload = context.options.payload;
+        if (typeof payload == 'function') payload = payload();
+        var dbName = context.dbName;
+        var _queryPayload = {};
+        var requestData = {};
+        // update type is DB
+        if (context.ref == 'db') {
+            if (!payload || payload.id) {
+                _queryPayload = RealtimeConnector.coreApi.getDBTableNames(dbName, true)
+                    .reduce((accum, name) => (accum[name] = {}, accum), {});
+            } else {
+                _queryPayload = payload;
+            }
+        } else {
+            _queryPayload[context.tbl] = {
+                query: payload.id ? undefined : payload
+            };
         }
 
-        _queryPayload[ctbl].checksum = checkSum;
-    }
+        // attach checksum only when existingDBMode
+        for (var ctbl in _queryPayload) {
+            var checkSum = { current: null, previous: null };
+            if (context.isExistingDBMode) {
+                checkSum = RealtimeConnector.coreApi.getTableCheckSum(dbName, ctbl);
+                if (!checkSum.current) checkSum.previous = "";
+            }
 
-    Object.keys(_queryPayload).forEach(writeCheckSumAndSyncId);
-    // check for server side queryId
-    if (payload.id) Object.assign(requestData, payload);
-    requestData.payload = _queryPayload;
-    requestData.ref = context.ref;
-    requestData.type = context.types;
+            _queryPayload[ctbl].checksum = checkSum;
+        }
+        // set existing mode to true so that we can capture checksum for next request
+        context.isExistingDBMode = true;
 
-    if (context.options.syncId) {
+
+        // check for server side queryId
+        if (payload.id) Object.assign(requestData, payload);
+        requestData.payload = _queryPayload;
+        requestData.ref = context.ref;
+        requestData.type = context.types;
         requestData.syncId = context.options.syncId;
+        requestData.socketEnabled = (context.options.socketEnabled && context.options.socketRedial);
+
+        return requestData;
+    };
+
+    get ref() {
+        return this.options.type;
     }
 
-    if (context.options.socketEnabled && context.options.socketRedial) {
-        console.log('socketServerEndpoint requested')
-        requestData.socketEnabled = true;
+    get dbName() {
+        return this.options.dbName;
     }
 
-    return requestData;
-};
+    get tbl() {
+        return this.options.tableName;
+    }
+
+    start(callback) {
+        if (RealtimeConnector.coreApi.getConfigData('serviceHost', this.dbName)) {
+            /**
+             * start the polling
+             */
+            if (callback) this.events.subscribe(callback);
+            // enable polling
+            this.pausePolling = false;
+            this._startPolling(this.options.timer);
+        }
+    }
+    disconnect() {
+        this.destroyed = true;
+        clearTimeout(this.timerId);
+        this.events.emit('disconnected', [true]);
+        this.events._removeHandlers();
+    }
+    /**
+     * Handle response data sent from realtime polling or socket events
+     * @param {*} records
+     */
+    _handleIncomingData(records) {
+        if (!records) return;
+        let eventData = {};
+        const handleDbUpdateData = ctbl => {
+            var data = records[ctbl];
+            RealtimeConnector.coreApi
+                .resolveUpdate(this.dbName, ctbl, data, false)
+                .then((cdata) => {
+                    RealtimeConnector.coreApi
+                        .updateDB(this.dbName, ctbl, table => {
+                            if (data.checksum) {
+                                table._previousHash = data.previousHash;
+                                table._hash = data.checksum;
+                            }
+                        });
+                    // set the record
+                    eventData[ctbl] = cdata;
+                });
+        };
+
+        Promise.all(Object.keys(records).map(handleDbUpdateData)).then(() => {
+            this.events.emit('defaults', [new RealTimeEvent(this.options.dbName, this.types, eventData)]);
+            eventData = null;
+        });
+    }
+    /**
+     *
+     * @param {*} context
+     */
+    _startPolling(ctimer) {
+        /**
+         *
+         * @param {*} res
+         */
+        var processResponse = res => {
+            /**
+             * store our socketServerEndpoint
+             * to be used when client creates a socket
+             */
+            if (res.socketServerEndpoint) {
+                this.events.emit('socket.connect', [res.socketServerEndpoint]);
+                // disable socketRedial on next request
+                this.options.socketRedial = false;
+            }
+
+            if (res.type == 'message')
+                return errorPolling(false);
+            else if (res.destroy)
+                return this.disconnect();
+
+            // update promise handler
+            this.emptyResponseCount = 0;
+            this.errorCount = 0;
+            this.options.syncId = res.syncId;
+            this._handleIncomingData(res.records);
+            initiatePolling(res.syncId ? 10 : (ctimer || 60000));
+        };
+
+
+        /**
+         * error polling
+         */
+        var errorPolling = fromError => {
+            if (this.errorCount >= this.options.maxErrorCount) {
+                this.pausePolling = true;
+                console.log('[Realtime] syncing paused due to maximumTrial threshold reached.');
+                this.events.emit('paused', {
+                    message: 'Maximum trial thredshold reached'
+                });
+
+                return;
+            }
+
+            if (this.socketConnected) {
+                return _pausePolling();
+            }
+
+            var timer = this.options.timer;
+            if (fromError) {
+                this.errorCount++;
+            } else {
+                this.emptyResponseCount++;
+                const timerLesser = (timer < this.options.maximumSleepTimer);
+                if (timerLesser && this.emptyResponseCount >= this.options.maximumEmptyResponse) {
+                    timer = (this.options.timer * (this.emptyResponseCount - this.options.maximumEmptyResponse));
+                    if (timerLesser) {
+                        // reset maximum error count
+                        this.emptyResponseCount = 0;
+                        timer = this.options.maximumSleepTimer;
+                    }
+                }
+            }
+
+
+            // increment error count
+            return initiatePolling(timer);
+        };
+
+        var pollCallback = () => {
+            // stop action if context is paused and no syncId defined
+            if (this.pausePolling && !this.options.syncId) return;
+            RealtimeConnector.coreApi.$http(RealtimeConnector.getRequestData(this))
+                .then(res => processResponse(res), () => errorPolling(true))
+                .catch(() => errorPolling(true));
+        };
+
+        // pause all long polling
+        var _pausePolling = () => {
+            this.pausePolling = true;
+            clearTimeout(this.timerId);
+        };
+
+
+        /**
+         *
+         * @param {*} timer
+         * @returns
+         */
+        var initiatePolling = (timer) => {
+            if (this.destroyed) return;
+            this.timerId = setTimeout(pollCallback, timer);
+        };
+
+        // start the long polling
+        initiatePolling();
+
+        // listen to socket events
+        this.events.on('socket.connected', () => {
+            console.log('socket connected');
+            this.socketConnected = true;
+            if (!this.options.syncId)
+                _pausePolling()
+        })
+            .on('socket.disconnected', () => {
+                console.log('socket disconnected, starting socket reconnect..');
+                this.options.socketRedial = true;
+                this.pausePolling = false;
+                // start a new polling process to request a socket connection
+                initiatePolling();
+            });
+    }
+}

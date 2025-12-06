@@ -11,26 +11,23 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
      * @param {*} res 
      */
     function cleanUp(task, res) {
-        var delRecordName = DatabaseSyncConnector.$privateApi.storeMapping.delRecordName;
-        var delRecordManager = DatabaseSyncConnector.$privateApi.storageFacade.get(delRecordName, appName);
+        var delRecordName = DatabaseSyncConnector.coreApi.storeMapping.delRecordName;
+        var delRecordManager = DatabaseSyncConnector.coreApi.storageFacade.get(delRecordName, appName);
         var resData = res.renamed || res.removed;
         var totalTask = Object.keys(deleteRecords[task]);
-        var inc = 0;
-        var isDataBaseTask = ('database'  == task) && resData[appName];
+        var isDataBaseTask = ('database' == task) && resData[appName];
         // check if records are fully processed
-        for (var i = 0; i < totalTask.length; i++) {
-            var taskName = totalTask[i];
+        totalTask.forEach(taskName => {
             if (resData.hasOwnProperty(taskName)) {
                 if (('object' !== typeof resData[taskName]) && resData[taskName]) {
                     delete delRecordManager[appName][task][taskName];
-                    inc++;
                 } else {
                     syncHelper.setMessage(resData[taskName].message);
                 }
             } else {
-                syncHelper.setMessage('Unable to remove ' + task + "(" + taskName + ') from the server');
+                syncHelper.setMessage(`Unable to remove ${task} (${taskName}) from the server`);
             }
-        }
+        });
 
         /**
          * check is request type was database
@@ -40,17 +37,23 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         }
 
         //update the storage
-        DatabaseSyncConnector.$privateApi.storageFacade.set(delRecordName, delRecordManager, appName);
+        DatabaseSyncConnector
+            .coreApi
+            .storageFacade
+            .set(delRecordName, delRecordManager, appName);
         /**
          * reset deletedRecords
          */
         if (inc == totalTask.length) {
             if (isDataBaseTask) {
-                DatabaseSyncConnector.$privateApi.closeDB(appName, true);
+                DatabaseSyncConnector
+                    .coreApi
+                    .closeDB(appName, true);
             } else {
-                DatabaseSyncConnector.$privateApi
+                DatabaseSyncConnector
+                    .coreApi
                     .getActiveDB(appName)
-                    .get(DatabaseSyncConnector.$privateApi.constants.RESOLVERS)
+                    .get(DatabaseSyncConnector.coreApi.constants.RESOLVERS)
                     .deleteManager()
                     .reset();
             }
@@ -63,27 +66,21 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
      * 
      * @param {*} taskName 
      */
-    function done(taskName) {
-        return function (res) {
-            /**
-             * cleanup
-             */
-            if (res) {
-                cleanUp(taskName, res);
-            }
-
-
-            if (taskName != 'database') {
-                startSyncState(appName, serverResource, true);
-            } else {
-                syncHelper.finalizeProcess(appName);
-            }
+    function done(taskName, res){
+        if (res) {
+            cleanUp(taskName, res);
         }
-    };
+
+        if (taskName != 'database') {
+            startSyncState(appName, serverResource, true);
+        } else {
+            syncHelper.finalizeProcess(appName);
+        }
+    }
 
     function fail(res) {
         if (res.data && res.data.removed) {
-            for(var tblName in res.data.removed) {
+            for (var tblName in res.data.removed) {
                 syncHelper.setMessage(res.data.removed[tblName].message || "Unable to perform requested action.");
             }
         }
@@ -98,13 +95,13 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
     function mainProcess() {
         var api = '/database/table/drop';
         var data = deleteRecords.table;
-        var message = 'Droping ' + JSON.stringify(Object.keys(data)) + ' Tables from the server';
+        var message = `Droping ${JSON.stringify(Object.keys(data))} Tables from the server`;
         var taskName = "table";
         //check if database was remove from client
         if (deleteRecords.database[appName]) {
             api = '/database/drop';
             data = deleteRecords.database;
-            message = "Droping " + appName + " Application from the server";
+            message = `Droping ${appName} Application from the server`;
             taskName = "database";
         }
 
@@ -114,8 +111,8 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
          */
         var _renamedTables = Object.keys(deleteRecords.rename);
         if ((taskName == 'table') && _renamedTables.length) {
-            syncHelper.setMessage('Renaming Tables(' + JSON.stringify(_renamedTables) + ') on the server');
-            request("/database/table/rename", 'renamed', deleteRecords.rename)
+            syncHelper.setMessage(`Renaming Tables(${JSON.stringify(_renamedTables)}) on the server`);
+            request('/database/table/rename', { renamed: deleteRecords.rename })
                 .then(res => {
                     cleanUp('rename', res);
                     mainRequest()
@@ -129,26 +126,22 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
          * @param {*} ref 
          * @param {*} data 
          */
-        function request(path, ref, data) {
-            var request = syncHelper.setRequestData(appName, path, true, null);
-            request.data = { [ref]: data };
-            return DatabaseSyncConnector.$privateApi.$http(request);
+        function request(path, data) {
+            return syncHelper.request(appName, path, null, data);
         }
 
         function mainRequest() {
             if (!Object.keys(data).length) {
-                done(taskName)();
-                return;
+                return done(taskName);
             }
             //set message to our console
             syncHelper.setMessage(message);
-            request(api, 'remove', data).then(done(taskName), fail);
+            request(api, { remove: data }).then(res => done(taskName, res), fail);
         }
 
         mainRequest();
     }
-    /**
-     * get the Application API
-     */
+
+    // get the Application API
     mainProcess();
 }

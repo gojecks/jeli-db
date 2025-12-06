@@ -1,17 +1,15 @@
 Database.plugins.jQl('create', {
     help: ['-create -[tbl_name] [columns]'],
     requiresParam: true,
-    fn: createPluginFn
+    fn: createTablePluginFn
 });
 
 //create -tablename -columns
-function createPluginFn(query, handler) {
-    return function(db) { //create the table
+function createTablePluginFn(query, handler) {
+    return function(db) { 
         if (query[1]) {
-            return db
-                .createTbl(query[1], query[2] || [], null, true)
-                .onSuccess(handler.onSuccess)
-                .onError(handler.onError);
+            var response = db.createTbl(query[1], query[2] || [], null, true);
+            return handler[!response.errorCode ? 'onSuccess' : 'onError'](response);
         }
 
         // throw error

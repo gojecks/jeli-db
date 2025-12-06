@@ -4,20 +4,23 @@
 
 Database.plugins.jQl('import', {
     help: ['import -[table name] -[fileType] -isSchema[true|false]'],
+    map: {
+        table: 1,
+        fileType: 2,
+        isSchema: 3
+    },
     requiresParam: true,
     fn: jImportPluginFn
 });
 
 function jImportPluginFn(query, handler) {
-    var result = { state: query[0], result: { message: null } };
-    return function(db) {
-        var logService = privateApi.getNetworkResolver('logService', db.name);
-        db.import(query[1], query[3], Object.assign({
+    return db => {
+        var logService = privateApi.getConfigData('logService', db.name);
+        db.import(query.table, query.isSchema, Object.assign({
             logService: logService,
             onselect: function(fileName, file) {
                 logService("Processing selected file :" + fileName);
             }
-        }, handler));
-
+        })).then(res => handler.onSuccess(res), err => handler.onError(err));
     };
 }

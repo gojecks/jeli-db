@@ -1,76 +1,72 @@
-/**
- * 
- * @param {*} currentProcessTbl 
- */
-function _resolveDeletedTable(currentProcessTbl) {
-    return (confirm('Are you sure you want to drop table ' + currentProcessTbl));
-}
-
-function openedDBResolvers() {
-    this.networkResolver = ({
+class openedDBResolvers {
+    networkResolver = ({
         serviceHost: null,
         dirtyCheker: true,
         conflictResolver: null,
-        resolveDeletedTable: _resolveDeletedTable,
+        resolveDeletedTable: (currentProcessTbl) => confirm('Are you sure you want to drop table ' + currentProcessTbl),
         logger: [],
-        logService: function() {},
-        interceptor: function() {},
+        logService: noop,
+        interceptor: noop,
         deletedRecords: {
             table: {},
             database: {},
             rename: {}
         },
         handler: {
-            onSuccess: function() {},
-            onError: function() {}
+            onSuccess: noop,
+            onError: noop
         },
-        "app_id": "*",
+        appKey: "*",
         inProduction: false,
         ignoreSync: [],
         $ajax: false
     });
+    constructor() { }
+
+    get() {
+        return this.networkResolver;
+    }
 
     /**
-     * 
-     * @param {*} name 
-     * @param {*} value 
+     *
+     * @param {*} name
+     * @param {*} value
      */
-    this.register = function(name, value) {
+    register(name, value) {
         if (isobject(name) && !value) {
-            this.networkResolver = extend(true, this.networkResolver, name);
+            this.networkResolver = Object.assign(this.networkResolver, name);
         } else {
             this.networkResolver[name] = value;
         }
 
         return this;
-    };
+    }
+
     /**
-     * 
-     * @param {*} name 
+     *
+     * @param {*} name
      */
-    this.getResolvers = function(name) {
+    getResolvers(name) {
         return this.networkResolver[name] || '';
-    };
-};
+    }
 
-/**
- * 
- * @param {*} name 
- */
-openedDBResolvers.prototype.has = function(name) {
-    return this.networkResolver.hasOwnProperty(name);
-};
+    /**
+     *
+     * @param {*} name
+     */
+    has(name) {
+        return this.networkResolver.hasOwnProperty(name);
+    }
 
-openedDBResolvers.prototype.trigger = function(fn) {
-    setTimeout(()=> fn.call(this), 1);
-    return this;
-};
-
-
-/**
- * 
- * @param {*} dbName 
- */
-openedDBResolvers.prototype.deleteManager = function(dbName) {
-    return new deleteManager(dbName, this);
+    trigger(fn) {
+        setTimeout(() => fn.call(this), 1);
+        return this;
+    }
+    /**
+     *
+     * @param {*} dbName
+     */
+    deleteManager(dbName) {
+        return new deleteManager(dbName, this);
+    }
 };

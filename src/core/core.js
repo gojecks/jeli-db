@@ -18,40 +18,62 @@ function Database(name, version) {
     var _activeDBApi = null;
     var requestMapping = null;
     var dbConfig = Object({
+        // set to true to notify application is live and should manage syncing
+        live: !1,
+        // provide URL for request eg(https://api.frontendonly.com)
+        serviceHost: null,
+        // provide an interceptor the will be called for all outgoing request
+        // this is usefull for adding authorization header to outgoing request
+        interceptor: null,
+        // provide a custom XHR that will be used for all request
+        // default to internal XHR
+        $ajax: null,
+        // set the storage path you prefer
+        // supported are memory|localstorage|sessionStorage|indexeddb|sql|flatfile
         storage: 'memory',
         isClientMode: false,
         isLoginRequired: false,
+        // DB schema will be loaded from path
+        // it can be a local path or external path but we recommend loading schema through fo 
         schemaPath: null,
+        /**
+         * set to always load schema from frontendOnly
+         * value true | { loadData: [TABLE_NAMES], maximumRetries: 10, ttl: 1d }
+         * ttl = limit // define in d=days,w=weeks,m=month
+         */ 
         useFrontendOnlySchema: false,
+        // set to true to ignore syncing data to server
         ignoreSync: false,
+        // organisation needed when connecting to frontendOnly server
+        // 
         organisation: "_",
         version: version,
         /**
          * introduced in version 2.0.0
          * it is advised to only use this in dev env and not in prod
          * versions should always be upgraded when schema changes to keep everything in sync
+         * 
          */
         alwaysCheckSchema: false,
         /**
-         * set to true to use socket.io for realtime data
-         * this requires you to compile application with socket.io library
+         * set to true to use WS for realtime data
          */
         enableSocket: false,
         /**
          * wait for api to load before starting DB
          */
-        waitApiToLoad: true
+        waitApiToLoad: true,
+        // DB key for encrytion and decryption
+        key: null
     });
 
-    var dbPromiseExtension = new DBPromise.extension(
+    var dbPromiseExtension = new DBPromiseExtension(
         /**
          * Upgrade and onCreate Registery
          * @param {*} state 
          * @param {*} triggerState 
          */
-        function (_, next) {
-            next();
-        }, ['onUpgrade', 'onCreate']);
+        (_, next) => next(), ['onUpgrade', 'onCreate']);
 
     /**
      * 
@@ -66,7 +88,7 @@ function Database(name, version) {
      * }
      */
     function open(userConfig) {
-        dbConfig = extend(true, dbConfig, userConfig);
+        Object.assign(dbConfig, userConfig);
         inProduction = dbConfig.isClientMode || false;
         return new DBPromise(function (resolve, reject) {
             if (name) {
@@ -91,13 +113,13 @@ function Database(name, version) {
      * @returns 
      */
     function onOpenDataBase(resolve, reject) {
-        var continueProcess = function () { return startDB(resolve, reject) };
+        var continueProcess = () => startDB(resolve, reject);
         /**
          * set isOpened flag to true
          * so that debugging is not posible when in production
          **/
         _activeDBApi = privateApi.getActiveDB(name);
-        if (privateApi.isOpen(name)) {
+        if (_activeDBApi.open()) {
             if (!dbConfig.isLoginRequired) {
                 errorBuilder("The DB you re trying to access is already open, please close the DB and try again later");
             }
@@ -107,7 +129,7 @@ function Database(name, version) {
         } else if (!_activeDBApi.instance) {
             //set production flag
             //register our configuration
-            requestMapping = new RequestMapping(name);
+            requestMapping = RequestMapping.createInstance(name);
             _activeDBApi
                 .incrementInstance()
                 .get(constants.RESOLVERS)
@@ -175,10 +197,19 @@ function Database(name, version) {
          * Only if onUpgrade Function is initilaized
          * set upgrade mode
          **/
-        var dbChecker = privateApi.get(name) || false;
-        jeliInstance.result = new DatabaseInstance(name, version);
-        var schemaManager = new SchemaManager(jeliInstance.result, version, dbChecker.version || 1, dbConfig.schemaPath);
-        var serverSchemaLoader = ServerSchemaLoader(name, version);
+        const nextSyncDataVar = privateApi.storeMapping.nextSchemaSyncDate;
+        var dbChecker = privateApi.get(name, ['version', 'tables', nextSyncDataVar]) || false;
+        jeliInstance.result = DatabaseInstance.createInstance(name, version, dbChecker && dbChecker.version);
+        var schemaManager = SchemaManager.createInstance(jeliInstance.result, version, dbChecker.version || 1, dbConfig.schemaPath);
+        var _allDone = (nextSyncDate) => {
+            if (nextSyncDate){
+                _activeDBApi.get(constants.STORAGE).setItem(nextSyncDataVar, nextSyncDate); 
+            }
+            resolve(jeliInstance);
+        };
+
+        // returns a next function for eventing
+        var nextCallack = eventType => () => dbPromiseExtension.call(eventType, [jeliInstance, _allDone]);
 
         /**
          * dataBase exists
@@ -201,37 +232,22 @@ function Database(name, version) {
                 /**
                  * check for updated schema from FO service
                  */
-                if (dbConfig.useFrontendOnlySchema && dbConfig.alwaysCheckSchema) {
-                    serverSchemaLoader(false)
-                        .then(function () {
-                            resolve(jeliInstance);
-                        }, reject);
+                if (dbConfig.useFrontendOnlySchema && dbConfig.alwaysCheckSchema && (dbChecker[nextSyncDataVar] || 0) <= Date.now()) {
+                    ServerSchemaLoader(name, version, dbConfig.useFrontendOnlySchema).then(_allDone, reject);
                 } else {
-                    resolve(jeliInstance);
+                    _allDone();
                 }
             } else {
                 //set Message
                 // DB is already created but versioning is different
                 jeliInstance.message = name + " DB was successfully upgraded to version(" + version + ")";
                 jeliInstance.type = "upgradeMode";
-                // update the version
-                dbChecker.version = version;
                 // save the version
                 _activeDBApi.get(constants.STORAGE).setItem('version', version);
                 /**
                  * trigger schema upgrade check
                  */
-                schemaManager.upgrade(function () {
-                    /**
-                     * trigger our create and update mode
-                     */
-                    dbPromiseExtension.call('onUpgrade', [jeliInstance, function () {
-                        /**
-                         * resolve our instance
-                         */
-                        resolve(jeliInstance);
-                    }]);
-                });
+                schemaManager.upgrade(nextCallack(Database.EVENT_TYPES.ONUPGRADE));
             }
         }
 
@@ -243,24 +259,14 @@ function Database(name, version) {
             jeliInstance.type = "createMode";
             //set Message
             jeliInstance.message = name + " DB was successfully created!!";
-
-            function next() {
-                /**
-                 * register next method to be triggered
-                 */
-                dbPromiseExtension.call('onCreate', [jeliInstance, function () {
-                    resolve(jeliInstance);
-                }]);
-            }
-
             /**
              * start schema loading
              * trigger our create and update mode
              */
             if (dbConfig.useFrontendOnlySchema) {
-                serverSchemaLoader(true).then(next, reject);
+                ServerSchemaLoader(name, version, dbConfig.useFrontendOnlySchema).then(nextCallack(Database.EVENT_TYPES.ONCREATE), reject);
             } else {
-                schemaManager.create(next, function () {
+                schemaManager.create(nextCallack(Database.EVENT_TYPES.ONCREATE), function () {
                     _activeDBApi.get(constants.RESOURCEMANAGER).setResource({
                         started: +new Date,
                         lastUpdated: +new Date,
@@ -317,6 +323,12 @@ Database.registerGlobalInterceptor = function (type, fn) {
     return this;
 };
 
-Database.plugins = new PluginsInstance();
-Database.storageAdapter = new StorageAdapter();
-Database.connectors =  new ConnectorAdapter();
+Database.plugins = PluginsInstance;
+Database.storageAdapter = StorageAdapter;
+Database.connectors =  ConnectorAdapter;
+// register instance of ApiMapper
+Database.API = ApiMapper;
+Database.EVENT_TYPES = {
+    ONCREATE: 'onCreate',
+    ONUPGRADE: 'onUpgrade'
+};

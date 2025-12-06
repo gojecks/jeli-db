@@ -101,7 +101,7 @@ class TableAlterAddInstance {
      * @param {*} tableInfo 
      */
     static constructTable(cFn, tableInfo) {
-        var defaultValueGenerator = columnObjFn(tableInfo);
+        var defaultValueGenerator = tableModelMapper(tableInfo);
         var tableData = privateApi.getTableData(tableInfo.DB_NAME, tableInfo.TBL_NAME);
         tableData.forEach(function (item, idx) {
             //perform task if argument is a function

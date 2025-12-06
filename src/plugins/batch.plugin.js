@@ -13,11 +13,9 @@
     function batchPluginFn(query, handler) {
         var transactions = query[1];
         return function(db) {
-            if (query.length > 1) {
-                //build table
-                db.batchTransaction(transactions)
-                .then(handler.onSuccess, handler.onError)
-                .catch(handler.onError)
-            }
+            //build table
+            db.batchTransaction(transactions)
+            .then(handler.onSuccess, handler.onError)
+            .catch(handler.onError)
         };
     }

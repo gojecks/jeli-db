@@ -1,30 +1,29 @@
-function ApplicationEnvInstance(appName) {
-    this.name = appName;
-    this.logger = function() {
-        return privateApi.getActiveDB(appName).get(constants.RESOLVERS).getResolvers('logger');
-    };
-
-    this.resource = function() {
-        return privateApi.getActiveDB(appName).get(constants.RESOURCEMANAGER).getResource();
+class ApplicationEnvInstance{
+    constructor(appName) {
+      this.name = appName;
     }
 
-    this.usage = function() {
-        if (appName && privateApi.databaseContainer.has(appName)) {
-            return (((privateApi.getStorage(appName).usage(appName)) * 2) / 1024).toFixed(2) + " KB";
+    get dataTypes(){
+        return privateApi.getActiveDB(this.name).get(constants.DATATYPES);
+    }
+
+    get requestMapping() {
+        return privateApi.getConfigData('requestMapping', this.name);
+    }
+
+    logger() {
+        return privateApi.getActiveDB(this.name).get(constants.RESOLVERS).getResolvers('logger');
+    };
+
+    resource() {
+        return privateApi.getActiveDB(this.name).get(constants.RESOURCEMANAGER).getResource();
+    }
+
+    usage() {
+        if (this.name && privateApi.databaseContainer.has(this.name)) {
+            return (((privateApi.getStorage(this.name).usage(this.name)) * 2) / 1024).toFixed(2) + " KB";
         }
 
         return "unknown usuage";
     };
-
-    Object.defineProperty(this, 'dataTypes', {
-        get: function() {
-            return privateApi.getActiveDB(appName).get(constants.DATATYPES);
-        }
-    });
-
-    Object.defineProperty(this, 'requestMapping', {
-        get: function() {
-            return privateApi.getNetworkResolver('requestMapping', appName);
-        }
-    });
 }

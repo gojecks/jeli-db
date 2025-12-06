@@ -2,9 +2,9 @@
  * 
  * @param {*} appName 
  * @param {*} serverResource 
- * @param {*} pullState 
+ * @param {*} activeDB 
  */
-function startSyncState(appName, serverResource,  pullState) {
+function startSyncState(appName, serverResource, activeDB) {
     var $process = syncHelper.process.getProcess(appName);
     var syncState = $process.prepareSyncState(serverResource);
     var networkResolver = $process.getSet('networkResolver');
@@ -22,7 +22,7 @@ function startSyncState(appName, serverResource,  pullState) {
      * @returns 
      */
     function _conflictResolver(currentProcessTbl) {
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             if (confirm('Update your table(' + currentProcessTbl + ') with Server records (yes/no)')) {
                 syncHelper.setMessage('Updating Local(' + currentProcessTbl + ') with Server(' + currentProcessTbl + ')', networkResolver);
                 resolve();
@@ -52,7 +52,7 @@ function startSyncState(appName, serverResource,  pullState) {
         networkResolver = null;
         failedState = null;
         pullRecordList = null;
-        corePromiseReject = corePromiseResolve  = null;
+        corePromiseReject = corePromiseResolve = null;
         resourceManagerInstance = null;
     }
 
@@ -63,7 +63,7 @@ function startSyncState(appName, serverResource,  pullState) {
      */
     function updateHash(tableToUpdate, hash) {
         if (('string' == typeof tableToUpdate)) {
-            tableToUpdate = DatabaseSyncConnector.$privateApi.getTable(appName, tableToUpdate);
+            tableToUpdate = DatabaseSyncConnector.coreApi.getTable(appName, tableToUpdate);
         }
 
         //Update Hash
@@ -87,7 +87,7 @@ function startSyncState(appName, serverResource,  pullState) {
         function failedConflictResolver() {
             if ($process.getSet('forceSync')) {
                 syncHelper.setMessage('sync was called with -force:yes');
-                allowPushState(false);
+                allowPushState();
                 return;
             }
             syncHelper.setMessage('merging process skipped for ' + currentProcessTbl);
@@ -108,13 +108,24 @@ function startSyncState(appName, serverResource,  pullState) {
         }
 
         function SyncPush() {
-            function pushSuccessState(checksum) {
-                syncHelper.setMessage('Push completed for table(' + currentProcessTbl + ')');
-                if (checksum) {
-                    updateHash(currentProcessTbl, checksum);
+            function pushSuccessState(responseData) {
+                syncHelper.setMessage(`Push completed for table(${currentProcessTbl})`);
+                var checksum = responseData._hash;
+                if (responseData.dataSync) {
+                    syncHelper.setMessage(`Data sync logs`);
+                    syncHelper.setMessage(JSON.stringify(responseData.dataSync, null, 2));
+
+                    // set checksum to hash from data syncing
+                    if (responseData.dataSync.ok){
+                        activeDB.get(DatabaseSyncConnector.coreApi.constants.RECORDRESOLVERS)
+                        .isResolved(currentProcessTbl, responseData.dataSync._hash)
+                        .handleFailedRecords(currentProcessTbl, (responseData.dataSync && responseData.dataSync.failed))
+                    }
+                } else if (responseData._hash){
+                    updateHash(currentProcessTbl, responseData._hash);
                 }
 
-                DatabaseSyncConnector.$privateApi.updateDB(appName, currentProcessTbl, null, +new Date);
+                DatabaseSyncConnector.coreApi.updateDB(appName, currentProcessTbl, null, +new Date);
                 nextQueue({ state: 'Success' }, 'push');
             }
 
@@ -123,13 +134,13 @@ function startSyncState(appName, serverResource,  pullState) {
              * @param {*} mergeObj 
              */
             function mergeChanges(mergeObj) {
-                var tableSchema = DatabaseSyncConnector.$privateApi.getTable(appName, currentProcessTbl);
+                var tableSchema = DatabaseSyncConnector.coreApi.getTable(appName, currentProcessTbl);
                 if (tableSchema) {
                     Object.assign(tableSchema, mergeObj.schema);
-                    DatabaseSyncConnector.$privateApi.updateDB(appName, currentProcessTbl, null, +new Date);
+                    DatabaseSyncConnector.coreApi.updateDB(appName, currentProcessTbl, null, +new Date);
                     syncHelper.setMessage('Table(' + currentProcessTbl + ') updated successfully');
                     if (mergeObj.isLocalLastModified) {
-                        allowPushState(false);
+                        allowPushState();
                     } else {
                         nextQueue({ state: 'Success' }, 'push');
                     }
@@ -138,20 +149,19 @@ function startSyncState(appName, serverResource,  pullState) {
 
             /**
              * Allow Push State
-             * @param {*} data 
              */
-            function allowPushState(data) {
+            function allowPushState() {
                 //api : /database/[state]
                 //sync state can only be done by Authorized Application
-                syncHelper.push(appName, currentProcessTbl, data, '/database/sync')
-                    .then(function(pushResponse) {
+                syncHelper.push(appName, currentProcessTbl, $process.getSet('allowDataSyncing'))
+                    .then(function (pushResponse) {
                         var okay = pushResponse.ok;
                         if (okay) {
-                            pushSuccessState(pushResponse._hash);
+                            pushSuccessState(pushResponse);
                         } else {
                             syncErrorState('push');
                         }
-                    }, function(pushErrorResponse) {
+                    }, function (pushErrorResponse) {
                         syncErrorState('push', pushErrorResponse);
                     });
             }
@@ -167,8 +177,8 @@ function startSyncState(appName, serverResource,  pullState) {
                 if (isDeletedTable(serverResource.resourceManager, currentProcessTbl)) {
                     syncHelper.setMessage(currentProcessTbl + ' doesn\'t exist on the server');
                     if (networkResolver.resolveDeletedTable(currentProcessTbl)) {
-                        var eventName = DatabaseSyncConnector.$privateApi.DB_EVENT_NAMES.DROP_TABLE;
-                        DatabaseSyncConnector.$privateApi.storageFacade.broadcast(appName, eventName, [currentProcessTbl]);
+                        var eventName = DatabaseSyncConnector.coreApi.DB_EVENT_NAMES.DROP_TABLE;
+                        DatabaseSyncConnector.coreApi.storageFacade.broadcast(appName, eventName, [currentProcessTbl]);
                         resourceManagerInstance.removeTableFromResource(currentProcessTbl);
 
                         syncHelper.setMessage(currentProcessTbl + ' removed from local DB');
@@ -184,8 +194,8 @@ function startSyncState(appName, serverResource,  pullState) {
                     allowPushState(false);
                 }
             } else {
-                SyncConflictChecker(appName, currentProcessTbl, $process, networkResolver)
-                    .then(function(response) {
+                syncHelper.SyncConflictChecker(appName, currentProcessTbl, $process, networkResolver)
+                    .then(function (response) {
                         // if columns was updated
                         // Push all records to the server
                         if (response.changes) {
@@ -194,25 +204,25 @@ function startSyncState(appName, serverResource,  pullState) {
                             syncHelper.setMessage('Already up to date!');
                             nextQueue({ state: 'Success' }, 'push');
                         }
-                    }, function(conflictResponse) {
+                    }, function (conflictResponse) {
                         (networkResolver.conflictResolver || _conflictResolver)(currentProcessTbl)
-                        .then(function() {
-                            mergeChanges(conflictResponse);
-                        }, failedConflictResolver);
+                            .then(function () {
+                                mergeChanges(conflictResponse);
+                            }, failedConflictResolver);
                     });
             }
-        };
+        }
 
         //Pull State
         function SyncPull() {
             syncHelper.pullTable(appName, currentProcessTbl)
-                .then(function(tblResult) {
+                .then(function (tblResult) {
                     //update the recordList
                     pullRecordList[currentProcessTbl] = tblResult._data || syncHelper.mockTable();
 
                     //goto next queue
                     nextQueue({ state: 'Success' }, 'pull');
-                }, function(pullErrorResponse) {
+                }, function (pullErrorResponse) {
                     syncErrorState('pull');
                 });
         }
@@ -233,11 +243,12 @@ function startSyncState(appName, serverResource,  pullState) {
      * @param {*} state 
      */
     function finalize(state) {
-        if (state && 'function' == typeof syncHelper[state]) {
-            syncHelper[state](appName);
+        const callback = syncHelper[state];
+        if (callback) {
+            callback(appName);
         }
         //remove deleteRecords
-        DatabaseSyncConnector.$privateApi.storageFacade.remove(DatabaseSyncConnector.$privateApi.storeMapping.delRecordName);
+        DatabaseSyncConnector.coreApi.storageFacade.remove(DatabaseSyncConnector.coreApi.storeMapping.delRecordName);
         cleanUp();
     }
 
@@ -250,9 +261,9 @@ function startSyncState(appName, serverResource,  pullState) {
             syncHelper.setMessage('Synching down --' + JSON.stringify(syncState.postSync) + '--');
             syncHelper
                 .syncDownTables(appName, syncState.postSync, serverResource, $process.version)
-                .then(function() {
+                .then(function () {
                     finalize('finalizeProcess');
-                }, function() {
+                }, function () {
                     syncHelper.setMessage('Error synching down, please try again later');
                     finalize('killState');
                 });
@@ -267,13 +278,13 @@ function startSyncState(appName, serverResource,  pullState) {
      * @param {*} response 
      */
     function finalizePull(response) {
-        if ((response.state.toLowerCase() == 'error')) {
+        if ((response.state.toLowerCase() !== 'error')) {
             corePromiseResolve({
                 state: 'Success',
                 status: 200,
                 data: pullRecordList
             });
-        } {
+        } else {
             corePromiseReject(response);
         }
         cleanUp();
@@ -312,25 +323,20 @@ function startSyncState(appName, serverResource,  pullState) {
      */
     function startProcess() {
         if (syncState.tables.length) {
-            processQueue(queue, 'push');
+            syncHelper.getSchema(appName, syncState.tables)
+            .then(tableSchemas => {
+                $process.getSet('schemas', tableSchemas.schemas);
+                processQueue(queue, 'push');
+            }, () => finishQueue('push', {failedState: syncState.tables}))
         } else {
-            DatabaseSyncConnector.$privateApi.updateDB(appName, null, null, Date.now());
+            DatabaseSyncConnector.coreApi.updateDB(appName, null, null, Date.now());
             finishQueue('push', { state: 'success' });
         }
     }
 
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         corePromiseResolve = resolve;
         corePromiseReject = reject;
-
-        /**
-         * pull data from server
-         */
-        if (pullState) {
-            processQueue(queue, 'pull');
-            return;
-        }
-
         startProcess();
     });
 }

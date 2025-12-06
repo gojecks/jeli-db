@@ -25,12 +25,13 @@ class SchemaCrudProcess{
          * check for crudTask before finalizing
          */
         var tables = Object.keys(this.task);
+        var logs = [];
         var processNext = () => {
             if (tables.length) {
                 var tableName = tables.shift();
                 processCRUD(tableName);
             } else {
-                next();
+                next(logs);
             }
         };
     
@@ -63,9 +64,7 @@ class SchemaCrudProcess{
          * @param {*} tableName 
          */
         var nextCRUD = (res, tableName) => {
-            console.group("JDB CRUD");
-            console.log(res);
-            console.groupEnd();
+            logs.push(res);
             processCRUD(tableName);
         };
     
@@ -76,9 +75,8 @@ class SchemaCrudProcess{
          */
         var processCRUD = (tableName)  => {
             var conf = this.task[tableName].transactions.shift();
-            if (!conf) {
+            if (!conf)
                 return processNext();
-            }
     
             if (conf.filePath) {
                 this.fetch(conf.filePath)

@@ -5,12 +5,14 @@
  *     Perform query on selected Table and return the Data that matches the query
  *     -query : select -* -TBL_NAME
  *     -definition: {
+ *     aggregate: {},
  *     where:STRING,
  *     limit:STRING,
  *     orderBy:STRING,
  *     groupBy:FIELD,
  *     groupByStrict:FIELDS,
  *     ref:false,
+ *     pagination: true|false (default: false)
  *     join:[{
  *         table:STRING,
  *         on:STRING,
@@ -34,17 +36,16 @@
  * select -* -t1 -where(Like(@value(needle) @field(t1.column)))
  * **/
 function transactionSelect(selectFields, definition) {
-    var _this = this;
     var _sData = [];
     var time = performance.now();
     var lookupTableCache = {};
+    var resultSet = [];
 
     //reference our select query
-    if (!selectFields) {
+    if (!selectFields)
         this.setDBError("Column_Name is required else use a wildcard (*)");
-    }
 
-    var queryDefinition = extend(true, {
+    var queryDefinition = Object.assign({
         fields: selectFields,
         where: null,
         in: [],
@@ -56,57 +57,31 @@ function transactionSelect(selectFields, definition) {
 
     // check for duplicate definition
     if (queryDefinition.groupByStrict) {
-        if (queryDefinition.groupBy){
+        if (queryDefinition.groupBy)
             this.setDBError("Clause: groupByStrict cannot be used with groupBy");
-        }
-            
-        if (queryDefinition.groupByStrict.indexOf(",") < 0) {
+
+        if (queryDefinition.groupByStrict.indexOf(",") < 0)
             this.setDBError("Clause: groupByStrict requires two fields for matching");
-        }
     }
 
-    if (queryDefinition.join && !isarray(queryDefinition.join)) {
+    if (queryDefinition.join && !isarray(queryDefinition.join))
         this.setDBError("Expected Join clause to be an array");
-    }
 
-    //@Function Name processQueryData
-    //@Arguments nill
-    //
-    if (queryDefinition.join && isequal(selectFields, '*')) {
+    // @Function Name processQueryData
+    // @Arguments nill
+    if (queryDefinition.join && isequal(selectFields, '*'))
         this.setDBError('Invalid Select Statment');
-    }
-
-    function validateFields(){
-        var queryFields = queryDefinition.fields.split(/(\w+\((.*?)\)+,|,)/).filter(item => (item && item !== ','));
-        //Loop through queryFields
-        for(var field of queryFields) {
-            if (field.includes('.')) {
-                if (this.isMultipleTable && field) {
-                    field = field.replace(/\((.*?)\)/, '|$1').split('|');
-                    var tblName = (field[1] || field[0]).split('.')[0];
-                    if (isequal(field[0].toLowerCase(), 'case')) {
-                        tblName = field[1].split(new RegExp('when', 'gi'))[1].split('.')[0];
-                    }
-
-                    //reference to the tables
-                    if (!this.tableInfoExists(tblName.trim())) {
-                        this.setDBError(tblName + ' was not found, Include table in transaction Array eg: db.transaction([table_1,table_2])');
-                    }
-                }
-            }
-        }
-    }
 
     /**
      * 
      * @param {*} joinObj 
      * @param {*} index 
      */
-    function matchTableFn(joinObj, joinIndex) {
+    var matchTableFn = (joinObj, joinIndex) => {
         var joinOn = joinObj.on.split("=");
         var leftLogic = joinOn[0].split(".");
         var rightLogic = joinOn[1].split(".");
-        var queryMatchIsLeft = isequal(joinObj.table, _this.tables[leftLogic[0]]);
+        var queryMatchIsLeft = isequal(joinObj.table, this.tables[leftLogic[0]]);
         var clause = (joinObj.clause || 'INNER').toLowerCase();
         var isRightClause = isequal('right', clause);
 
@@ -122,25 +97,18 @@ function transactionSelect(selectFields, definition) {
             stash = null;
         }
 
-        var rightTable = getTableData(joinObj.table, true);
+        var rightTable = [];
         var leftTableCol = leftLogic[1];
         var rightTableCol = rightLogic[1];
         var leftTableMappingName = leftLogic[0];
         var rightTableMappingName = rightLogic[0];
-        /**
-         * perform where query on joinClause
-         */
-        if (joinObj.where) {
-            rightTable = queryPerformer(rightTable, joinObj.where, null, joinObj.limit);
-        }
-
-        // select fields if required
-        if (joinObj.fields) {
-            rightTable = performSelect(rightTable, joinObj, true);
-        }
-
-
-        var rightTableIndex = rightTable.map(item => item[rightTableCol]);
+        var rightTableIndex = [];
+        // perform where query on joinClause
+        var valueMethods = ValueMethods.createInstance(joinObj.field);
+        QueryTaskPerformer.run(this.getTableData(joinObj.table), joinObj.where, result => {
+            rightTable.push(valueMethods.getData(result._data));
+            rightTableIndex.push(result._data[rightTableCol]);
+        }, joinObj.limit);
 
         //start process
         //query the leftTable Data
@@ -149,7 +117,7 @@ function transactionSelect(selectFields, definition) {
         var result = [];
         while (length > idx) {
             var lItem = _sData[idx];
-            var searchIndex = rightTableIndex.indexOf((lItem[leftTableMappingName] || lItem)[leftTableCol]);
+            var searchIndex = rightTableIndex.lastIndexOf((lItem[leftTableMappingName] || lItem)[leftTableCol]);
             var resObject = {};
             resObject[rightTableMappingName] = searchIndex > -1 ? rightTable[searchIndex] : null;
             if (joinIndex) {
@@ -203,50 +171,125 @@ function transactionSelect(selectFields, definition) {
      * @param {*} resolvedTable 
      * @param {*} indexes 
      */
-    function performResolve(resolveQuery, resObject, resolvedTable, indexes) {
-        function resolver(tobeResolved) {
-            tobeResolved.forEach(function(resolve) {
-                if (resolve.when && externalQuery(resolve.when)(resObject)) {
+    var performResolve = (resolveQuery, resObject, resolvedTable, indexes) => {
+        var resolver = (tobeResolved) => {
+            tobeResolved.forEach(function (resolve) {
+                if (resolve.when && !QueryTaskPerformer.externalQuery(resolve.when)(resObject))
                     return;
-                }
 
-                if (resolve.table) {
-                    resolvedTable = getTableData(resolve.table);
-                }
+                if (resolve.table)
+                    resolvedTable = this.getTableData(resolve.table);
 
-                if (!resolvedTable) {
+                // check if resolvedTable data exists
+                if (!resolvedTable)
                     return;
-                }
 
-                function getValue(key) {
-                    return resolvedTable[key] ? resolvedTable[key] : key;
-                }
+                function resolveValues(tVal) {
+                    var searchIndex = indexes.indexOf(tVal);
+                    if (searchIndex > -1) {
+                        tVal = resolvedTable[key] || key;
+                        if (resolve.fields)
+                            tVal = ValueMethods.instance.setField(resolve.fields).getData(tVal);
 
-                var thenValue = modelGetter(resolve.then, resObject);
-                var searchIndex = indexes.indexOf(thenValue);
-                if (thenValue && searchIndex > -1) {
-                    thenValue = getValue(searchIndex);
-                    if (resolve.fields) {
-                        thenValue = ValueMethods.staticInstance.setField(resolve.fields).getData(thenValue);
+                        if (resolve.lookup)
+                            tVal = performLookup(resolve.lookup, tVal, resolve.group);
+                        // recursive resolve
+                        if (resolve.resolve)
+                            resolver(resolve.resolve);
+
+                        if (resolve.recursive)
+                            startResolver(tVal);
+
+                        return tVal;
                     }
 
-                    if (resolve.lookup) {
-                        performLookup(resolve.lookup, thenValue, resolve.group);
-                    }
+                    return null;
+                }
 
-                    ValueMethods.writeToContext(resolve.as, resObject, thenValue);
-                    // recursive resolve
-                    if (resolve.resolve) {
-                        resolver(resolve.resolve);
+                /**
+                 * @param {*} entryObj 
+                 */
+                function startResolver(entryObj) {
+                    var thenValue = modelGetter(resolve.then, entryObj);
+                    if (thenValue) {
+                        if (isarray(thenValue)) {
+                            thenValue = thenValue.map(resolveValues);
+                        } else {
+                            thenValue = resolveValues(thenValue);
+                        }
+                        // write values
+                        ValueMethods.writeToContext(resolve.as, entryObj, thenValue);
                     }
                 }
+
+                // init resolver
+                startResolver(resObject);
             });
-        }
+        };
 
-        if(resolveQuery){
+        if (resolveQuery) {
             resolver(resolveQuery);
         }
-    }
+    };
+
+    /**
+     * 
+     * @param {*} resolveLookup 
+     * @param {*} data 
+     */
+    var performLookup = (lookup, data, hasGroupBy) => {
+        if (lookup && data && lookup.table) {
+            // run when condition check if defined
+            if (lookup.when && !QueryTaskPerformer.externalQuery(lookup.when)(data))
+                data = null;
+
+            var tableName = ValueMethods.callMethod(lookup.table, data);
+            var on = ValueMethods.callMethod(lookup.on, data);
+            var lookupTable = this.getTableData(tableName, true);
+            // no table table to look stop process
+            if (!lookupTable) return;
+
+            var key = ValueMethods.callMethod(lookup.key, data);
+            var fields = ValueMethods.callMethod(lookup.fields, data);
+            var valueByIndex = getLookUpTableIndex(lookupTable, tableName, on, fields);
+            /**
+             * lookupAndAssign
+             * @param {*} currentData 
+             * @param {*} total 
+             */
+            var lookupAndAssign = (currentData, total) => {
+                var thenValue = valueByIndex(key ? currentData[key] : currentData, total);
+                if (thenValue) {
+                    if (lookup.merge)
+                        Object.assign(currentData, thenValue);
+                    else if (lookup.as)
+                        currentData[lookup.as] = thenValue;
+                    else
+                        currentData = thenValue;
+                } else if(lookup.strict) {
+                    currentData = null;
+                }
+
+                return currentData;
+            };
+
+            // we expect data to be array of foreignKeys to resolve
+            if (isarray(data) && hasGroupBy) {
+                var total = data.length;
+                data = data.reduce((accum, item) => {
+                    var lkValue = lookupAndAssign(item, total);
+                    if (lkValue) accum.push(lkValue);
+                    return accum;
+                }, []);
+            } else {
+                data = lookupAndAssign(data, 1);
+            }
+
+            lookupTable = null;
+        }
+
+        return data;
+    };
 
     /**
      * 
@@ -256,76 +299,22 @@ function transactionSelect(selectFields, definition) {
      * @param {*} fields 
      * @returns 
      */
-    function getLookUpTableIndex(lookupTable, tableName, on, fields){
+    function getLookUpTableIndex(lookupTable, tableName, on, fields) {
         var name = tableName + ':' + on;
-        if (!lookupTableCache[name]) {
-            lookupTableCache[name] = lookupTable.map(function(item) { return item[on]; })
-        }
+        if (!lookupTableCache[name])
+            lookupTableCache[name] = lookupTable.map(function (item) { return item[on]; })
 
         return (foreignKey, total) => {
             var thenValue = null;
             var foundIndex = lookupTableCache[name].indexOf(foreignKey);
             if (foundIndex > -1) {
                 thenValue = lookupTable[foundIndex];
-                if (fields) {
-                    thenValue = ValueMethods.staticInstance.setField(fields).getData(thenValue);
-                }
+                if (fields)
+                    thenValue = ValueMethods.instance.setField(fields).getData(thenValue);
             }
 
             return thenValue;
         };
-    }
-
-    /**
-     * 
-     * @param {*} resolveLookup 
-     * @param {*} data 
-     */
-    function performLookup(lookup, data, hasGroupBy) {
-        if (lookup && data && lookup.table) {
-            if (lookup.when && !externalQuery(lookup.when)(data)) {
-                data = null;
-            }
-            var tableName = ValueMethods.callMethod(lookup.table, data);
-            var on = ValueMethods.callMethod(lookup.on, data);
-            var lookupTable = getTableData(tableName, true);
-            // no table table to look stop proce
-            if (!lookupTable) return;
-            
-            var key = ValueMethods.callMethod(lookup.key, data);
-            var fields = ValueMethods.callMethod(lookup.fields, data);
-            var valueByIndex = getLookUpTableIndex(lookupTable, tableName, on, fields);
-            // we expect data to be array of foreignKeys to resolve
-            if (isarray(data) && hasGroupBy) {
-                var total = data.length;
-                for (var i = 0; i < total; i++) {
-                    var value = data[i];
-                    var thenValue = valueByIndex(key ? value[key] : value, total);
-                    if (thenValue) {
-                        if (lookup.merge) {
-                            data[i] = Object.assign(value, thenValue);
-                        } else if (lookup.as) {
-                            value[lookup.as] = thenValue;
-                        } else {
-                            data[i] = thenValue;
-                        }
-                    }
-                }
-            } else {
-                var thenValue = valueByIndex(key ? data[key] : data, 1);
-                if (thenValue) {
-                    if (lookup.merge) {
-                        Object.assign(data, thenValue);
-                    } else if (lookup.as) {
-                        data[lookup.as] = thenValue;
-                    } else {
-                        data = thenValue;
-                    }
-                }
-            }
-
-            lookupTable = null;
-        }
     }
 
     /**
@@ -339,9 +328,8 @@ function transactionSelect(selectFields, definition) {
         /**
          * empty or invalid dataSet
          */
-        if (!tableData || !tableData.length) {
+        if (!tableData || !tableData.length)
             return tableData;
-        }
 
         /**
          * loop through the data
@@ -350,13 +338,11 @@ function transactionSelect(selectFields, definition) {
         var fields = (queryInstance.field || queryInstance.fields || queryInstance.select || "");
         if (fields && !isequal(fields, '*')) {
             var hasSingleResultQuery = ['COUNT', 'MIN', 'MAX', 'SUM', 'AVG'].some(key => inarray(key, fields));
-            var valueMethods = new ValueMethods(fields, tableData);
+            var valueMethods = ValueMethods.createInstance(fields, tableData);
             if (!queryInstance.isArrayResult && hasSingleResultQuery && !fromJoinReq)
                 return valueMethods.first();
 
             tableData = valueMethods.getAll(queryInstance.isArrayResult);
-        } else {
-            tableData = tableData.splice(0);
         }
 
         //return the tableData
@@ -365,123 +351,102 @@ function transactionSelect(selectFields, definition) {
 
     /**
      * 
-     * @param {*} tableName 
-     * @param {*} removeData 
+     * @param {*} clause
+     * @param {*} key 
+     * @returns 
      */
-    function getTableData(tableName, dataOnly) {
-        var data = _this.getTableData(tableName);
-        if (dataOnly) {
-            return data.map(function(item) { return item._data });
-        }
+    var runClause = (clause) => {
+        if (!clause.value && clause.table) {
+            var clauseTable = this.getTableData(clause.table);
+            if (!clauseTable) {
+                return this.setDBError(clause.table + " was not found, please fix query and try again");
+            }
 
-        return data;
-    }
+            if (!clause.field || clause.field == "*") {
+                return this.setDBError("invalid clause field, field should contain a single column and wildcard not accepted");
+            }
+
+            clause.isArrayResult = true;
+            clause.value = performSelect(QueryTaskPerformer.run(clauseTable, clause.where), clause);
+            if (clause.extend) {
+                clause.value.push.apply(clause.value, clause.extend);
+            }
+        }
+    };
 
     /**
      * 
-     * @param {*} tableName 
-     * @param {*} refId 
-     * @returns 
+     * @param {*} key 
+     * @param {*} item 
      */
-    function getTableDataWithIndexes(tableName, refId){
-        var data = _this.getTableData(tableName);
-        return data.reduce(function(accum, item) { return (accum.data.push(item._data),accum.indexes.push(item_data[refId]), accum) }, {data:[], indexes: []});
+    function runRecursiveCheck(key, item) {
+        var type = (item.type || '').toLowerCase();
+        if (type && ['inclause', 'notinclause'].includes(type)) {
+            runClause(item);
+        } else if (type == 'datediff' && !isarray(item.value)) {
+            var match = /(\d+)([a-zA-Z]+)/.exec(item.value);
+            if (match && match[1] && match[2]) {
+                item.value = [parseInt(match[1].trim()), match[2].trim()];
+            }
+        } else if (type == 'groupexpressions') {
+            item.value.expressions.forEach(citem => runRecursiveCheck(key, citem));
+        }
     }
 
-    function performQueryCheck() {
-        for(var item of queryDefinition.where) {
-            for(var key in item) {
-                if (!isobject(item[key])) continue
-                var type = (item[key] ? item[key].type : '').toLowerCase();
-                if (type && ['inclause', 'notinclause'].includes(type)) {
-                    runClause(item, key);
-                } else if(type  == 'datediff' && !isarray(item[key].value)){
-                    var match = /(\d+)([a-zA-Z]+)/.exec(item[key].value);
-                    if(match && match[1] && match[2]){
-                        item[key].value = [parseInt(match[1].trim()), match[2].trim()];
+    var queryRunner = () => {
+        var group = null;
+        var groupResult = new Map();
+        if (queryDefinition.groupBy) {
+            group = Array.isArray(queryDefinition.groupBy) ? queryDefinition.groupBy : [queryDefinition.groupBy];
+        }
+
+        return table => {
+            QueryTaskPerformer.run(isstring(table) ? this.getTableData(table) : table, queryDefinition.where, result => {
+                result = Object.assign({}, (result._data || result));
+                performResolve(queryDefinition.resolve, result);
+                result = performLookup(queryDefinition.lookup, result);
+
+                // return when result is null
+                // could happen due to strict matcher for lookup
+                if (!result) return;
+
+                if (group) {
+                    var key = group.map(k => modelGetter(k, result)).sort().join(':');
+                    if (!groupResult.has(key)) {
+                        groupResult.set(key, []);
                     }
+                    
+                    groupResult.get(key).push(result);
+                } else {
+                    _sData.push(result);
                 }
+            });
+
+            if (group) {
+                _sData = Array.from(groupResult.values());
+                groupResult.clear();
             }
-        }
-        /**
-         * 
-         * @param {*} item 
-         * @param {*} key 
-         * @returns 
-         */
-        function runClause(item, key) {
-            var clause = item[key];
-            var value = clause.value;
-            if (!value && clause.table) {
-                var clauseTable = getTableData(clause.table);
-                if (!clauseTable) {
-                    return _this.setDBError(clause.table + " was not found, please fix query and try again");
-                }
-
-                if (!clause.field || clause.field === "*") {
-                    return _this.setDBError("invalid clause field, field should contain a single column and wildcard not accepted");
-                }
-
-                clause.isArrayResult = true;
-                value = queryPerformer(clauseTable, clause.where);
-                value = performSelect(value, clause);
-            }
-
-            // attach clause to query
-            item[key] = {
-                type: clause.type,
-                value: value
-            };
-        }
-    }
-
-    function performJoinQuery() {
-        /**
-         * when queryDefinition.filterBefore is set to true
-         * we perform where clause query on the initialTable
-         */
-        _sData = getTableData(_this.rawTables[0], true);
-        if (queryDefinition.filterBefore) {
-            _sData = queryPerformer(_sData, queryDefinition.where);
-        }
-
-        //Table matcher
-        //Matches the leftTable to RightTable
-        //returns both Match and unMatched Result
-        queryDefinition.join.forEach(matchTableFn);
-        if (!queryDefinition.filterBefore && queryDefinition.where) {
-            _sData = queryPerformer(_sData, queryDefinition.where);
-        }
-    }
-
-    function performMainQuery() {
-        var resolveAndLookup = (result) => {
-            var data = result._data;
-            performResolve(queryDefinition.resolve, data);
-            performLookup(queryDefinition.lookup, data);
-            _sData.push(data);
         };
+    };
 
-        if (_this.isMultipleTable) {
-            for (var i = 0; i < _this.rawTables.length; i++) {
-                queryPerformer(getTableData(_this.rawTables[i]), queryDefinition.where, resolveAndLookup);
-            }
-        } else {
-            queryPerformer(getTableData(_this.rawTables[0]), queryDefinition.where, resolveAndLookup)
-        }
-    }
 
     //Push our executeState Function into Array
     this.executeState.push(["select", () => {
         // convert where query to an object
         if (queryDefinition.where) {
             if (isstring(queryDefinition.where)) {
-                queryDefinition.where = _parseCondition(queryDefinition.where);
+                queryDefinition.where = QueryBuilder._parseCondition(queryDefinition.where);
             } else if (isobject(queryDefinition.where)) {
                 console.warn("WHERE clause of type (Object) support will be removed in next version, please use type (Array<Object>)");
                 queryDefinition.where = [queryDefinition.where];
             }
-            performQueryCheck();
+            
+            for (var item of queryDefinition.where) {
+                for (var key in item) {
+                    if (!isobject(item[key])) continue
+                    runRecursiveCheck(key, item[key]);
+                }
+            }
         }
 
         if (this.hasError()) {
@@ -489,17 +454,58 @@ function transactionSelect(selectFields, definition) {
             throw new TransactionErrorEvent('select', this.getError());
         }
 
-        var resultSet = [];
-        if (queryDefinition.join) {
-            performJoinQuery();
+        var runner = queryRunner();
+        this.rawTables, this.isMultipleTable
+        if (this.isMultipleTable) {
+            this.rawTables.forEach( tbl => runner(tbl));
+        } else if (queryDefinition.join) {
+            /**
+            * when queryDefinition.filterBefore is set to true
+            * we perform where clause query on the initialTable
+            */
+            if (queryDefinition.filterBefore) {
+                runner(this.rawTables[0]);
+            } else {
+                _sData = this.getTableData(this.rawTables[0], true);
+            }
+
+            // Table matcher
+            // Matches the leftTable to RightTable
+            // returns both Match and unMatched Result
+            queryDefinition.join.forEach(matchTableFn);
+            if (!queryDefinition.filterBefore && queryDefinition.where) {
+                runner(_sData.splice(0));
+            }
         } else {
-            performMainQuery();
+            runner(this.rawTables[0]);
         }
 
+        var pagination = null;
+        if (queryDefinition.pagination){
+            const limit = QueryLimitMethods.parseLimit(queryDefinition.limit);
+            const total = _sData.length;
+            // L(n) limit type
+            if (0 > limit[0]) {
+                limit = [(total - limit[1]), total];
+            }
+            const size = (limit[1] - limit[0]);
+            pagination = {
+                total,
+                pages: Math.ceil(total / size),
+                current: Math.ceil(limit[1] / size),
+                size,
+            }
+        }
+
+        // get all records
         resultSet = performSelect(_sData, queryDefinition);
         lookupTableCache = null;
         //return the processed Data
-        return new SelectQueryEvent(resultSet, (performance.now() - time));
+        return new SelectQueryEvent(
+            resultSet,
+            pagination,
+            (performance.now() - time)
+        );
     }]);
 
 
@@ -511,47 +517,54 @@ function transactionSelect(selectFields, definition) {
  * @param {*} queryDefinition 
  * @param {*} execute 
  */
-function SelectQueryFacade(queryDefinition, execute) {
-    this.join = function(definition) {
+class SelectQueryFacade {
+    constructor(queryDefinition, execute) {
+        this.queryDefinition = queryDefinition;
+        this.execute = execute;
+    }
+
+    join(definition) {
         if (!isobject(definition)) {
             throw new TypeError("join DEFINITION should be an object");
         }
 
-        if (!queryDefinition.join) {
-            queryDefinition.join = [definition];
+        if (!this.queryDefinition.join) {
+            this.queryDefinition.join = [definition];
         } else {
-            queryDefinition.join.push(definition);
+            this.queryDefinition.join.push(definition);
         }
 
-
         return this;
-    };
+    }
 
-    this.groupByStrict = function(groupKey) {
-        queryDefinition.groupByStrict = groupKey;
+    groupByStrict(groupKey) {
+        this.queryDefinition.groupByStrict = groupKey;
         return this;
-    };
+    }
 
-    this.groupBy = function(groupKey) {
-        queryDefinition.groupBy = groupKey;
+    groupBy(groupKey) {
+        this.queryDefinition.groupBy = groupKey;
         return this;
-    };
+    }
 
-    this.orderBy = function(orderBy) {
-        queryDefinition.orderBy = orderBy;
+    orderBy(orderBy) {
+        this.queryDefinition.orderBy = orderBy;
         return this;
-    };
+    }
 
-    this.where = function(where) {
+    where(where) {
         //store where query
-        queryDefinition.where = where;
+        this.queryDefinition.where = where;
         return this;
-    };
+    }
 
-    this.limit = function(parseLimit) {
-        queryDefinition.limit = parseLimit;
+    limit(parseLimit) {
+        this.queryDefinition.limit = parseLimit;
         return this;
-    };
+    }
 
-    this.execute = execute;
+    aggregate(definition) {
+        this.queryDefinition.aggregate = definition;
+        return this;
+    }
 }
