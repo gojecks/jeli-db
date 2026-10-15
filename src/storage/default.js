@@ -5,14 +5,30 @@
  * @param {*} callback 
  */
 function DefaultStorage(config, storageUtils, callback) {
-    var dbName = config.name;
-    var _privateStore = new Map();
-    var _storage = (self && self[config.type]);
-    var getStoreKey = key => `${key}:data`;
+    'use strict';
+    const dbName = config.name;
+    let   _privateStore = new Map();
+    const _hasStorage = (self && !!self[config.type]);
+    const _storageName = config.type;
+    const getStoreKey = key => `${key}:data`;
+    const _recovery = `__recovery:${dbName}__`;
 
+    if(!_hasStorage){
+        // save file so they can be retrieved on reload
+        let persisted = false;
+        const persistForRecovery = () => {
+            if(persisted) return;
+            localStorage.setItem(_recovery, JSON.stringify(Array.from(_privateStore)))
+            persisted = true;
+        };
 
-    class publicApi{
-        static setItem(name, value){
+        // attach eventListener
+        document.addEventListener('visibilitychange', persistForRecovery);
+        window.addEventListener('pagehide', persistForRecovery);
+    }
+
+    class publicApi {
+        static setItem(name, value) {
             var jsonValue = JSON.stringify(value);
             var filesizeCheck = Math.floor((((jsonValue.length) * 2) / 1024).toFixed(2));
             if (filesizeCheck >= (1024 * 10)) {
@@ -21,44 +37,45 @@ function DefaultStorage(config, storageUtils, callback) {
             }
 
             // save the item;
-            _privateStore[name] = value;
+            _privateStore.set(name, value);
             /**
              * support for session && localStorage
              */
-            if (_storage) {
-                _storage[getStoreName(name)] = jsonValue;
+            if (name && _hasStorage) {
+                self[_storageName][getStoreName(name)] = jsonValue;
             }
         }
-        static getItem(name){
+
+        static getItem(name) {
             if (!name) {
                 return storageUtils.generateStruct(_privateStore);
             }
 
-            return _privateStore[name];
+            return _privateStore.get(name);
         }
 
         static removeItem(name) {
-            delete _privateStore[name];
-            if (_storage) {
-                _storage.removeItem(getStoreName(name));
+            _privateStore.delete(name);
+            if (_hasStorage) {
+                self[_storageName].removeItem(getStoreName(name));
             }
         }
 
         static clear(callback) {
-            if (_storage) {
-                _storage.clear();
+            if (_hasStorage) {
+                self[_storageName].clear();
             }
 
-            _privateStore = {};
+            _privateStore.clear();
             callback(true)
         }
 
         static usage(name) {
-            return JSON.stringify(_privateStore || '').length;
+            return JSON.stringify(Array.from(_privateStore.values())).length;
         }
-        
+
         static isExists(name) {
-            return _privateStore.hasOwnProperty(name);
+            return _privateStore.has(name);
         }
 
         static broadcast(eventName, args) {
@@ -67,23 +84,25 @@ function DefaultStorage(config, storageUtils, callback) {
     };
 
     class EventRegistry {
-        static _call(eventName, args){
-            if (this[eventName]){
+        static _call(eventName, args) {
+            if (this[eventName]) {
                 this[eventName].apply(EventRegistry, args);
             }
         }
 
         static insert(tableName, data, insertData) {
             if (insertData) {
-                _privateStore[getStoreKey(tableName)].push.apply(_privateStore[getStoreKey(tableName)], data);
+                const storeData = _privateStore.get(getStoreKey(tableName));
+                storeData.push.apply(storeData, data);
             }
-            _privateStore[tableName].lastInsertId += data.length;
+
+            _privateStore.get(tableName).lastInsertId += data.length;
             this.update(tableName);
         }
-        
+
         static update(tbl) {
             const storeKey = getStoreKey(tbl);
-            publicApi.setItem(storeKey, _privateStore[storeKey]);
+            publicApi.setItem(storeKey, _privateStore.get(storeKey));
         }
 
         static delete(tableName, delItem) {
@@ -95,7 +114,7 @@ function DefaultStorage(config, storageUtils, callback) {
             /**
              * we only set data property if its a new table and not exists
              */
-            if (!_privateStore.hasOwnProperty(tableName)) {
+            if (!_privateStore.has(tableName)) {
                 var data = definition.data || [];
                 delete definition.data;
                 publicApi.setItem(tableName, definition);
@@ -116,14 +135,14 @@ function DefaultStorage(config, storageUtils, callback) {
         static onUpdateTable(tbl, updates) {
             // save the data
             Object.keys(updates).forEach(function (key) {
-                _privateStore[tbl][key] = updates[key];
+                _privateStore.get(tbl)[key] = updates[key];
             });
-    
-            publicApi.setItem(tbl, _privateStore[tbl]);
+
+            publicApi.setItem(tbl, _privateStore.get(tbl));
         }
-        static onTruncateTable(tableName){
+        static onTruncateTable(tableName) {
             // empty the record
-            _privateStore[getStoreKey(tableName)] = [];
+            _privateStore.set(getStoreKey(tableName), []);
             this.update(tableName)
         }
 
@@ -134,30 +153,30 @@ function DefaultStorage(config, storageUtils, callback) {
             });
         }
         static onRenameTable(oldTable, newTable) {
-            _privateStore[oldTable].TBL_NAME = newTable;
-            publicApi.setItem(newTable, _privateStore[oldTable]);
-            publicApi.setItem(getStoreKey(newTable), _privateStore[getStoreKey(oldTable)]);
+            _privateStore.get(oldTable).TBL_NAME = newTable;
+            publicApi.setItem(newTable, _privateStore.get(oldTable));
+            publicApi.setItem(getStoreKey(newTable), _privateStore.get(getStoreKey(oldTable)));
             publicApi.removeItem(oldTable);
             publicApi.removeItem(getStoreKey(oldTable));
         }
 
-        static onAlterTable(tableName){
+        static onAlterTable(tableName) {
             this.update(tableName)
         }
 
         static onRenameDataBase(oldName, newName, cb) {
             var resource = publicApi.getItem(storageUtils.storeMapping.resourceName);
             Object.keys(resource.resourceManager).forEach(function (tbl) {
-                _privateStore[tbl].DB_NAME = newName;
-                _privateStore[tbl].lastModified = +new Date;
+                Object.assign(_privateStore.get(tbl), { DB_NAME: newName, astModified: +new Date })
             });
-            var clonedObject = Object.assign({}, _privateStore);
-            var propertyNames = Object.keys(clonedObject);
+
+            const propertyNames = Array.from(_privateStore.keys());
             for (const name of propertyNames) {
+                const data = publicApi.getItem(name);
                 dbName = oldName;
                 publicApi.removeItem(name);
                 dbName = newName;
-                publicApi.setItem(name, clonedObject[name]);
+                publicApi.setItem(name, data);
             }
             // change the dbName variable
             dbName = newName;
@@ -174,29 +193,39 @@ function DefaultStorage(config, storageUtils, callback) {
     }
 
     function loadData() {
-        Object.values(storageUtils.storeMapping).forEach(v => {
-            _privateStore[v] = getItem(v);  
-        });
+        if(!_hasStorage) {
+            const recoveryData = localStorage.getItem(_recovery);
+            localStorage.removeItem( _recovery );
+            if(recoveryData){
+                // register the new entry
+                _privateStore = new Map( JSON.parse(recoveryData) );
+            }
+        } else {
+            Object.values(storageUtils.storeMapping).forEach(v => {
+                _privateStore.set(v, getItem(v));
+            });
 
-        var resource = _privateStore[storageUtils.storeMapping.resourceName];
-        if (resource){
-            _privateStore['version'] = getItem('version');
-            if (resource.resourceManager) {
-                Object.keys(resource.resourceManager).forEach(function (tbl) {
-                    _privateStore[tbl] = getItem(tbl);
-                    _privateStore[getStoreKey(tbl)] = getItem(getStoreKey(tbl)) || [];
-                });
+            const resource = _privateStore.get(storageUtils.storeMapping.resourceName);
+            if (resource) {
+                _privateStore.set('version', getItem('version'));
+                if (resource.resourceManager) {
+                    Object.keys(resource.resourceManager).forEach(function (tbl) {
+                        _privateStore.set(tbl, getItem(tbl));
+                        _privateStore.set(getStoreKey(tbl), getItem(getStoreKey(tbl)) || []);
+                    });
+                }
             }
         }
     }
 
     function getItem(name) {
         name = getStoreName(name);
-        if (_storage) {
-            return (_storage[name] && JSON.parse(_storage[name]) || false);
+        if (_hasStorage) {
+            const record = self[_storageName].getItem(name);
+            return JSON.parse(record || false);
         }
         // memeory support
-        return _privateStore[name];
+        return _privateStore.get(name);
     }
 
 

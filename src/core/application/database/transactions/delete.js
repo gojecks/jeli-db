@@ -28,11 +28,11 @@ function transactionDelete(query, tableName) {
     if (!tableName)
         throw new TransactionErrorEvent('delete', 'Invalid delete statement Table is required');
 
-    var delItem = [];
-    var indexes = [];
-    var time = performance.now();
-    var tableData = this.getTableData(tableName);
-    var tableInfo = this.getTableInfo(tableName);
+    const delItem = [];
+    const indexes = [];
+    const time = performance.now();
+    const tableData = this.getTableData(tableName);
+    const tableInfo = this.getTableInfo(tableName);
     if (query && isobject(query) && query.byRefs && !isarray(query.byRefs)) {
         query.byRefs = [query.byRefs];
     }
@@ -42,13 +42,13 @@ function transactionDelete(query, tableName) {
      * @param {*} data 
      */
     function removeIndexes(data) {
-        for (var index in tableInfo.index) {
-            var tableColumnIndex = tableInfo.index[index];
-            var indexValue = data[index];
+        for (let index in tableInfo.index) {
+            const tableColumnIndex = tableInfo.index[index];
+            const indexValue = data[index];
             // check the the index already exists
             if (tableColumnIndex.indexes && indexValue) {
                 if (tableColumnIndex.groupBy){
-                    var indexList = tableColumnIndex.indexes[indexValue] || [];
+                    const indexList = tableColumnIndex.indexes[indexValue] || [];
                     indexList.splice(indexList.indexOf(data[tableColumnIndex.groupBy]), 1);
                 } else {
                     delete tableColumnIndex.indexes[indexValue];
@@ -59,8 +59,12 @@ function transactionDelete(query, tableName) {
 
     // run query to get all index to delete
     QueryTaskPerformer.run(tableData, query, (item, idx) => {
-        delItem.push(item._ref);
-        removeIndexes(item._data);
+        const id = item._ref || item._id || '';
+        if (id){
+            delItem.push(id);
+        }
+        // data compactibility support
+        removeIndexes(item._data || item);
         indexes.push(idx);
     });
 

@@ -72,33 +72,36 @@ class TableInstance {
     };
 
     drop(flag) {
+        const dbName = this.info._DBNAME_;
+        const tblName = this.info.tableName;
+
         if (!flag) {
-            return dbErrorPromiseObject("Table (" + this.tableInfo.TBL_NAME + ") Was not found in " + this.tableInfo.DB_NAME + " DataBase or invalid flag passed");
+            return dbErrorPromiseObject(`Table (${dbName}) Was not found in ${tblName} DataBase or invalid flag passed`);
         }
 
-        if (!this.tableInfo.TBL_NAME && !this.tableInfo._hash) {
+        if (!tblName && !this.tableInfo?._hash) {
             return dbErrorPromiseObject("Invalid Table record passed, please try again.");
         }
 
         //update the deletedRecords
-        var $resource = privateApi.getActiveDB(this.tableInfo.DB_NAME).get(constants.RESOURCEMANAGER);
-        if ($resource.getTableLastSyncDate(this.tableInfo.TBL_NAME)) {
+        var $resource = privateApi.getActiveDB(dbName).get(constants.RESOURCEMANAGER);
+        if ($resource.getTableLastSyncDate(tblName)) {
             privateApi.updateDeletedRecord('table', {
-                name: this.tableInfo.TBL_NAME,
-                _hash: this.tableInfo._hash,
-                db: this.tableInfo.DB_NAME
+                name: tblName,
+                _hash: this.tableInfo?._hash,
+                db: dbName
             });
         }
 
-        $resource.removeTableFromResource(this.tableInfo.TBL_NAME);
-        TableInstance.factory.remove(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME);
+        $resource.removeTableFromResource(tblName);
+        TableInstance.factory.remove(dbName, tblName);
 
         /**
           broadcast event
         **/
-        privateApi.storageFacade.broadcast(this.tableInfo.DB_NAME, DB_EVENT_NAMES.DROP_TABLE, [this.tableInfo.TBL_NAME]);
+        privateApi.storageFacade.broadcast(dbName, DB_EVENT_NAMES.DROP_TABLE, [tblName]);
 
-        return dbSuccessPromiseObject("drop", "Table (" + this.tableInfo.TBL_NAME + ") was dropped successfully");
+        return dbSuccessPromiseObject("drop", `Table (${tblName}) was dropped successfully`);
     };
 
 

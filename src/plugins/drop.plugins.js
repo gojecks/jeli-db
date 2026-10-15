@@ -1,10 +1,13 @@
 Database.plugins.jQl('drop', {
     help: ['-drop [-t or -d] -[tbl_name] -flag[ [yes] or [no] ] -localOnly'],
-    map: {
-        type: 1,
-        name: 2,
-        flag: 3,
-        localOnly: 4
+    schema: {
+        type: { position: 1, type: 'string' },
+        name: { position: 2, type: 'string' },
+        // not typed: help says "[yes] or [no]" but drop() just does a truthy
+        // check, and existing callers pass either the string "yes"/"no" or a
+        // real boolean -- typing this 'boolean' would reject "yes"/"no"
+        flag: { position: 3 },
+        localOnly: { position: 4, type: 'boolean' }
     },
     requiresParam: true,
     fn: dropPluginFn

@@ -34,19 +34,19 @@ class CoreSchemaProcessService {
             throw new TypeError('JDBSchema Error: invalid schema dataType');
         }
 
-        var tables = Object.keys(data), inc = -1;
+        const tables = Object.keys(data), inc = -1;
         /**
          * @param {*} config 
          * @param {*} table 
          */
-        var pushCrudTask = (config, table) => {
+        const pushCrudTask = (config, table) => {
             this.crudProcess.addTask(table, config);
             processNext();
         };
 
-        var startTableProcess = () => {
-            var tableName = tables[inc], config = data[tableName];
-            var OtherProcess = tbl => {
+        const startTableProcess = () => {
+            const tableName = tables[inc], config = data[tableName];
+            const OtherProcess = tbl => {
                 this.coreInstance.table(tbl)
                     .then(function (tx) {
                         var tableInstance = tx.result;
@@ -66,7 +66,7 @@ class CoreSchemaProcessService {
              * @param {*} tableInstance
              * @param {*} conf
              */
-            var processRequest = (tableInstance, conf) => {
+            const processRequest = (tableInstance, conf) => {
                 if (isequal(conf.type, 'drop')) {
                     tableInstance.drop(tableName);
                 } else if (isequal(conf.type, 'rename')) {

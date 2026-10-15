@@ -187,7 +187,7 @@ class QueryBuilder {
         };
 
         return function (entry) {
-            var exec = /\%(.*?)\%/.exec(entry);
+            const exec = /\%(.*?)\%/.exec(entry);
             if (!exec) return entry;
             // straight match
             if (exec && exec.input == exec[0]) {
@@ -195,7 +195,7 @@ class QueryBuilder {
             }
 
             entry = entry.replace(/\%(.*?)\%/g, function (_, key) {
-                var value = modelGetter(key, replacer);
+                const value = modelGetter(key, replacer);
                 return undefined !== value ? stringfy(value) : key;
             });
 
@@ -256,11 +256,81 @@ class QueryBuilder {
      */
     static queryParser(query, replacer, responseContext) {
         replacer = replacer ? replacer : {};
-        var parseValueFn = this.parseValue(replacer);
+        const parseValueFn = this.parseValue(replacer);
         if (typeof query == 'function')
             query = query(responseContext);
 
         return query.split(/\s+(?:-)/gi)
             .map(q => parseValueFn(q.trim()));
+    }
+
+    /**
+     * V2 syntax splitter: `command --name=value --flag`, quote/brace-depth
+     * aware so a dash inside JSON data or a quoted string is never mistaken
+     * for a `--flag` boundary. Only a literal `--` immediately followed by a
+     * letter, at depth 0 and outside quotes, starts a new token -- that's
+     * also what makes a V1 query ("-value -value") safely fall through this
+     * unchanged as a single token (see isV2Query).
+     * @param {*} str
+     */
+    static tokenizeV2(str) {
+        const tokens = [];
+        let depth = 0, quote = null, buf = '';
+        for (let i = 0; i < str.length; i++) {
+            const c = str[i];
+            if (quote) {
+                buf += c;
+                if (c === quote && str[i - 1] !== '\\') quote = null;
+            } else if (c === '"' || c === "'") {
+                quote = c;
+                buf += c;
+            } else if ('{['.includes(c)) {
+                depth++;
+                buf += c;
+            } else if ('}]'.includes(c)) {
+                depth--;
+                buf += c;
+            } else if (depth === 0 && str.startsWith('--', i) && /[A-Za-z]/.test(str[i + 2] || '')) {
+                if (buf.trim()) tokens.push(buf.trim());
+                buf = '';
+                i++; // consume both dashes
+            } else {
+                buf += c;
+            }
+        }
+
+        if (buf.trim()) tokens.push(buf.trim());
+        return tokens;
+    }
+
+    /**
+     * @param {*} query
+     */
+    static isV2Query(query) {
+        return typeof query == 'string' && this.tokenizeV2(query).length > 1;
+    }
+
+    /**
+     * Parses a V2 query into { command, flags }, where flags is a map of
+     * flagName -> value (true for a bare `--flag`, otherwise the parsed
+     * value after `=`, run through the same %key% replacer/JSON parsing as
+     * V1 values).
+     * @param {*} query
+     * @param {*} replacer
+     */
+    static parseV2(query, replacer) {
+        const parseValueFn = this.parseValue(replacer || {});
+        const tokens = this.tokenizeV2(query);
+        const flags = tokens.slice(1).reduce((accum, token) => {
+            const eq = token.indexOf('=');
+            if (eq === -1) {
+                accum[token.trim()] = true;
+            } else {
+                accum[token.slice(0, eq).trim()] = parseValueFn(token.slice(eq + 1).trim());
+            }
+            return accum;
+        }, {});
+
+        return { command: tokens[0], flags };
     }
 }

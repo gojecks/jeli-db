@@ -36,16 +36,16 @@ function tableModelMapper(tableInfo) {
     function parser(data, ref) {
         data = (data || {});
         return columnKeys.reduce(function(accum, prop) {
-            var def = tableInfo.columns[0][prop];
-            var hasProp = data.hasOwnProperty(prop);
-            var value = hasProp ? data[prop] : def.NOT_NULL ? '' : null;
+            const def = tableInfo.columns[0][prop];
+            const hasProp = data.hasOwnProperty(prop);
+            let value = hasProp ? data[prop] : def.NOT_NULL ? '' : null;
             if (def.defaultValue && (!hasProp || (hasProp && [null, undefined, ''].includes(value)))) {
                 value = getDefaultColumnValue(def.defaultValue, ref, tableInfo);
             }
 
             accum[prop] = value;
             return accum;
-        }, {});
+        }, { _id: ref });
     }
 
     parser.columnKeys = columnKeys;

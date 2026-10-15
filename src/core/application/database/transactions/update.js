@@ -5,16 +5,16 @@
  * @returns 
  */
 function transactionUpdate(updateRecords) {
-    var tableName = this.rawTables[0];
-    var tableInfo = this.getTableInfo(tableName);
-    var time = performance.now();
-    var columns = tableInfo.columns[0];
-    var fieldErrors = [];
-    var validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var refs = [];
-    var tableData = this.getTableData(tableName);
-    var updated = 0;
-    var rowsToUpdate = [];
+    const tableName = this.rawTables[0];
+    const tableInfo = this.getTableInfo(tableName);
+    const time = performance.now();
+    const columns = tableInfo.columns[0];
+    const fieldErrors = [];
+    const validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
+    const refs = [];
+    const tableData = this.getTableData(tableName);
+    let updated = 0;
+    const rowsToUpdate = [];
 
     // return setData when its an object
     if (!Array.isArray(updateRecords)) {
@@ -27,15 +27,15 @@ function transactionUpdate(updateRecords) {
      * @param {*} data 
      */
     function collectRecords(record, hasExpressions) {
-        var keys = Object.keys(record);
+        const keys = Object.keys(record);
         return data => {
             if (!hasExpressions) {
                 return record;
             } else {
                 return keys.reduce((accum, key) => {
                     if (key == '$exp') {
-                        var obj = record[key];
-                        accum[obj.key] = data[obj.key];
+                        const prop = record[key].key;
+                        accum[prop] = data[prop];
                     } else {
                         accum[key] = record[key];
                     }
@@ -64,15 +64,21 @@ function transactionUpdate(updateRecords) {
         QueryTaskPerformer.runMany(tableData, updateRecords.map(record => record[0]), (previous, idx, matchIndex) => {
             //set the current Value
             const record = updateRecords[matchIndex];
-            tableData[idx]._data = QueryTaskPerformer.extend(true, previous._data, record[1]);
+            // record compactibility support
+            const lastestRecord = QueryTaskPerformer.extend(true, (previous._data || previous), record[1])
+            // backward compactibility for _data format
+            if(!lastestRecord._id && previous._ref){
+                lastestRecord._id = previous._ref;
+            }
+
+            tableData[idx] = lastestRecord;
+
             updated++;
             // store the ref to be updated
-            rowsToUpdate.push({
-                _ref: previous._ref,
-                _data: record[2](previous._data)
-            });
+            const ref = lastestRecord._id;
+            rowsToUpdate.push( record[2](previous._data || previous) );
             // update refs
-            refs.push([previous._ref, record[1]]);
+            refs.push([ref, record[1]]);
         }, updateRecords.length);
 
         //push records to our resolver

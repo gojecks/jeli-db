@@ -4,17 +4,15 @@
  * @returns 
  */
 class SessionService {
-    constructor(databaseInstance) {
-        this.createSession = function (definition) {
-            return new SessionApi(definition, databaseInstance);
-        };
+    constructor(fetchApi) {
+        this.createSession = definition => new SessionApi(definition, fetchApi);
     }
 }
 
 class SessionApi {
-    constructor(definition, databaseInstance) {
+    constructor(definition, fetchApi) {
         this.definition = definition;
-        this.databaseInstance = databaseInstance;
+        this.fetchApi = (path, req) => fetchApi(path, req);
         this.check();
     }
     /**
@@ -24,7 +22,7 @@ class SessionApi {
         return new Promise((resolve, reject) => {
             this.get().then(res => {
                 if (!res.result.data) {
-                    this.databaseInstance.api('/session/create', this.definition).then(resolve, reject);
+                   this.fetchApi('/session/create', this.definition).then(resolve, reject);
                 } else {
                     resolve(res);
                 }
@@ -35,19 +33,19 @@ class SessionApi {
      * @Method : get
      */
     get() {
-        return this.databaseInstance.api('/session', this.definition);
+        return this.fetchApi('/session', this.definition);
     }
     /**
      * @Method : put
      */
     put(postData) {
-        return this.databaseInstance.api('/session/update', Object.assign({ content: postData }, this.definition));
+        return this.fetchApi('/session/update', Object.assign({ content: postData }, this.definition));
     }
     /**
      * @Method : destroy
      */
     destroy() {
-        return this.databaseInstance.api('/session/remove', this.definition);
+        return this.fetchApi('/session/remove', this.definition);
     }
 };
 

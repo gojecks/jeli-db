@@ -106,8 +106,10 @@ function transactionSelect(selectFields, definition) {
         // perform where query on joinClause
         var valueMethods = ValueMethods.createInstance(joinObj.field);
         QueryTaskPerformer.run(this.getTableData(joinObj.table), joinObj.where, result => {
-            rightTable.push(valueMethods.getData(result._data));
-            rightTableIndex.push(result._data[rightTableCol]);
+            // record compactibility support
+            result = result._data || result;
+            rightTable.push(valueMethods.getData(result));
+            rightTableIndex.push(result[rightTableCol]);
         }, joinObj.limit);
 
         //start process
@@ -171,8 +173,8 @@ function transactionSelect(selectFields, definition) {
      * @param {*} resolvedTable 
      * @param {*} indexes 
      */
-    var performResolve = (resolveQuery, resObject, resolvedTable, indexes) => {
-        var resolver = (tobeResolved) => {
+    const performResolve = (resolveQuery, resObject, resolvedTable, indexes) => {
+        const resolver = (tobeResolved) => {
             tobeResolved.forEach(function (resolve) {
                 if (resolve.when && !QueryTaskPerformer.externalQuery(resolve.when)(resObject))
                     return;
@@ -237,7 +239,7 @@ function transactionSelect(selectFields, definition) {
      * @param {*} resolveLookup 
      * @param {*} data 
      */
-    var performLookup = (lookup, data, hasGroupBy) => {
+    const performLookup = (lookup, data, hasGroupBy) => {
         if (lookup && data && lookup.table) {
             // run when condition check if defined
             if (lookup.when && !QueryTaskPerformer.externalQuery(lookup.when)(data))
@@ -257,7 +259,7 @@ function transactionSelect(selectFields, definition) {
              * @param {*} currentData 
              * @param {*} total 
              */
-            var lookupAndAssign = (currentData, total) => {
+            const lookupAndAssign = (currentData, total) => {
                 var thenValue = valueByIndex(key ? currentData[key] : currentData, total);
                 if (thenValue) {
                     if (lookup.merge)
@@ -402,6 +404,7 @@ function transactionSelect(selectFields, definition) {
 
         return table => {
             QueryTaskPerformer.run(isstring(table) ? this.getTableData(table) : table, queryDefinition.where, result => {
+                // record compactibility support
                 result = Object.assign({}, (result._data || result));
                 performResolve(queryDefinition.resolve, result);
                 result = performLookup(queryDefinition.lookup, result);

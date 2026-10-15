@@ -9,16 +9,16 @@ function transactionInsert(data, hardInsert, tableName) {
      * make sure table is set
      */
     tableName = tableName || this.rawTables[0];
-    var fieldErrors = [];
-    var processedData = [];
-    var _skipped = [];
-    var tableInfo = this.getTableInfo(tableName);
-    var time = performance.now();
-    var columns = tableInfo.columns[0];
-    var objectType = isobject(data);
-    var _validator = this.validator(tableInfo.TBL_NAME, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var defaultValueGenerator = tableModelMapper(tableInfo);
-    var refs = [];
+    const fieldErrors = [];
+    const processedData = [];
+    const _skipped = [];
+    const tableInfo = this.getTableInfo(tableName);
+    const time = performance.now();
+    const columns = tableInfo.columns[0];
+    const objectType = isobject(data);
+    const _validator = this.validator(tableInfo.TBL_NAME, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
+    const defaultValueGenerator = tableModelMapper(tableInfo);
+    const refs = [];
     /**
      * Data must an Array or Object format
      * throw error if not in the format
@@ -50,7 +50,9 @@ function transactionInsert(data, hardInsert, tableName) {
 
 
     function getLastInsertId(){
-        return (tableInfo.primaryKey ? processedData[processedData.length - 1]._data[tableInfo.primaryKey] : tableInfo.lastInsertId);
+        // data compactibility support
+        const record = processedData[processedData.length - 1];
+        return (tableInfo.primaryKey ? (record._data || record)[tableInfo.primaryKey] : tableInfo.lastInsertId);
     }
 
     /**
@@ -59,12 +61,12 @@ function transactionInsert(data, hardInsert, tableName) {
      * @param {*} _ref 
      */
     function checkTableIndex(pData, ref) {
-        var dataExists = false;
-        for (var index in tableInfo.index) {
-            var tableColumnIndex = tableInfo.index[index];
+        let dataExists = false;
+        for (let index in tableInfo.index) {
+            const tableColumnIndex = tableInfo.index[index];
             // check the the index already exists
-            var groupBy = tableColumnIndex.groupBy;
-            var indexValue = pData[index];
+            const groupBy = tableColumnIndex.groupBy;
+            const indexValue = pData[index];
             ref = groupBy ? pData[groupBy] : ref;
             if (tableColumnIndex.indexes) {
                 if (tableColumnIndex.indexes[indexValue]) {
@@ -97,31 +99,30 @@ function transactionInsert(data, hardInsert, tableName) {
 
 
     if (data.length && !this.hasError()) {
-        var autoIncCallback = this.getTableIncCallback(tableInfo);
+        const autoIncCallback = this.getTableIncCallback(tableInfo);
         /**
          * @param {*} record 
          * @returns 
          */
-        var validateAndProcessData  = (record, index) => {
-            if (hardInsert){
-                refs.push(record._ref);
+        const validateAndProcessData  = (record, index) => {
+            const ref = record._ref || record._id || GUID();
+            if (hardInsert && ref){
+                refs.push(ref);
+                // move to new record format
+                record = record._data || record;
+                record._id = ref;
                 processedData.push(record);
                 return;
             }
 
-            var _ref = GUID();
-            var _data = defaultValueGenerator(record, _ref, tableInfo);
-            
+            record = defaultValueGenerator(record, ref, tableInfo);
             // validate data entry
-            if (!_validator(_data, index)) return;
-            var dataExists = checkTableIndex(_data, _ref);
+            if (!_validator(record, index)) return;
+            const dataExists = checkTableIndex(record, ref);
             if (!this.processData || (this.processData && !dataExists)) {
-                refs.push(_ref);
-                autoIncCallback(_data);
-                processedData.push({
-                    _ref,
-                    _data
-                });
+                refs.push(ref);
+                autoIncCallback(record);
+                processedData.push(record);
             }
         };
 
@@ -129,13 +130,10 @@ function transactionInsert(data, hardInsert, tableName) {
          * check for hardInsert
          * data must contain refs
          */
-        var len = data.length;
-        for (var i = 0; i < len; i++) {
-            var item = data.shift();
-            if (hardInsert && (!item._ref || !item._data)) {
-                _skipped.push(idx);
-                continue;
-            } else if(this.processData && !isobject(item)){
+        const len = data.length;
+        for (let i = 0; i < len; i++) {
+            const item = data.shift();
+            if(this.processData && !isobject(item)){
                 item = copyDataByIndex(defaultValueGenerator.columnKeys, item);
             }
 
@@ -145,8 +143,6 @@ function transactionInsert(data, hardInsert, tableName) {
         if (hardInsert) {
             tableInfo.lastInsertId = (tableInfo.lastInsertId + processedData.length);
         }
-        // empty data variable
-        data = null;
     }
 
     if (!processedData.length) {
@@ -154,14 +150,9 @@ function transactionInsert(data, hardInsert, tableName) {
     }
 
 
-
-    /**
-     * Update the table content
-     * @param {*} totalRecords 
-     */
-    function updateTable(totalRecords) {
-        var totalRecords = processedData.length;
-        var lastInsertId = getLastInsertId();
+    function updateTable() {
+        const totalRecords = processedData.length;
+        const lastInsertId = getLastInsertId();
         if (totalRecords) {
             privateApi.storageFacade.broadcast(
                 tableInfo.DB_NAME,
@@ -171,7 +162,6 @@ function transactionInsert(data, hardInsert, tableName) {
         }
 
         //return success after push
-        columns = null;
         defaultValueGenerator.cleanup();
         return new InsertQueryEvent(
             tableInfo.TBL_NAME,
@@ -194,13 +184,13 @@ function transactionInsert(data, hardInsert, tableName) {
         }
 
         // update offline
-        if (!disableOfflineCache)
+        if (!disableOfflineCache){
             this.updateOfflineCache('insert', refs, tableInfo.TBL_NAME);
+        }
 
         //push records to our resolver
         return updateTable();
     }]);
-
 
 
     return this;

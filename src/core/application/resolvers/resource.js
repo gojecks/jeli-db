@@ -90,6 +90,7 @@ class ResourceManager {
             this.setResource(resourceControl);
         }
     }
+    // tables to (re)load - a schema change keeps the table's _hash, so a newer lastModified counts too
     getTableDifferences(resource) {
         const tables = this.getTableNames();
         if (!resource || !tables) {
@@ -99,10 +100,11 @@ class ResourceManager {
         const resourceControl = this.getResource();
         return tables.reduce((accum, tbl) => {
             if (resource.resourceManager && resource.resourceManager.hasOwnProperty(tbl)) {
-                if (
-                    resourceControl.resourceManager[tbl]._hash !== resource.resourceManager[tbl]._hash && 
-                    resourceControl.resourceManager[tbl].lastSyncedDate > resource.resourceManager[tbl].lastSyncedDate
-                ){
+                const server = resourceControl.resourceManager[tbl] || {};
+                const local = resource.resourceManager[tbl] || {};
+                const dataChanged = server._hash !== local._hash && server.lastSyncedDate > local.lastSyncedDate;
+                const schemaChanged = !!server.lastModified && server.lastModified > (local.lastModified || 0);
+                if (dataChanged || schemaChanged) {
                     accum.push(tbl);
                 }
             } else {

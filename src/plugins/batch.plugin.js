@@ -2,6 +2,10 @@
     Database.plugins.jQl('batch', {
         help: ['batch -[queries]'],
         requiresParam: true,
+        schema: {
+            transactions: { position: 1, type: 'array' },
+            rollbackOnError: { flag: true }
+        },
         fn: batchPluginFn
     });
 
@@ -11,10 +15,9 @@
      * @param {*} handler 
      */
     function batchPluginFn(query, handler) {
-        var transactions = query[1];
         return function(db) {
             //build table
-            db.batchTransaction(transactions)
+            db.batchTransaction(query.transactions, query.rollbackOnError)
             .then(handler.onSuccess, handler.onError)
             .catch(handler.onError)
         };

@@ -3,18 +3,24 @@
 Database.plugins.jQl('env', {
     help: 'env -[usage]',
     requiresParam: true,
+    schema: {
+        method: { position: 1, type: 'string' },
+        // not typed: passed straight through to whichever db.env[method] is
+        // called, whose argument shape varies per method
+        arg: { position: 2 }
+    },
     fn: envPluginFn
 });
 
 
 function envPluginFn(query, handler) {
-    var ret = { state: query[0], result: {} };
+    var ret = { state: query.command, result: {} };
     return function(db) {
-        var task = db.env[query[1]];
+        var task = db.env[query.method];
         if (task) {
-            var _task = task(query[2]);
+            var _task = task(query.arg);
             if (isobject(_task)) {
-                ret.state = query[1];
+                ret.state = query.method;
                 _task.then(function(res) {
                     //set the state
                     ret.result = res;

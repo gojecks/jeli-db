@@ -1,9 +1,359 @@
+class BaseInstance {
+    /**
+     * 
+     * @param {*} URL
+     * @param {*} postData 
+     * @param {*} tbl 
+     * @param {*} method
+     * requestState can either be a STRING or OBJECT 
+     * { 
+     *   path:STRING,
+     *   tbl:String,
+     *   AUTH_TYPE:Boolean,
+     *   METHOD:STRING, data:ANY,
+     *   cache: boolen|{cacheId:string,ttl:number}
+     * }
+     */
+    api(path, data) {
+        const options = isobject(path) ? path : { path, data };
+        const httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
+        // no request Match found
+        if (httpRequestOptions.isErrorState) {
+            console.log('Invalid or missing api: ' + options.path);
+            return Promise.reject({ message: "There was an error please try again later" });
+        }
+
+        // set the postData
+        if (options.data instanceof FormData) {
+            httpRequestOptions.contentType = false;
+            httpRequestOptions.processData = false;
+        }
+
+        return privateApi.$http(httpRequestOptions).then(
+            res => dbSuccessPromiseObject('api', res),
+            err => Promise.reject(err || { message: "There was an error please try again later" })
+        );
+    }
+
+    /**
+     * @param {*} flag 
+     */
+    close(flag) {
+        //drop the DB if allowed
+        return privateApi.closeDB(this.name, flag);
+    }
+
+    /**
+     * get the DATABASE info
+     * loop through the tables 
+     * generate a new table Object containing the information of each tables
+     */
+    info() {
+        var tableSet = [],
+            tables = privateApi.get(this.name, 'tables');
+        if (tables) {
+            for (const tblName in tables) {
+                tableSet.push(copy({
+                    name: tblName,
+                    records: tables[tblName]._records,
+                    columns: tables[tblName].columns,
+                    primaryKey: tables[tblName].primaryKey,
+                    foreignKey: tables[tblName].foreignKey,
+                    allowedMode: tables[tblName].allowedMode,
+                    lastModified: tables[tblName].lastModified,
+                    index: tables[tblName].index,
+                    alias: tables[tblName].alias || '',
+                    policies: (tables[tblName].policies || {
+                        read: ['*'],
+                        write: ['*']
+                    })
+                }, true));
+            }
+        }
+
+        return tableSet;
+    }
+
+    /**
+     * 
+     * @param {*} tasks 
+     * @param {*} handler 
+     * @param {*} params 
+     * @returns 
+     */
+    jQl(tasks, handler, params) {
+        if (handler)
+            console.warn('Support for handler is deprecated and will be removed in next release.');
+
+        handler = handler || {};
+        return new Promise((resolve, reject) => {
+            handler.onSuccess = handler.onSuccess || resolve;
+            handler.onError = handler.onError || reject;
+            /**
+             * convert to tasks to allow
+             */
+            if (Array.isArray(tasks)) {
+                tasks = tasks.filter(task => !!task);
+                startMultipleTask(this);
+            } else {
+                performTask(tasks, withSchemaRetry(handler, this), this);
+            }
+        });
+
+        // a write rejected for an unknown column on a server-schema DB reloads that table's schema and runs once more -
+        // the column may have been added on the server since this browser cached the schema
+        function withSchemaRetry(taskHandler, context) {
+            if (!privateApi.getConfigData('useFrontendOnlySchema', context.name)) return taskHandler;
+            return Object.assign({}, taskHandler, {
+                onError: err => {
+                    const table = unknownColumnTable(err);
+                    if (!table) return taskHandler.onError(err);
+                    refreshTableSchemas(context.name, context.version, [table])
+                        .then(refreshed => refreshed.length ? performTask(tasks, taskHandler, context) : taskHandler.onError(err),
+                            () => taskHandler.onError(err));
+                }
+            });
+        }
+
+        function unknownColumnTable(err) {
+            const logs = (err && err.error && err.error.logs) || [];
+            for (const log of logs) {
+                const match = /column \((.+?)\) was not found on this table \((.+?)\)/.exec(String(log));
+                if (match) return match[2];
+            }
+            return null;
+        }
+
+        /**
+         * throws if `value` doesn't match `type`; otherwise returns it
+         * unchanged. Only called once a value actually exists (undefined/
+         * default handling happens before this), so there's no "missing
+         * value" case to worry about here.
+         * @param {*} type
+         * @param {*} value
+         * @param {*} fieldName
+         */
+        function validateTypedValue(type, value, fieldName) {
+            const bad = () => {
+                throw new Error("field '" + fieldName + "' expected " + type + ", got " + JSON.stringify(value));
+            };
+
+            switch (type) {
+                case 'number':
+                    if (typeof value != 'number') bad();
+                    break;
+                case 'boolean':
+                    if (typeof value != 'boolean') bad();
+                    break;
+                case 'object':
+                    if (!isobject(value)) bad();
+                    break;
+                case 'array':
+                    if (!isarray(value)) bad();
+                    break;
+            }
+
+            return value;
+        }
+
+        /**
+         * resolves + type-checks a single field from a raw string token
+         * (shared by V1 position-based and V2 name-based resolution, since
+         * both start from an unparsed string). `type: 'string'` skips
+         * jSonParser entirely -- a table named "123" must stay the string
+         * "123", not silently become the number 123.
+         * @param {*} def
+         * @param {*} raw
+         * @param {*} fieldName
+         */
+        function resolveTypedValue(def, raw, fieldName) {
+            if (raw === undefined) return def.default;
+            if (def.type == 'string') return String(raw);
+            const value = jSonParser(raw);
+            return def.type ? validateTypedValue(def.type, value, fieldName) : value;
+        }
+
+        /**
+         * resolve a schema-declared plugin's fields from an already-tokenized
+         * string query (array form, index 0 is the command name)
+         * @param {*} schema
+         * @param {*} rawTask
+         */
+        function resolveSchemaFromTokens(schema, rawTask) {
+            const values = rawTask.slice(1);
+            return Object.keys(schema).reduce((accum, key) => {
+                const def = schema[key];
+                if ('const' in def) {
+                    accum[key] = def.const;
+                } else if (def.flag) {
+                    accum[key] = values.some(v => typeof v == 'string' && v.toLowerCase() === key.toLowerCase());
+                } else if (def.rest) {
+                    const slice = values.slice(def.position - 1);
+                    accum[key] = def.raw ? slice : slice.map(v => jSonParser(v));
+                } else {
+                    accum[key] = resolveTypedValue(def, values[def.position - 1], key);
+                }
+                return accum;
+            }, {});
+        }
+
+        /**
+         * resolve a schema-declared plugin's fields from a canonical object task
+         * e.g. { command: 'insert', table: 'users', data: {...}, ignoreSync: true }
+         * @param {*} schema
+         * @param {*} taskObject
+         */
+        function resolveSchemaFromObject(schema, taskObject) {
+            return Object.keys(schema).reduce((accum, key) => {
+                const def = schema[key];
+                const value = taskObject[key];
+                if ('const' in def) {
+                    accum[key] = def.const;
+                } else if (def.flag) {
+                    accum[key] = !!value;
+                } else if (value === undefined) {
+                    accum[key] = def.default;
+                } else if (def.type == 'string') {
+                    accum[key] = typeof value == 'string' ? value : String(value);
+                } else {
+                    accum[key] = def.type ? validateTypedValue(def.type, value, key) : value;
+                }
+                return accum;
+            }, {});
+        }
+
+        /**
+         * resolve a schema-declared plugin's fields from a V2 query
+         * (`command --name=value --flag`), already split into a flat
+         * { name: value|true } map by QueryBuilder.parseV2.
+         *
+         * V2 has no positional concept, so `position` is ignored here --
+         * fields are looked up by their own schema key instead. A field
+         * marked `rest: true` collects every flag NOT explicitly declared
+         * in the schema, reformatted as "name(value)" strings so existing
+         * raw-token consumers (e.g. QueryBuilder.buildSelectQuery, used by
+         * the 'select' plugin) don't need to change to understand V2 input.
+         * There's no positional equivalent for a rest field's *order*, so
+         * this only makes sense for schemas whose rest field is itself a
+         * bag of independently-named clauses (like 'select'); a plugin
+         * whose rest args are meaning-by-position (like 'alter') will not
+         * resolve correctly from V2 input yet.
+         * @param {*} schema
+         * @param {*} flags
+         */
+        function resolveSchemaFromNamedTokens(schema, flags) {
+            const declaredNames = Object.keys(schema);
+            const restKey = declaredNames.find(key => schema[key].rest);
+
+            const task = declaredNames.reduce((accum, key) => {
+                const def = schema[key];
+                if (def.rest) return accum;
+                if ('const' in def) {
+                    accum[key] = def.const;
+                } else if (def.flag) {
+                    accum[key] = key in flags;
+                } else {
+                    const raw = flags[key];
+                    accum[key] = resolveTypedValue(def, raw === true ? undefined : raw, key);
+                }
+                return accum;
+            }, {});
+
+            if (restKey) {
+                task[restKey] = Object.keys(flags)
+                    .filter(name => !declaredNames.includes(name))
+                    .map(name => flags[name] === true ? name : `${name}(${flags[name]})`);
+            }
+
+            return task;
+        }
+
+        /**
+         * @param {*} taskToPerform
+         * @param {*} taskPerformerHandler
+         * @param {*} context
+         * @param {*} response
+         */
+        function performTask(taskToPerform, taskPerformerHandler, context, response) {
+            try {
+                const isObjectTask = isobject(taskToPerform);
+                // a task can be a function of the previous task's response
+                // (chained multi-task queries); resolve that once, up front,
+                // so both the V1 and V2 parsers see a plain string
+                const queryStr = isObjectTask ? null :
+                    (typeof taskToPerform == 'function' ? taskToPerform(response) : taskToPerform);
+
+                const isV2 = !isObjectTask && QueryBuilder.isV2Query(queryStr);
+                const v2 = isV2 ? QueryBuilder.parseV2(queryStr, params) : null;
+                const rawTask = (!isObjectTask && !isV2) ? QueryBuilder.queryParser(queryStr, params) : null;
+
+                const taskType = (isObjectTask ? (taskToPerform.command || '') : (isV2 ? v2.command : (rawTask[0] || ''))).toLowerCase();
+                const taskPerformerObj = Database.plugins.get(taskType);
+
+                if (!taskPerformerObj) {
+                    return taskPerformerHandler.onError(dbErrorPromiseObject("Invalid command passed, use -help for help"));
+                }
+
+                if (taskPerformerObj.disabled) {
+                    return taskPerformerHandler.onError(dbErrorPromiseObject("command is disabled, to use command please enable it."));
+                }
+
+                const providedParamCount = isObjectTask ? Object.keys(taskToPerform).length :
+                    isV2 ? Object.keys(v2.flags).length + 1 : rawTask.length;
+                if (taskPerformerObj.requiresParam && providedParamCount < 2) {
+                    return taskPerformerHandler.onError(dbErrorPromiseObject("command requires parameters but got none,\n type help -[command]"));
+                }
+
+                let task;
+                if (taskPerformerObj.schema) {
+                    task = isObjectTask ? resolveSchemaFromObject(taskPerformerObj.schema, taskToPerform) :
+                        isV2 ? resolveSchemaFromNamedTokens(taskPerformerObj.schema, v2.flags) :
+                        resolveSchemaFromTokens(taskPerformerObj.schema, rawTask);
+                    task.command = taskType;
+                } else {
+                    task = isObjectTask ? taskToPerform : (isV2 ? v2.flags : rawTask);
+                }
+
+                taskPerformerObj.fn(task, taskPerformerHandler)(context);
+            } catch (e) {
+                taskPerformerHandler.onError(e);
+            }
+        }
+        /**
+         * 
+         * @param {*} context 
+         */
+        function startMultipleTask(context) {
+            let index = 0;
+            const taskPerformerHandler = Object({
+                onSuccess: next,
+                onError: next
+            });
+
+            const responses = [];
+            function next(res) {
+                index++;
+                responses.push(res);
+                if (tasks.length > index) {
+                    performTask(tasks[index], taskPerformerHandler, context, res);
+                } else {
+                    handler.onSuccess(responses);
+                }
+            }
+
+            performTask(tasks[index], taskPerformerHandler, context);
+        }
+    }
+}
+
+
+
 /**
  * 
  * @param {*} name 
  * @param {*} version 
  */
-class DatabaseInstance {
+class DatabaseInstance extends BaseInstance {
     static createInstance(name, version, existing) {
         return new this(name, version, existing);
     }
@@ -15,6 +365,7 @@ class DatabaseInstance {
      * @param {*} existing
      */
     constructor(name, version, existing) {
+        super();
         //set the DB name for reference
         this.name = name;
         this.version = version;
@@ -48,53 +399,6 @@ class DatabaseInstance {
         if (!definition.name) {
             definition.name = this.name + "_copy";
         }
-    };
-
-    /**
-     * 
-     * @param {*} URL
-     * @param {*} postData 
-     * @param {*} tbl 
-     * @param {*} method
-     * requestState can either be a STRING or OBJECT 
-     * { 
-     *   path:STRING,
-     *   tbl:String,
-     *   AUTH_TYPE:Boolean,
-     *   METHOD:STRING, data:ANY,
-     *   cache: boolen|{cacheId:string,ttl:number}
-     * }
-     */
-    api(path, data) {
-        const options = isobject(path) ? path : { path, data };
-        const httpRequestOptions = privateApi.buildHttpRequestOptions(this.name, options);
-        // no request Match found
-        if (httpRequestOptions.isErrorState) {
-            console.log('Invalid or missing api: ' + options.path);
-            return Promise.reject({ message: "There was an error please try again later" });
-        }
-
-        // set the postData
-        if (options.data) {
-            if (httpRequestOptions.type && isequal(httpRequestOptions.type.toLowerCase(), 'get')) {
-                httpRequestOptions.data = options.data;
-            } else if (options.data instanceof FormData) {
-                // append all data into formData
-                for (var prop in httpRequestOptions.data) {
-                    options.data.append(prop, httpRequestOptions.data[prop]);
-                }
-                httpRequestOptions.data = options.data;
-                httpRequestOptions.contentType = false;
-                httpRequestOptions.processData = false;
-            } else {
-                httpRequestOptions.data = options.data;
-            }
-        }
-
-        return privateApi.$http(httpRequestOptions).then(
-            res => dbSuccessPromiseObject('api', res), 
-            err => (err || { message: "There was an error please try again later" })
-        );
     }
 
     table(tableName, mode) {
@@ -107,7 +411,7 @@ class DatabaseInstance {
         return tableInstance;
     }
 
-    truncate(syncToServer){
+    truncate(syncToServer) {
         return new Promise((resolve, reject) => {
             const databaseInstance = privateApi.getActiveDB(this.name);
             const _resource = databaseInstance.get(constants.RESOURCEMANAGER);
@@ -121,8 +425,8 @@ class DatabaseInstance {
             if (!syncToServer) {
                 resolve(dbSuccessPromiseObject('truncateDB', 'Database truncated successfully.'));
             } else {
-                this.api({ path: '/v2/database/truncate'})
-                    .then(res => resolve(dbSuccessPromiseObject('truncateDB', res.result)) , err => reject(dbErrorPromiseObject('truncateDB', err)))
+                this.api({ path: '/v2/database/truncate' })
+                    .then(res => resolve(dbSuccessPromiseObject('truncateDB', res.result)), err => reject(dbErrorPromiseObject('truncateDB', err)))
             }
         });
     }
@@ -251,63 +555,25 @@ class DatabaseInstance {
     }
 
     onUpdate(realtimeConfig) {
-        var socketEnabled = privateApi.getConfigData('enableSocket', this.name);
-        var _realtimeConfig = Object.assign({
+        const socketEnabled = privateApi.getConfigData('enableSocket', this.name);
+        const _realtimeConfig = Object.assign({
             type: 'db',
             dbName: this.name,
             socketEnabled: socketEnabled
         }, realtimeConfig || {});
 
-        var connector = this.getConnector('realtime-connector', _realtimeConfig);
+        const connector = this.getConnector('realtime-connector', _realtimeConfig);
         return connector;
     };
 
 
 
     getConnector(name, config) {
-        var connector = Database.connectors.use(name);
+        const connector = Database.connectors.use(name);
         return new connector(config, this._isExisting);
     }
 
-    /**
-     * 
-     * @param {*} flag 
-     */
-    close(flag) {
-        //drop the DB if allowed
-        return privateApi.closeDB(this.name, flag);
-    }
 
-    /**
-     * get the DATABASE info
-     * loop through the tables 
-     * generate a new table Object containing the information of each tables
-     */
-    info() {
-        var tableSet = [],
-            tables = privateApi.get(this.name, 'tables');
-        if (tables) {
-            for (var tblName in tables) {
-                tableSet.push(copy({
-                    name: tblName,
-                    records: tables[tblName]._records,
-                    columns: tables[tblName].columns,
-                    primaryKey: tables[tblName].primaryKey,
-                    foreignKey: tables[tblName].foreignKey,
-                    allowedMode: tables[tblName].allowedMode,
-                    lastModified: tables[tblName].lastModified,
-                    index: tables[tblName].index,
-                    alias: tables[tblName].alias || '',
-                    policies: (tables[tblName].policies || {
-                        read: ['*'],
-                        write: ['*']
-                    })
-                }, true));
-            }
-        }
-
-        return tableSet;
-    }
 
     /**
      * 
@@ -336,13 +602,13 @@ class DatabaseInstance {
      * @param {*} transactions 
      * @returns 
      */
-    batchTransaction(transactions) {
+    batchTransaction(transactions, rollBackOnError = false) {
         return new Promise((resolve, reject) => {
             if (!transactions || !isarray(transactions)) {
                 throw new TransactionErrorEvent('BatchTransaction', 'nothing to commit or invalid transaction format');
             }
 
-            var tx = this.transaction(transactions.map(tx => tx.table), "write");
+            const tx = this.transaction(transactions.map(tx => tx.table), "write");
             function performTransaction(transaction) {
                 if (isequal(transaction.type, "insert")) {
                     tx.insert(transaction.data, transaction.hardInsert, transaction.table);
@@ -355,16 +621,16 @@ class DatabaseInstance {
 
             // perform transactions
             transactions.forEach(performTransaction);
-            var error = tx.getError();
-            var time = performance.now();
-            var ret = {
+            const error = tx.getError();
+            const time = performance.now();
+            const ret = {
                 state: "batch",
                 result: {
                     message: "Batch transaction complete"
                 }
             };
 
-            var final = passed => txRes => {
+            const final = passed => txRes => {
                 ret.result.transactions = txRes;
                 ret.timing = performance.now() - time;
                 if (!passed) return reject(ret);
@@ -383,20 +649,20 @@ class DatabaseInstance {
                 reject(ret);
                 tx.cleanup();
             } else {
-                tx.execute(false, true).then(final(true), final(false));
+                tx.execute(false, true, rollBackOnError).then(final(true), final(false));
             }
         });
 
     }
 
     rename(newName) {
-        var dbName = this.name;
+        const dbName = this.name;
         return new Promise((resolve, reject) => {
             /**
              * 
              * @param {*} res 
              */
-            var renameClient = (res) => {
+            const renameClient = (res) => {
                 privateApi.storageFacade.broadcast(dbName, DB_EVENT_NAMES.RENAME_DATABASE, [dbName, newName, () => {
                     // set the new name 
                     this.name = newName;
@@ -406,11 +672,11 @@ class DatabaseInstance {
                 }]);
             };
 
-            var resourceInstance = privateApi.getActiveDB(dbName).get(constants.RESOURCEMANAGER);
+            const resourceInstance = privateApi.getActiveDB(dbName).get(constants.RESOURCEMANAGER);
             if (isequal(dbName, newName)) {
                 failed({ message: newName + ' cannot be same as ' + dbName });
             } else {
-                var resource = resourceInstance.getResource();
+                const resource = resourceInstance.getResource();
                 if (resource && resource.lastSyncedDate) {
                     // rename from BE before  updating client 
                     this.api({ path: '/application/rename', data: { name: newName } })
@@ -434,21 +700,21 @@ class DatabaseInstance {
      * @returns 
      */
     export(table, type, title) {
-        var type = type || 'csv';
-        var exp = jExport.handlers[type](title, table == 'all');
-        var name = this.name;
+        type = type || 'csv';
+        const exp = jExport.handlers[type](title || this.name, table == 'all');
+        const name = this.name;
 
         function extractTableSchema(tableName) {
-            var tableSchema = privateApi.getTable(name, tableName);
+            const tableSchema = privateApi.getTable(name, tableName);
             if (!tableSchema) return false;
-            var tableData = privateApi.getTableData(name, tableName);
+            const tableData = privateApi.getTableData(name, tableName);
             //if export type was a JSON format
             if (['json', 'jql'].includes(type)) {
                 //put the json data
                 exp.put(tableSchema, tableData);
             } else {
                 //set label
-                exp.put(tableName, Object.keys((tableSchema.columns[0] || {})), tableData);
+                exp.put(tableName, Object.keys((tableSchema.columns[0] || {})).map(n => `${n}:${tableSchema.columns[0][n].type}`), tableData);
             }
 
             return true;
@@ -458,13 +724,12 @@ class DatabaseInstance {
             initialize: () => {
                 var notFound = false;
                 // export all table schematics and data
+                const skippedTables = [];
                 if (table == 'all') {
                     var tableNames = privateApi.getDBTableNames(name);
                     for (var tableName of tableNames) {
                         if (!extractTableSchema(tableName)) {
-                            notFound = true;
-                            console.log('Failed to extract ' + tableName + ', schema configuration not found');
-                            break;
+                            skippedTables.push(tableName);
                         }
                     }
                 } else {
@@ -474,6 +739,10 @@ class DatabaseInstance {
                 //Parse the data of its not an OBJECT
                 if (notFound) {
                     return dbErrorPromiseObject("unable to generate export, empty or invalid table provided");
+                }
+
+                if (skippedTables.length){
+                    console.log(`Failed to extract ${skippedTables}, schema(s) configuration not found`);
                 }
 
                 //close the exporter
@@ -489,14 +758,19 @@ class DatabaseInstance {
      * @param {*} handler 
      * @returns 
      */
-    import(table, isSchema, handler) {
-        var createTable = false;
-        var db = this;
+    import(table, isSchema = true, handler) {
+        // define handler
+        handler = Object.assign({
+            logService: errorBuilder,
+            onSelect: function () { },
+        }, handler || {});
+
+        const db = this;
         //check if handler
-        function processJQL(data, resolve) {
-            var total = data.length;
-            var start = 0;
-            var result = {
+        function processJQL(queries, resolve) {
+            const total = queries.length;
+            let start = 0;
+            const result = {
                 messages: []
             };
 
@@ -505,14 +779,14 @@ class DatabaseInstance {
                     return resolve(dbSuccessPromiseObject('import', "Completed without errors"));
                 }
 
-                var query = data[start];
+                const query = queries[start];
                 start++;
 
-                db.jQl(query).then(function (ret) {
+                db.jQl(query).then((ret) => {
                     handler.logService(ret.result.message);
                     process();
                 },
-                    function (err) {
+                    (err) => {
                         handler.logService(err.message + " on line : " + start);
                         process();
                     });
@@ -521,160 +795,123 @@ class DatabaseInstance {
             process();
         }
 
-        return new Promise((resolve, reject) => {
-            handler = Object.assign({
-                onSuccess: function (jdbSchemaData) {
-                    handler.logService('Writing DB schemas');
-                    // start JQL imortation
-                    if (typeof jdbSchemaData == 'string')
-                        return processJQL(jdbSchemaData, resolve);
-
-                    handler.logService('SchemaData:' + JSON.stringify(jdbSchemaData, null, 3));
-                    var schemaProcess = new CoreSchemaProcessService(db);
-                    // process the schemaData 
-                    // when insert data mode
-                    if (Array.isArray(jdbSchemaData) && table && !isSchema) {
-                        jdbSchemaData = {
-                            [table]: {
-                                type: 'crud',
-                                transactions: [{
-                                    type: 'insert',
-                                    data: jdbSchemaData
-                                }]
-                            }
-                        };
-                    }
-
-                    schemaProcess.process(jdbSchemaData, function () {
-                        schemaProcess.processCrud(logs => {
-                            handler.logService('Crud Logs:');
-                            while (logs.length) {
-                                var log = logs.shift();
-                                handler.logService(JSON.stringify(log, null, 3));
-                            }
-
-                            resolve(dbSuccessPromiseObject('import', "Completed without errors"));
-                        })
-                    });
-                },
-
-                onError: function (err) {
-                    handler.logService(err);
-                    reject(dbErrorPromiseObject("Completed with errors"));
-                },
-                unSelect: noFileSelected => {
-                    if (noFileSelected)
-                        reject(dbErrorPromiseObject('No file selected'));
-                },
-                logService: function (msg) {
-                    errorBuilder(msg)
-                },
-                onSelect: function () { },
-            }, handler || {});
-
-            return AutoSelectFile.start(handler);
-        });
-    }
-
-    jQl(tasks, handler, params) {
-        if (handler)
-            console.warn('Support for handler is deprecated and will be removed in next release.');
-
-        handler = handler || {};
-        return new Promise((resolve, reject) => {
-            handler.onSuccess = handler.onSuccess || resolve;
-            handler.onError = handler.onError || reject;
-            /**
-             * convert to tasks to allow
-             */
-            if (Array.isArray(tasks)) {
-                tasks = tasks.filter(task => !!task);
-                startMultipleTask(this);
+        const importSchema = function (content, type, resolve, reject) {
+            handler.logService('Writing DB schemas');
+            const importFormatFn = JImportHelper[type];
+            let jdbSchemaData = null;
+            if (type && importFormatFn) {
+                jdbSchemaData = importFormatFn(content);
             } else {
-                performTask(tasks, handler, this);
+                return reject("Unsupported File Format");
             }
-        });
 
-        /**
-         * @param {*} taskToPerform 
-         * @param {*} taskPerformerHandler 
-         * @param {*} context 
-         * @param {*} response 
-         */
-        function performTask(taskToPerform, taskPerformerHandler, context, response) {
-            var task = QueryBuilder.queryParser(taskToPerform, params, response);
-            var taskType = task[0].toLowerCase();
-            var taskPerformerObj = Database.plugins.get(taskType);
-
-            /**
-             * pardon failed handler definition
-             */
-
-            if (task && taskPerformerObj) {
-                if (taskPerformerObj.disabled) {
-                    taskPerformerHandler.error(dbErrorPromiseObject("command is disabled, to use command please enable it."));
-                } else if (taskPerformerObj.requiresParam && taskType.length < 2) {
-                    taskPerformerHandler.error(dbErrorPromiseObject("command requires parameters but got none,\n type help -[command]"));
-                } else {
-                    const collectValue = key => {
-                        if(typeof key == 'object'){
-                            if (key.startsWith){
-                                return task.reduce((accum, v) => {
-                                    if (typeof v == 'string' && v.startsWith(key.startsWith)){
-                                        accum.push(v)
-                                    }
-    
-                                    return accum;
-                                }, []);
-                            } else if (key.slice){
-                                return task.splice(key.slice.start, (key.slice.end || task.length))
-                            }
-                        }
-
-                        return key;
-                    }
-                    // map the query to the mapper object
-                    if (taskPerformerObj.map) {
-                        task = Object.keys(taskPerformerObj.map)
-                            .reduce((accum, key) => {
-                                const mValue = taskPerformerObj.map[key];
-                                return (accum[key] = (typeof mValue == 'number' ? jSonParser(task[mValue]) : collectValue(mValue)), accum);
-                            }, {});
-                    }
-
-                    try {
-                        taskPerformerObj.fn(task, taskPerformerHandler)(context);
-                    } catch (e) {
-                        taskPerformerHandler.onError(e);
-                    }
-                }
-            } else {
-                taskPerformerHandler.onError(dbErrorPromiseObject("Invalid command passed, use -help for help"));
+            // start JQL imortation
+            if (typeof jdbSchemaData == 'string') {
+                return processJQL(jdbSchemaData, resolve);
             }
-        }
-        /**
-         * 
-         * @param {*} context 
-         */
-        function startMultipleTask(context) {
-            var index = 0;
-            var taskPerformerHandler = Object({
-                onSuccess: next,
-                onError: next
+
+            handler.logService('SchemaData:' + JSON.stringify(jdbSchemaData, null, 3));
+            const schemaProcess = new CoreSchemaProcessService(db);
+            // process the schemaData 
+            // when insert data mode
+            if (Array.isArray(jdbSchemaData) && table && !isSchema) {
+                jdbSchemaData = {
+                    [table]: {
+                        type: 'crud',
+                        transactions: [{
+                            type: 'insert',
+                            data: jdbSchemaData
+                        }]
+                    }
+                };
+            }
+
+            schemaProcess.process(jdbSchemaData, function () {
+                schemaProcess.processCrud(logs => {
+                    handler.logService('Crud Logs:');
+                    while (logs.length) {
+                        handler.logService(JSON.stringify(logs.shift(), null, 3));
+                    }
+
+                    resolve(dbSuccessPromiseObject('import', "Completed without errors"));
+                })
             });
-            var responses = [];
-            function next(res) {
-                index++;
-                responses.push(res);
-                if (tasks.length > index) {
-                    performTask(tasks[index], taskPerformerHandler, context, res);
-                } else {
-                    handler.onSuccess(responses);
-                }
+        };
+
+        const readFile = (file, resolve, reject) => {
+            if (file) {
+                const reader = new FileReader();
+                // Read file into memory as UTF-8      
+                reader.readAsText(file);
+                // Handle errors load
+                reader.onload = function (event) {
+                    const fileType = file.name.split('.').pop();
+                    importSchema(event.target.result, fileType, resolve, reject);
+                };
+                reader.onerror = reject;
+            } else {
+                reject('No file selected');
+            }
+        };
+
+        const openFileSelector = (resolve, reject) => {
+            let fileSelected = false;
+            function eventBinder(e) {
+                fileSelected = true;
+                const file = this.files[0];
+                handler.onselect(file);
+                readFile(file, resolve, reject);
+                input.remove();
             }
 
-            performTask(tasks[index], taskPerformerHandler, context);
-        }
+            const input = document.createElement("input");
+            input.type = "file";
+            input.multiple = false;
+            input.addEventListener('change', eventBinder, false);
+            // add styling
+            input.style.top = "-10000px";
+            input.style.position = "absolute";
+            document.body.appendChild(input);
+            // attach event to document for focus
+            window.onfocus = function () {
+                setTimeout(function () {
+                    input.removeEventListener('change', eventBinder);
+                    input.remove();
+                    if (!fileSelected) {
+                        reject('No file selected');
+                    }
+                    handler.unselect(!handler.selectedFile);
+                }, 1000);
+            };
+            input.click();
+        };
+
+        return {
+            selectFile: () => {
+                return new Promise((resolve, reject) => {
+                    openFileSelector(resolve, function (err) {
+                        handler.logService(err);
+                        reject(dbErrorPromiseObject("Completed with errors"));
+                    });
+                });
+            },
+            fromFile: (file) => {
+                return new Promise((resolve, reject) => {
+                    readFile(file, resolve, function (err) {
+                        handler.logService(err);
+                        reject(dbErrorPromiseObject("Completed with errors"));
+                    });
+                });
+            },
+            fromText: (content, type) => {
+                return new Promise((resolve, reject) => {
+                    importSchema(content, type, resolve, function (err) {
+                        handler.logService(err);
+                        reject(dbErrorPromiseObject("Completed with errors"));
+                    });
+                });
+            }
+        };
     }
 
     syncAll(stopOnFailedTransaction) {
@@ -696,12 +933,12 @@ class DatabaseInstance {
                         .handleFailedRecords(tbl, tableRes.failed);
                 });
                 return res;
-            }, err => err);
+            }, err => Promise.reject(err));
     }
 
     sync(config) {
         return new Promise((resolve, reject) => {
-            var connector = this.getConnector('sync-connector', { name: this.name, version: this.version });
+            const connector = this.getConnector('sync-connector', { name: this.name, version: this.version });
             if (!connector) return reject('Failed to laod sync connector');
 
             connector
@@ -720,44 +957,23 @@ class DatabaseInstance {
  * Application login instance
  * used only when login is required
  */
-class DatabaseLoginInstance {
+class DatabaseLoginInstance  extends BaseInstance {
     constructor(name, version) {
+        super();
         this.name = name;
         this.version = version;
-        this.api = DatabaseInstanceApi;
     }
-
-    /**
-     * 
-     * @param {*} flag 
-     */
-    close(flag) {
-        //drop the DB if allowed
-        return privateApi.closeDB(this.name, flag);
-    };
 }
-
-
 
 /**
  * Application deleted instance
  * used only when applicated is deleted
  */
-class DatabaseDeletedInstance {
+class DatabaseDeletedInstance extends BaseInstance {
     constructor(name, version) {
+        super();
         this.name = name;
         this.version = version;
-        this.jQl = DatabaseInstanceJQL;
-        this.info = DatabaseInstanceInfo;
-    }
-
-    /**
-     * 
-     * @param {*} flag 
-     */
-    close(flag) {
-        //drop the DB if allowed
-        return privateApi.closeDB(this.name, flag);
     }
 }
 

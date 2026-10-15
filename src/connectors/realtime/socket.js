@@ -7,7 +7,7 @@ class SocketService {
         if (!(!!WebSocket)) {
             throw new Error('Browser does not support WebSocket, please fallback to Ajax Polling');
         }
-        this.channelsRepository = new Map();
+
         this.destroyed = false;
         this.events = new RealtimeSocketEvent();
         this.pingSent = false;
@@ -28,13 +28,14 @@ class SocketService {
         parentContext.events.on('disconnected', () => this.disconnect());
         this.connect();
     }
+    
     connect() {
         if (this.socket) return;
         /**
          *
          * @param {*} event
          */
-        var socketHeartBeat = () => {
+        const socketHeartBeat = () => {
             if (!this.socket) return;
             clearTimeout(this.timerId);
             this.pingSent = !this.pingSent;
@@ -46,8 +47,8 @@ class SocketService {
             }, this.options.socketPingTime);
         };
 
-        var socketEventHandler = (event) => {
-            var eventData = JSON.parse(event.data || '["' + event.type + '"]');
+        const socketEventHandler = (event) => {
+            const eventData = JSON.parse(event.data || '["' + event.type + '"]');
             if (eventData && typeof Array.isArray(eventData) && eventData.length) {
                 this.events.emit(eventData.shift(), eventData);
                 socketHeartBeat();
@@ -60,12 +61,12 @@ class SocketService {
                 // construct the domain
                 if (!['ws', '//'].includes(socketServerEndpoint.substring(0, 2))) {
                     // wss for secured connections
-                    var socketDomain = (this.parentContext.socketDomain || `${location.protocol == 'http' ? 'ws' : 'wss'}://${location.host}`);
+                    const socketDomain = (this.parentContext.socketDomain || `${location.protocol == 'http' ? 'ws' : 'wss'}://${location.host}`);
                     socketServerEndpoint = `${socketDomain}${socketServerEndpoint}`;
                 }
                 this.socket = new WebSocket(socketServerEndpoint, this.options.socketSubProtocols);
                 // register core events
-                for (var eventName of this.eventList) {
+                for (const eventName of this.eventList) {
                     this.socket.addEventListener(eventName, socketEventHandler, false);
                 }
             }
@@ -108,11 +109,15 @@ class SocketService {
             })
             .on('pong', () => socketHeartBeat())
             .on('channel', (eventData) => {
-                var channel = this.createChannel(eventData, true);
-                channel.events.emit(eventData.type, [eventData]);
+                const channel = this.parentContext.getChannel(eventData.name);
+                if (channel){
+                    channel.events.emit(eventData);
+                }
+
                 socketHeartBeat();
             });
     }
+
     disconnect() {
         if (!this.socket) return;
         this.destroyed = true;
@@ -121,27 +126,7 @@ class SocketService {
         this.events._removeHandlers();
         clearTimeout(this.timerId);
     }
-    /**
-     * channelObj = {
-     *  channel: "NAME OF CHANNEL (required)",
-     *  recipients: [tokenId: "MUST MATCH THE TOKENID of the user(s) you want to commuicate with (userID)"],
-     *  data: "this will be sent to recipients, it could contain information about sender"
-     * }
-     * @param {*} channelObj
-     * @returns
-     */
-    createChannel(channelObj, disableSending) {
-        if (!this.channelsRepository.has(channelObj.channel)) {
-            this.channelsRepository.set(channelObj.channel, new SocketChannel(channelObj.channel, this));
-            if (!disableSending)
-                this.send('createchannel', channelObj);
-        }
 
-        return this.channelsRepository.get(channelObj.channel);
-    }
-    getChannel(channelName) {
-        return this.channelsRepository.get(channelName);
-    }
     /**
      *
      * @param {*} event
@@ -151,6 +136,7 @@ class SocketService {
         if (!this.socket) return;
         this.socket.send(JSON.stringify([event, data]));
     }
+
     push(data, recipients) {
         this.send('message', {
             recipients: recipients,

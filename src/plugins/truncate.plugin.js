@@ -3,9 +3,11 @@
 
  Database.plugins.jQl('truncate', {
      help: ['truncate -[tbl_name] -flag[[yes] : [no]]'],
-     map: {
-        table: 1,
-        flag: 2
+     schema: {
+        table: { position: 1, type: 'string' },
+        // not typed: help says "[yes] : [no]" but truncate() just does a
+        // truthy check, same reasoning as 'drop's flag field
+        flag: { position: 2 }
      },
      requiresParam: true,
      fn: truncatePluginFn
@@ -13,9 +15,9 @@
 
  Database.plugins.jQl('truncate-db', {
     help: ['truncate -dropFromServer[true|false]'],
-    map: {
-        dropFromServer: 1,
-        db: true
+    schema: {
+        dropFromServer: { position: 1, type: 'boolean' },
+        db: { const: true }
     },
     requiresParam: false,
     fn: truncatePluginFn

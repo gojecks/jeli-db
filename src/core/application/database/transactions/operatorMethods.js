@@ -109,4 +109,18 @@ class OperatorMethod {
 
         return matched;
     }
+
+    static $find(queryValue, expression){
+        if (!expression || !Array.isArray(expression) || !Array.isArray(queryValue)) return false;
+
+        for(const item of queryValue){
+            for(const exp of expression){
+                if (QueryTaskPerformer.checkConditions(exp, item)){
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }

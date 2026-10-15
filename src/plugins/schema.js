@@ -1,6 +1,12 @@
 Database.plugins.jQl('schema', {
     help: ['schema -export -loadfromserver[true|false]', 'schema -add -data'],
     requiresParam: true,
+    schema: {
+        action: { position: 1, type: 'string' },
+        // not typed: 'arg' is a server URL string for one action and
+        // arbitrary schemaData for another (see SchemaPluginFn below)
+        arg: { position: 2 }
+    },
     fn: SchemaPluginFn
 });
 
@@ -9,15 +15,15 @@ function SchemaPluginFn(query, handler) {
         try {
             var options = {
                 version: db.version,
-                server: query[2]
+                server: query.arg
             };
 
-            if (isequal(query[1], 'add')) {
-                options.schemaData = query[2];
+            if (isequal(query.action, 'add')) {
+                options.schemaData = query.arg;
             }
 
-            db.schema[query[1]](options).then(function(message) {
-                handler.onSuccess({ state: query[0], result: { message: message } });
+            db.schema[query.action](options).then(function(message) {
+                handler.onSuccess({ state: query.command, result: { message: message } });
             }, function(message) {
                 handler.onError({
                     message: message
