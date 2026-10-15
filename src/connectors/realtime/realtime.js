@@ -12,6 +12,7 @@ class RealtimeConnector {
      */
     constructor(options, isExistingMode) {
         this.isExistingDBMode = isExistingMode;
+        this.channelsRepository = new Map();
         this.options = Object.assign({
             url: "/database/updates",
             maxErrorCount: 10,
@@ -30,7 +31,7 @@ class RealtimeConnector {
             socketRedial: true,
             socketEnabled: false,
             socketTotalRedial: 3, // redial
-            socketPingTime: 300000, // 5min of inactivity
+            socketPingTime: 60000, // 1min of inactivity
             socketReconnectTime: 3000, // 3 seconds,
             socketSubProtocols: ['json']
         }, options || {});
@@ -46,6 +47,7 @@ class RealtimeConnector {
         this.destroyed = false;
         this.socketInstance = new SocketService(this);
     }
+
     /**
      *
      * @param {*} options
@@ -60,14 +62,18 @@ class RealtimeConnector {
         return new RealtimeConnector(options);
     }
 
+    static createPeer2Peer(options) {
+        return new SocketPeer2Peer(options);
+    }
+
     /**
      * 
      * @param {*} context 
      * @returns 
      */
     static getRequestData(context) {
-        var request = RealtimeConnector.coreApi.buildHttpRequestOptions(context.dbName, { path: context.options.url });
-        var data = this.generatePayload(context);
+        const request = RealtimeConnector.coreApi.buildHttpRequestOptions(context.dbName, { path: context.options.url });
+        const data = this.generatePayload(context);
         Object.assign(request, { data });
         return request;
     }
@@ -79,11 +85,11 @@ class RealtimeConnector {
      */
     static generatePayload(context) {
         // get payload, payload could be function that contains logic for generation
-        var payload = context.options.payload;
+        let payload = context.options.payload;
         if (typeof payload == 'function') payload = payload();
-        var dbName = context.dbName;
-        var _queryPayload = {};
-        var requestData = {};
+        const dbName = context.dbName;
+        let _queryPayload = {};
+        const requestData = {};
         // update type is DB
         if (context.ref == 'db') {
             if (!payload || payload.id) {
@@ -99,8 +105,8 @@ class RealtimeConnector {
         }
 
         // attach checksum only when existingDBMode
-        for (var ctbl in _queryPayload) {
-            var checkSum = { current: null, previous: null };
+        for (const ctbl in _queryPayload) {
+            let checkSum = { current: null, previous: null };
             if (context.isExistingDBMode) {
                 checkSum = RealtimeConnector.coreApi.getTableCheckSum(dbName, ctbl);
                 if (!checkSum.current) checkSum.previous = "";
@@ -190,7 +196,7 @@ class RealtimeConnector {
          *
          * @param {*} res
          */
-        var processResponse = res => {
+        const processResponse = res => {
             /**
              * store our socketServerEndpoint
              * to be used when client creates a socket
@@ -218,7 +224,7 @@ class RealtimeConnector {
         /**
          * error polling
          */
-        var errorPolling = fromError => {
+        const errorPolling = fromError => {
             if (this.errorCount >= this.options.maxErrorCount) {
                 this.pausePolling = true;
                 console.log('[Realtime] syncing paused due to maximumTrial threshold reached.');
@@ -254,7 +260,7 @@ class RealtimeConnector {
             return initiatePolling(timer);
         };
 
-        var pollCallback = () => {
+        const pollCallback = () => {
             // stop action if context is paused and no syncId defined
             if (this.pausePolling && !this.options.syncId) return;
             RealtimeConnector.coreApi.$http(RealtimeConnector.getRequestData(this))
@@ -263,7 +269,7 @@ class RealtimeConnector {
         };
 
         // pause all long polling
-        var _pausePolling = () => {
+        const _pausePolling = () => {
             this.pausePolling = true;
             clearTimeout(this.timerId);
         };
@@ -274,7 +280,7 @@ class RealtimeConnector {
          * @param {*} timer
          * @returns
          */
-        var initiatePolling = (timer) => {
+        const initiatePolling = (timer) => {
             if (this.destroyed) return;
             this.timerId = setTimeout(pollCallback, timer);
         };
@@ -286,6 +292,11 @@ class RealtimeConnector {
         this.events.on('socket.connected', () => {
             console.log('socket connected');
             this.socketConnected = true;
+            this.channelsRepository.forEach(channel => {
+                channel.events.emit({ type: 'connected' });
+                // re-join on every (re)connect - idempotent server-side, refreshes the roster
+                channel.handler.send('join');
+            });
             if (!this.options.syncId)
                 _pausePolling()
         })
@@ -293,8 +304,70 @@ class RealtimeConnector {
                 console.log('socket disconnected, starting socket reconnect..');
                 this.options.socketRedial = true;
                 this.pausePolling = false;
+                // disconnect socket for channels
+                this.channelsRepository.forEach(function (channel) {
+                    channel.events.emit({ type: 'closed' });
+                });
+
                 // start a new polling process to request a socket connection
                 initiatePolling();
             });
+    }
+
+
+    joinChannel(name, userId) {
+        if (!name || !userId) throw new Exception('Name and userId are required to connect to channel');
+        if (!this.channelsRepository.has(name)) {
+            // channel handler object
+            const channel = new SocketChannel(name, {
+                send: (type, data = null, ephemeral = false, notify = false) => {
+                    const event = { userId, name, type, data };
+                    if (ephemeral) event.ephemeral = true;
+                    if (notify) event.notify = true;
+                    if (this.socketConnected) {
+                        this.socketInstance.send('channel', event);
+                    } else {
+                        // no channel to connect to
+                        channel.events.emit({ type: 'error', message: 'No socket connection active' });
+                    }
+                },
+                remove: () => {
+                    channel.handler.send('leave');
+                    this.channelsRepository.delete(name);
+                }
+            });
+
+            this.channelsRepository.set(name, channel);
+            // send out event
+            channel.handler.send('join');
+        };
+
+        return this.channelsRepository.get(name);
+    }
+
+    getChannel(channelName) {
+        return this.channelsRepository.get(channelName);
+    }
+
+    /**
+     * channelObj = {
+     *  channel: "NAME OF CHANNEL (required)",
+     *  author: userId,
+     *  recipients: [tokenId: "MUST MATCH THE TOKENID of the user(s) you want to commuicate with (userID)"],
+     *  data: "this will be sent to recipients, it could contain information about sender"
+     * }
+     * @param {*} channelObj
+     * @returns
+     */
+    createChannel(channelObj, disableSending) {
+        if (!this.channelsRepository.has(channelObj.name)) {
+            this.channelsRepository.set(channelObj.name, new SocketChannel(channelObj.name, this));
+            if (!disableSending) {
+                channelObj.type = 'create';
+                this.send('channel', channelObj);
+            }
+        }
+
+        return this.channelsRepository.get(channelObj.name);
     }
 }

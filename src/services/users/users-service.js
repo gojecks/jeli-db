@@ -3,35 +3,35 @@
  * @param {*} dbInstance 
  */
 class UserService {
-    constructor(dbInstance) {
-        this.request = payload => dbInstance.api(payload);
-        this.password = new UserPasswordService(this.request);
+    constructor(fetchApi) {
+        this.fetch = fetchApi;
+        this.password = new UserPasswordService(fetchApi);
     }
     
-    add(uInfo) {
+    add(uInfo, withClient = null) {
         //Put the Data
         //use the db API Method
-        return this.request({ path: '/user', data: Object.assign({ time: (+new Date) }, uInfo), method: 'POST' })
-            .then(res => new AddUserEventInstance(res), err => err);
+        return this.fetch({ path: '/user', data: Object.assign({ time: (+new Date) }, uInfo), method: 'POST', withClient })
+            .then(res => new AddUserEventInstance(res), err => Promise.reject(err));
     }
     
-    remove(userRef) {
-        return this.request({ path: '/user', data: [userRef], method: 'DELETE' });
+    remove(userRef, withClient = null) {
+        return this.fetch({ path: `/user/${userRef}`, method: 'DELETE', withClient });
     }
     
-    update(userData) {
+    update(userData, withClient = null) {
         //post our request to server
-        return this.request({ path: '/user', data: userData, method: 'PUT' });
+        return this.fetch({ path: `/user/${userData._id || userData.userId}`, data: userData, method: 'PUT', withClient });
     }
 
-    isExists(queryData) {
-        return this.request({ path: '/user/exists', data: queryData })
-            .then((res) => (res.result), err => err);
+    isExists(data, withClient = null) {
+        return this.fetch({ path: '/user/exists', data, withClient })
+            .then((res) => (res.result), err => Promise.reject(err));
     }
     
-    authorize(queryData) {
-        return this.request({ path: '/user/authorize', data: queryData })
-            .then(res => (new AuthorizeUserSuccessInstance(res.result || res)) , err => err);
+    authorize(data, withClient = null) {
+        return this.fetch({ path: '/user/authorize', data, withClient })
+            .then(res => (new AuthorizeUserSuccessInstance(res.result || res)) , err => Promise.reject(err));
     }
     /**
      *
@@ -39,29 +39,29 @@ class UserService {
      * @returns
      */
     reAuthorize(data) {
-        return this.request({ path: '/user/reauthorize', data });
+        return this.fetch({ path: '/user/reauthorize', method: 'POST', data });
     }
     /**
      * api to query users table
-     * @param {*} queryData
+     * @param {*} data
      * @returns
      */
-    search(queryData) {
-        return this.request({ path: '/user/search', data: queryData });
+    search(data, withClient = null) {
+        return this.fetch({ path: '/user/search', method: 'POST', data, withClient });
     }
     /**
      *
      * @param {*} postData
      */
     removeAuthority(postData) {
-        return this.request({ path: '/database/user/remove', data: postData });
+        return this.fetch({ path: '/database/user/remove', data: postData });
     }
     /**
      *
      * @param {*} postData
      */
     addAuthority(postData) {
-        return this.request({ path: '/database/user/add', data: postData });
+        return this.fetch({ path: '/database/user/add', data: postData });
     }
     /**
      *
@@ -77,7 +77,7 @@ class UserService {
      * @returns Promise
      */
     getOidcToken(data) {
-        return this.request({ path: '/user/openid/token', data })
-            .then(res => this.createAuthorizeInstance(res.result || res), err => err);
+        return this.fetch({ path: '/user/openid/token', data })
+            .then(res => this.createAuthorizeInstance(res.result || res), err => Promise.reject(err));
     }
 };

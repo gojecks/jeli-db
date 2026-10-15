@@ -1,6 +1,7 @@
 Database.plugins.jQl('cs', {
     help: ['cs  '],
     requiresParam: true,
+    schema: {},
     fn: csPluginFn
 });
 

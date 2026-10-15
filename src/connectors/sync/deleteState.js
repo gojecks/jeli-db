@@ -1,21 +1,68 @@
-/**
- * 
- * @param {*} appName 
- * @param {*} deleteRecords 
- * @param {*} serverResource 
- */
-function deleteSyncState(appName, deleteRecords, serverResource) {
+
+class DeleteSyncState {
+     static mainProcess(appName, deleteRecords, serverResource) {
+        let api = '/database/table/drop';
+        let data = deleteRecords.table;
+        let message = `Droping ${JSON.stringify(Object.keys(data))} Tables from the server`;
+        let taskName = "table";
+        //check if database was remove from client
+        if (deleteRecords.database[appName]) {
+            api = '/database/drop';
+            data = deleteRecords.database;
+            message = `Droping ${appName} Application from the server`;
+            taskName = "database";
+        }
+
+
+        /**
+         * Process renamed Tables before deleting
+         */
+        const _renamedTables = Object.keys(deleteRecords.rename);
+        if ((taskName == 'table') && _renamedTables.length) {
+            syncHelper.setMessage(`Renaming Tables(${JSON.stringify(_renamedTables)}) on the server`);
+            request('/database/table/rename', { renamed: deleteRecords.rename })
+                .then(res => {
+                    DeleteSyncState.cleanUp(appName, deleteRecords, 'rename', res);
+                    mainRequest()
+                }, res => DeleteSyncState.fail(appName, res));
+            return;
+        }
+
+        /**
+         * 
+         * @param {*} path 
+         * @param {*} ref 
+         * @param {*} data 
+         */
+        function request(path, data) {
+            return syncHelper.request(appName, path, null, data);
+        }
+
+        function mainRequest() {
+            if (!Object.keys(data).length) {
+                return DeleteSyncState.done(appName, deleteRecords, serverResource, taskName);
+            }
+            //set message to our console
+            syncHelper.setMessage(message);
+            request(api, { remove: data }).then(
+                res => DeleteSyncState.done(appName, deleteRecords, serverResource,  taskName, res), 
+                res => DeleteSyncState.fail(appName, res));
+        }
+
+        mainRequest();
+    }
+
     /**
      * 
      * @param {*} task 
      * @param {*} res 
      */
-    function cleanUp(task, res) {
-        var delRecordName = DatabaseSyncConnector.coreApi.storeMapping.delRecordName;
-        var delRecordManager = DatabaseSyncConnector.coreApi.storageFacade.get(delRecordName, appName);
-        var resData = res.renamed || res.removed;
-        var totalTask = Object.keys(deleteRecords[task]);
-        var isDataBaseTask = ('database' == task) && resData[appName];
+    static cleanUp(appName, deleteRecords, task, res) {
+        const delRecordName = DatabaseSyncConnector.coreApi.storeMapping.delRecordName;
+        const delRecordManager = DatabaseSyncConnector.coreApi.storageFacade.get(delRecordName, appName);
+        const resData = res.renamed || res.removed;
+        const totalTask = Object.keys(deleteRecords[task]);
+        const isDataBaseTask = ('database' == task) && resData[appName];
         // check if records are fully processed
         totalTask.forEach(taskName => {
             if (resData.hasOwnProperty(taskName)) {
@@ -58,17 +105,15 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
                     .reset();
             }
         }
-
-        delRecordManager = resData = null;
     }
 
     /**
      * 
      * @param {*} taskName 
      */
-    function done(taskName, res){
+    static done(appName, deleteRecords, taskName, res){
         if (res) {
-            cleanUp(taskName, res);
+            this.cleanUp(appName, deleteRecords, taskName, res);
         }
 
         if (taskName != 'database') {
@@ -78,70 +123,13 @@ function deleteSyncState(appName, deleteRecords, serverResource) {
         }
     }
 
-    function fail(res) {
+    static fail(appName, res) {
         if (res.data && res.data.removed) {
-            for (var tblName in res.data.removed) {
+            for (let tblName in res.data.removed) {
                 syncHelper.setMessage(res.data.removed[tblName].message || "Unable to perform requested action.");
             }
         }
         syncHelper.setMessage('Failed to synchronize, please try again');
         syncHelper.killState(appName);
     }
-
-
-    /**
-     * Main sync Process
-     */
-    function mainProcess() {
-        var api = '/database/table/drop';
-        var data = deleteRecords.table;
-        var message = `Droping ${JSON.stringify(Object.keys(data))} Tables from the server`;
-        var taskName = "table";
-        //check if database was remove from client
-        if (deleteRecords.database[appName]) {
-            api = '/database/drop';
-            data = deleteRecords.database;
-            message = `Droping ${appName} Application from the server`;
-            taskName = "database";
-        }
-
-
-        /**
-         * Process renamed Tables before deleting
-         */
-        var _renamedTables = Object.keys(deleteRecords.rename);
-        if ((taskName == 'table') && _renamedTables.length) {
-            syncHelper.setMessage(`Renaming Tables(${JSON.stringify(_renamedTables)}) on the server`);
-            request('/database/table/rename', { renamed: deleteRecords.rename })
-                .then(res => {
-                    cleanUp('rename', res);
-                    mainRequest()
-                }, fail);
-            return;
-        }
-
-        /**
-         * 
-         * @param {*} path 
-         * @param {*} ref 
-         * @param {*} data 
-         */
-        function request(path, data) {
-            return syncHelper.request(appName, path, null, data);
-        }
-
-        function mainRequest() {
-            if (!Object.keys(data).length) {
-                return done(taskName);
-            }
-            //set message to our console
-            syncHelper.setMessage(message);
-            request(api, { remove: data }).then(res => done(taskName, res), fail);
-        }
-
-        mainRequest();
-    }
-
-    // get the Application API
-    mainProcess();
 }

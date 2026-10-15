@@ -10,8 +10,9 @@ class JImportHelper {
      */
     static generateColumns(data) {
         return data.reduce((accum, col) => {
-            accum[col] = {
-                type:'VARCHAR'
+            const [name,type] = col.split(':');
+            accum[name] = {
+                type: type || 'VARCHAR'
             };
             return accum
         }, {});
@@ -23,11 +24,8 @@ class JImportHelper {
      * @param {*} column 
      */
     static constructData(data, columns){
-        var ref = data.unshift();
-        return columns.reduce((accum, column, idx) => (accum._data[column] = JSON.parse(data[idx] || 'null'), accum), {
-            _ref: ref,
-            _data: {}
-        });
+        const ref = data.unshift();
+        return columns.reduce((accum, column, idx) => (accum[column] = JSON.parse(data[idx] || 'null'), accum), {});
     }
 
     static json(content){
@@ -35,16 +33,16 @@ class JImportHelper {
     }
 
     static html(content) {
-        var div = document.createElement('div');
+        const div = document.createElement('div');
         div.innerHTML = content;
-        var tables = div.querySelectorAll('table');
-        var jdbSchemaData = {};
-        var getTrData = tds => Array.from(tds).map(col => col.textContent);
+        const tables = div.querySelectorAll('table');
+        const jdbSchemaData = {};
+        const getTrData = tds => Array.from(tds).map(col => col.textContent);
         tables.forEach(table => {
-            var tableName = table.id;
+            const tableName = table.id;
             jdbSchemaData[tableName] = {};
-            var trs = Array.from(table.querySelectorAll('tr'));
-            var columns = getTrData(trs.shift().childNodes);
+            const trs = Array.from(table.querySelectorAll('tr'));
+            const columns = getTrData(trs.shift().childNodes);
             // remove the ref column
             columns.shift();
             jdbSchemaData[tableName] = {
@@ -67,15 +65,15 @@ class JImportHelper {
     }
 
     static csv(content) {
-        var jdbSchemaData = {};
-        var tableEntries = content.split('--table entries--');
-        tableEntries.forEach(tableEntry => {
-            var rows = tableEntry.split(/\r\n|\n/);
+        const jdbSchemaData = {};
+        content.split('--table entries--').forEach(tableEntry => {
+            const rows = tableEntry.split(/\r\n|\n/);
             var tableName = '';
-            var columns = null;
-            var data = [];
+            let columns = null;
+            const data = [];
+
             while(rows.length){
-                var row = rows.pop().trim();
+                let row = rows.pop().trim();
                 if (!row) continue;
                 row = row.split(',');
                 // entry
@@ -115,8 +113,6 @@ class JImportHelper {
     }
 
     static jql(content) {
-        return content.split(/\r\n|\n/).filter(function(text) {
-            return text.trim().substr(0, 2) !== "/*"
-        });
+        return content.split(/\r\n|\n/).filter(text => (text.trim().substr(0, 2) !== "/*"));
     }
 }

@@ -152,9 +152,10 @@ function inarray(a, b) {
  */
 function jSonParser(str) {
     try {
-        str = JSON.parse(str);
-    } catch (e) { }
-    return str;
+        return JSON.parse(str);
+    } catch (e) {
+        return str;
+    }
 }
 
 //@Function extend

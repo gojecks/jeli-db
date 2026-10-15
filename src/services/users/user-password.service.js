@@ -13,7 +13,7 @@ class UserPasswordService {
 
     validateCode(requestBody) {
         return this.request({ path: "/password/code/validate", data: requestBody })
-            .then(res => new AuthorizeUserSuccessInstance(res.result || res), err => err);
+            .then(res => new AuthorizeUserSuccessInstance(res.result || res), err => Promise.reject(err));
     }
 
     validate(postData) {

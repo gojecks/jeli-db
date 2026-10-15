@@ -4,43 +4,45 @@
  * @param {*} socketContext 
  */
 class SocketChannel {
-    constructor(channelName, socketContext) {
+    constructor(channelName, handler) {
         this.channelName = channelName;
         // list of repicients in this channel
         this.recipients = [];
-        this.socketContext = socketContext;
-        this.events = (new RealtimeSocketEvent);
+        this.handler = handler;
+        this.events = new Subscription();
     }
     /**
      *
      * @param {*} eventName
      * @param {*} eventData
+     * @param {*} ephemeral - skip the server's durable retry-on-reconnect queue (presence/cursor-style data)
+     * @param {*} notify - server-side flag read at the top level of the wire event, not off eventData (see unsubscribe/leave)
      */
-    send(eventData) {
-        eventData.name = this.channelName;
-        this.socketContext.send('channel', eventData);
+    send(eventData, type = 'message', ephemeral = false, notify = false) {
+        this.handler.send(type, eventData, ephemeral, notify);
     }
-    destroy(message) {
-        this.send({ type: "unsubscribe", message: message });
-        this.events._removeHandlers();
-        this.socketContext.channels.delete(this.channelName);
+
+    // notify defaults true - the server stays silent about a leave unless this is set
+    destroy(message, notify = true) {
+        this.send({ message }, 'unsubscribe', false, notify)
+        this.handler.remove();
     }
     /**
      *
      * @param {*} recipients
      * @param {*} data
      */
-    invite(recipients, data) {
+    invite(recipients, message) {
         if (Array.isArray(recipients) && recipients.length) {
             this.send({
-                type: "invite",
                 recipients: recipients,
-                data: data
-            });
+                nessage
+            }, 'invite');
         }
     }
-    push(message) {
-        this.send({ message: message, type: "message" });
+
+    push(message, ephemeral = false) {
+        this.send({ message }, 'message', ephemeral);
     }
 }
 

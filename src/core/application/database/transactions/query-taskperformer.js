@@ -55,10 +55,10 @@ class QueryTaskPerformer {
         var len = 0;
         var matchFound = 0;
         while (data.length > len) {
-            if (limit && matchFound == limit){
+            if (limit && matchFound == limit) {
                 return searchResult;
             }
-                
+
             if (logicPerformer(data[len], len)) {
                 matchFound++;
                 callback(data[len], len);
@@ -77,17 +77,17 @@ class QueryTaskPerformer {
         var totalCond = conditions.length;
 
         while (data.length > len) {
-            if (limit && matchFound == limit){
+            if (limit && matchFound == limit) {
                 break;
             }
-            
-            for(var i = 0; i < totalCond; i++){
+
+            for (var i = 0; i < totalCond; i++) {
                 if (conditions[i](data[len], len)) {
                     matchFound++;
                     callback(data[len], len, i);
                 }
             }
-            
+
             len++;
         }
     }
@@ -101,32 +101,14 @@ class QueryTaskPerformer {
     static externalQuery(logic, replacer) {
         function objectQueryTaskPerformer(item) {
             if (logic.byRefs) {
-                return logic.byRefs.includes(item._ref);
+                return logic.byRefs.includes(item._ref || item._id);
             }
 
             //Loop through the logic
             //match found item
-            var conditionValue = item._data || item;
-            var checkConditions = function (condition) {
-                if (isfunction(condition)) {
-                    return condition(conditionValue);
-                }
-
-                for (var key in condition) {
-                    // multiple fields matcher
-                    if (key.includes(':')){
-                        if (!key.split(':').some(field => QueryTaskPerformer.match(condition[key], modelGetter(field, conditionValue), conditionValue))){
-                            return false;
-                        }
-                    } else if (!QueryTaskPerformer.match(condition[key], modelGetter(key, conditionValue), conditionValue)) {
-                        return false;
-                    }
-                }
-
-                return true;
-            };
-
-            return logic.some(checkConditions);
+            // record compactibility support
+            const conditionValue = item._data || item;
+            return logic.some(condition => QueryTaskPerformer.checkConditions(condition, conditionValue));
         }
 
         if (!isempty(logic)) {
@@ -154,6 +136,25 @@ class QueryTaskPerformer {
         }
     }
 
+    static checkConditions(condition, conditionValue) {
+        if (isfunction(condition)) {
+            return condition(conditionValue);
+        }
+
+        for (var key in condition) {
+            // multiple fields matcher
+            if (key.includes(':')) {
+                if (!key.split(':').some(field => QueryTaskPerformer.match(condition[key], modelGetter(field, conditionValue), conditionValue))) {
+                    return false;
+                }
+            } else if (!QueryTaskPerformer.match(condition[key], modelGetter(key, conditionValue), conditionValue)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * 
      * @param {*} condition 
@@ -165,7 +166,7 @@ class QueryTaskPerformer {
         if (isfunction(condition)) {
             return condition(fieldValue, item);
         } else if (isobject(condition)) {
-            var recordValue = modelGetter(condition.value, item) || condition.value;
+            var recordValue = modelGetter(condition.value, item) ?? condition.value ?? condition.expressions;
             return OperatorMethod._call(condition.type, fieldValue, recordValue);
         } else if (isobject(fieldValue)) {
             return jsonMatcher(condition, fieldValue);
@@ -193,12 +194,12 @@ class QueryTaskPerformer {
                     modelSetter(exp.key, record, arr);
                 }
 
-                if (exp.value){
+                if (exp.value) {
                     var values = !Array.isArray(exp.value) ? [exp.value] : exp.value;
                     var uniqueKeys = (exp.uniqueKey ? arr.map(t => t[exp.uniqueKey]) : []);
-                    for(var value of values){
+                    for (var value of values) {
                         var checkValue = ((typeof value == 'string') ? value : value[exp.uniqueKey] || '~');
-                        if (!uniqueKeys.length || !uniqueKeys.includes(checkValue)){
+                        if (!uniqueKeys.length || !uniqueKeys.includes(checkValue)) {
                             arr.push(value);
                         }
                     }
@@ -234,7 +235,7 @@ class QueryTaskPerformer {
                     var len = arr.length;
                     while (len--) {
                         if (executor(arr[len])) {
-                            if (exp.repl){
+                            if (exp.repl) {
                                 arr[len] = exp.value;
                             } else {
                                 Object.assign(arr[len], exp.value);

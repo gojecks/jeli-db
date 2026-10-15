@@ -26,9 +26,9 @@ class TableAlterInstance {
         }
 
         //reconstruct the table
-        TableAlterAddInstance.constructTable(function (row) {
-            if (row._data.hasOwnProperty(columnName)) {
-                delete row._data[columnName];
+        TableAlterAddInstance.constructTable(row => {
+            if (row.hasOwnProperty(columnName)) {
+                delete row[columnName];
             }
         }, this.tableInfo);
 
@@ -79,10 +79,10 @@ class TableAlterInstance {
         });
 
         //reconstruct the table data
-        TableAlterAddInstance.constructTable(function (row) {
-            if (row._data.hasOwnProperty(oldName)) {
-                row._data[newName] = row._data[oldName];
-                delete row._data[oldName];
+        TableAlterAddInstance.constructTable(row => {
+            if (row.hasOwnProperty(oldName)) {
+                row[newName] = row[oldName];
+                delete row[oldName];
             }
         }, this.tableInfo);
 
@@ -101,15 +101,18 @@ class TableAlterAddInstance {
      * @param {*} tableInfo 
      */
     static constructTable(cFn, tableInfo) {
-        var defaultValueGenerator = tableModelMapper(tableInfo);
-        var tableData = privateApi.getTableData(tableInfo.DB_NAME, tableInfo.TBL_NAME);
+        const defaultValueGenerator = tableModelMapper(tableInfo);
+        const tableData = privateApi.getTableData(tableInfo.DB_NAME, tableInfo.TBL_NAME);
         tableData.forEach(function (item, idx) {
             //perform task if argument is a function
             if (isfunction(cFn)) {
-                cFn(item);
+                cFn(item._data || item);
             }
-            //Update the dataSet
-            tableData[idx]._data = defaultValueGenerator(item._data, item._ref);
+
+            // Update the dataSet
+            // suport for new record type and backward compactibility for old
+            const newRecord = defaultValueGenerator((item._data || item), (item._ref || item._id));
+            tableData[idx] = newRecord;
             defaultValueGenerator.cleanup();
         });
     }

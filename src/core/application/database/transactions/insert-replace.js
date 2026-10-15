@@ -10,42 +10,37 @@ function TransactionInsertReplace(records, updateRef) {
         records = [records];
     }
         
-    var tableName = this.rawTables[0];
-    var tableInfo = this.getTableInfo(tableName);
+    const tableName = this.rawTables[0];
+    const tableInfo = this.getTableInfo(tableName);
     updateRef = (updateRef || tableInfo.primaryKey);
-    var time = performance.now();
-    var columns = tableInfo.columns[0];
-    var fieldErrors = [];
-    var validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
-    var defaultValueGenerator = tableModelMapper(tableInfo);
-    var rowsToUpdate = [];
-    var rowsToInsert = [];
-    var tableData = this.getTableData(tableName);
-    var updateRefMapper = this.getColumnValues(tableName, updateRef);
-    var autoIncCallback = this.getTableIncCallback(tableInfo);
-    var recordLen = records.length;
+    const time = performance.now();
+    const columns = tableInfo.columns[0];
+    const fieldErrors = [];
+    const validator = this.validator(tableName, columns, (field, rtype, dtype) => fieldErrors.push([field, rtype, dtype]));
+    const defaultValueGenerator = tableModelMapper(tableInfo);
+    const rowsToUpdate = [];
+    const rowsToInsert = [];
+    const tableData = this.getTableData(tableName);
+    const updateRefMapper = this.getColumnValues(tableName, updateRef);
+    const autoIncCallback = this.getTableIncCallback(tableInfo);
+    const recordLen = records.length;
 
-    for (var idx = 0; idx < recordLen; idx++) {
-        var record = records[idx];
-        var recordRefIndex = updateRefMapper.indexOf(record[updateRef]);
+    for (let idx = 0; idx < recordLen; idx++) {
+        const record = records[idx];
+        const recordRefIndex = updateRefMapper.indexOf(record[updateRef]);
         if (!validator(record, idx)) continue;
         if (recordRefIndex > -1) {
             // update process
-            var _ref = tableData[recordRefIndex]._ref;
+            const oldRecord = tableData[recordRefIndex];
             this.performTableAction(tableInfo, record, 'ON_UPDATE');
-            tableData[recordRefIndex]._data = QueryTaskPerformer.extend(true, tableData[recordRefIndex]._data, record);
-            rowsToUpdate.push({
-                _ref,
-                _data: record
-            });
+            record._id = (oldRecord._ref || oldRecord._id || '');
+            tableData[recordRefIndex] = QueryTaskPerformer.extend(true, (oldRecord._data || oldRecord), record);
+            rowsToUpdate.push(record);
         } else {
             // insert record
-            var _ref = GUID();
-            record = autoIncCallback(defaultValueGenerator(record, _ref));
-            rowsToInsert.push({
-                _ref,
-                _data: record
-            });
+            const ref = GUID();
+            record = autoIncCallback(defaultValueGenerator(record, ref));
+            rowsToInsert.push(record);
         }
     }
 
@@ -66,10 +61,6 @@ function TransactionInsertReplace(records, updateRef) {
         }
 
         //clear processed Data
-        tableInfo = columns = null;
-        rowsToInsert.length = 0;
-        updateRefMapper.length = 0;
-        rowsToUpdate.length = 0;
         defaultValueGenerator.cleanup();
     }
 
@@ -88,15 +79,12 @@ function TransactionInsertReplace(records, updateRef) {
             this.updateOfflineCache('update', this.getAllRef(rowsToUpdate), tableName);
         }
 
-        var totalUpd = rowsToUpdate.length;
-        var totalIns = rowsToUpdate.length;
-
         publishAndCleanUp();
         return ({
             state: "insertReplace",
             table: tableName,
             timing: performance.now() - time,
-            message: `Inserted ${totalIns} and updated ${ totalUpd } records`
+            message: `Inserted ${rowsToUpdate.length} and updated ${ rowsToUpdate.length } records`
         });
 
     }]);

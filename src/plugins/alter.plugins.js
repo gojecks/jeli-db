@@ -10,34 +10,42 @@ Database.plugins.jQl('alter', {
         'alter -[tbl_name] -r -new_tbl_name'
     ],
     requiresParam: true,
+    schema: {
+        table: { position: 1, type: 'string' },
+        action: { position: 2, type: 'string' },
+        // everything after -[action] is action-specific (sub-action/column
+        // name/relative table/new name/...), kept raw (unparsed) exactly as
+        // typed since the actions below index into it positionally
+        args: { position: 3, rest: true, raw: true }
+    },
     fn: alterPluginFn
 });
 
 //create -tablename -columns
 function alterPluginFn(query, handler) {
     // @Function drops the required table
-    var msg = "Table(" + query[1] + ") have been altered.";
+    var msg = "Table(" + query.table + ") have been altered.";
     var actions = {
         a: instance => {
             var taskType = { c: 'column', f: 'foreign', p: 'primary', i: 'index', m: 'mode' };
-            var task = taskType[query[3]] || query[3];
+            var task = taskType[query.args[0]] || query.args[0];
             if (instance.alter.add[task]) {
-                instance.alter.add[task](query[4], query[5]);
+                instance.alter.add[task](query.args[1], query.args[2]);
             } else {
-                msg = "Unable to find command " + query[3];
+                msg = "Unable to find command " + query.args[0];
             }
         },
-        d: instance => instance.alter.drop(query[3]),
-        r: instance => msg = instance.rename(query[3]),
-        u: instance => instance.update(query[3])
+        d: instance => instance.alter.drop(query.args[0]),
+        r: instance => msg = instance.rename(query.args[0]),
+        u: instance => instance.update(query.args[0])
     };
 
     return function (db) {
-        if (query.length > 2) {
-            var noop = function () { msg = "unable to find command(" + query[2] + ")"; };
+        if (query.action) {
+            var noop = function () { msg = "unable to find command(" + query.action + ")"; };
             //alter the table
-            var tableInstance = db.table(query[1]);
-            (actions[query[2]] || noop)(tableInstance);
+            var tableInstance = db.table(query.table);
+            (actions[query.action] || noop)(tableInstance);
             handler.onSuccess(dbSuccessPromiseObject("alter", msg));
         }
     };

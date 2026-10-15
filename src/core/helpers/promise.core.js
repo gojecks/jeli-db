@@ -20,100 +20,34 @@
       return ({ message: message, status: "error", code: 400 });
   }
 
-  /**
-   * 
-   * @param {*} defer 
-   */
-  class DBPromise {
+  // standard Promise; extension methods (e.g. progress, onCreate) ride along on every promise then() returns
+  class DBPromise extends Promise {
     constructor(callback, extension) {
-        var _catchCallback = function (e) { console.error(e); };
-        var defer = {
-            success: [],
-            error: [],
-            state: {
-                pending: true,
-                value: undefined
-            }
-        };
-        
-        function noop() { };
-
-        /**
-         *
-         * @param {*} code
-         * @returns
-         */
-        function trigger(code) {
-            return function (response) {
-                defer.state.pending = false;
-                defer.state.value = response;
-                defer.state.resolvedWith = code;
-                while (defer[code].length) {
-                    call(defer[code].shift());
-                }
-            };
-        }
-
-        /**
-         *
-         * @param {*} fn
-         */
-        function call(fn) {
-            defer.state.value = (fn || noop)(defer.state.value);
-        }
-
-        /**
-         *
-         * @param {*} type
-         * @param {*} fn
-         */
-        function commitOrTrigger(type, fn) {
-            if (!defer.state.pending) {
-                if (type === defer.state.resolvedWith) {
-                    call(fn);
-                }
-            } else {
-                defer[type].push(fn);
-            }
-        }
-
-        //onSuccess State
-        this.onSuccess = function (fn) {
-            commitOrTrigger('success', fn);
-            return this;
-        };
-
-        this.onError = function (fn) {
-            commitOrTrigger('error', fn);
-            return this;
-        };
-
-        this.catch = function (catchFn) {
-            _catchCallback = catchFn;
-        };
-
-        // register extension if passed
-        if (extension) {
-            for (var action in extension) {
-                this[action] = extension[action];
-            }
-        }
-
-        if (callback) {
-            try {
-                callback(trigger('success'), trigger('error'));
-            } catch (e) {
-                _catchCallback(e);
-            }
-        } else {
+        if (typeof callback !== 'function') {
             throw Error('DBPromise requires a callback method');
         }
+
+        super(callback);
+        if (extension) DBPromise.extend(this, extension);
+    }
+
+    static extend(promise, extension) {
+        Object.defineProperty(promise, '_extension', { value: extension });
+        for (const action in extension) promise[action] = extension[action];
+        return promise;
     }
 
     then(done, fail) {
-        this.onSuccess(done);
-        this.onError(fail);
-        return this;
+        const next = super.then(done, fail);
+        return this._extension ? DBPromise.extend(next, this._extension) : next;
+    }
+
+    onSuccess(fn) {
+        return this.then(fn);
+    }
+
+    onError(fn) {
+        return this.then(null, fn);
     }
 }
 

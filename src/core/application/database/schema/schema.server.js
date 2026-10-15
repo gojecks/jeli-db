@@ -146,3 +146,27 @@ function ServerSchemaLoader(dbName, version, config, lastLoadedTime) {
         loadResource();
     });
 };
+
+// reloads the named tables' resource entries and schemas from the server, keeping their local records
+function refreshTableSchemas(dbName, version, tableNames) {
+    var activeDB = privateApi.getActiveDB(dbName);
+    return privateApi.$http(privateApi.buildHttpRequestOptions(dbName, { path: '/database/resource' }))
+        .then(function (syncResponse) {
+            var serverTables = (syncResponse && syncResponse.resource && syncResponse.resource.resourceManager) || {};
+            var request = privateApi.buildHttpRequestOptions(dbName, { path: '/database/schema', tbl: tableNames });
+            Object.assign(request, { data: { loadData: [] } });
+            return privateApi.$http(request).then(function (response) {
+                var resource = activeDB.get(constants.RESOURCEMANAGER);
+                var dbTables = {};
+                tableNames.forEach(function (tbl) {
+                    if (!response || !response.schemas || !response.schemas[tbl]) return;
+                    if (serverTables[tbl]) resource.putTableResource(tbl, serverTables[tbl]);
+                    dbTables[tbl] = Object.assign(response.schemas[tbl], serverTables[tbl] || {});
+                });
+                resource.setResource();
+                privateApi.storageFacade.broadcast(dbName, DB_EVENT_NAMES.RESOLVE_SCHEMA, [version, dbTables]);
+                return Object.keys(dbTables);
+            });
+        });
+}
+

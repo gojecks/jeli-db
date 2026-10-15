@@ -132,7 +132,7 @@ class SelectMethods {
     }
 
     static DATE_IN_FUTURE(data, field) {
-        return (+new Date(SelectMethods.GET(data, field) || '') > Date.now());
+        return (+new Date(Number(SelectMethods.GET(data, field) || '')) > Date.now());
     }
 
     static CASE(cdata, field) {

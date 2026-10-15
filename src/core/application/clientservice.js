@@ -47,21 +47,27 @@ class clientService {
      * @returns 
      */
     pull(tbl, requestData, params, byQueryId) {
-        var time = performance.now();
-        var requestParams = privateApi.buildHttpRequestOptions(this.appName, { tbl, path: '/database/fetch' });
+        const time = performance.now();
+        const requestParams = privateApi.buildHttpRequestOptions(this.appName, { tbl, path: '/database/fetch' });
         // fetch mode
         requestData.mode = 1;
         // set the query only when required
-
         if (params) {
-            if (byQueryId || ['where', 'limit', 'byRefs', 'id', 'ids'].some(key => !!params[key])) {
+            if(byQueryId){
+                requestData = params;
+            } else if (['where', 'limit', 'byRefs'].some(key => !!params[key])) {
                 Object.assign(requestData, params);
             } else {
                 requestData.where = (!Array.isArray(params) ? [params] : params);
             }
         }
-        requestParams.data = requestData;
+        
+        if (!byQueryId && !requestData.where && !requestData.byRefs){
+            // fail the request
+            Promise.reject({message: 'Invalid request received'});
+        }
 
+        requestParams.data = requestData;
         return new Promise((resolve, reject) => {
             privateApi.$http(requestParams)
                 .then(res => {
@@ -72,9 +78,7 @@ class clientService {
                             //resolve promise
                             resolve(new SelectQueryEvent(ret.insert.data, (performance.now() - time)));
                         });
-                }, function (res) {
-                    reject(dbErrorPromiseObject("Unable to fetch records"));
-                });
+                }, res => reject(dbErrorPromiseObject("Unable to fetch records")));
         });
     }
 
@@ -88,7 +92,7 @@ class clientService {
      * @returns 
      */
     runQueryRequest(request, query, replacer, cacheOptions) {
-        var requestParams = privateApi.buildHttpRequestOptions(this.appName, request)
+        const requestParams = privateApi.buildHttpRequestOptions(this.appName, request)
         if (typeof query === "string" || replacer) {
             query = QueryBuilder.parseServerQuery(query, replacer);
         }

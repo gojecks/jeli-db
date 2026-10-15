@@ -10,10 +10,10 @@ class deleteManager {
     }
     
     init() {
-        var $delRecords = privateApi.storageFacade.get(privateApi.storeMapping.delRecordName);
+        const $delRecords = privateApi.storageFacade.get(privateApi.storeMapping.delRecordName);
         if ($delRecords && $delRecords.hasOwnProperty(this.appName)) {
             //update deleted records
-            context.register('deletedRecords', $delRecords[this.appName]);
+            this.context.register('deletedRecords', $delRecords[this.appName]);
         }
 
         return this;
@@ -38,7 +38,7 @@ class deleteManager {
     }
 
     isExists() {
-        var delRecords = privateApi.storageFacade.get(privateApi.storeMapping.delRecordName);
+        const delRecords = privateApi.storageFacade.get(privateApi.storeMapping.delRecordName);
         return delRecords && delRecords.hasOwnProperty(this.appName);
     }
 

@@ -157,24 +157,22 @@ class privateApi {
      * @param {*} refs 
      */
     static getDataByRefs(data, refs) {
-        return [].filter.call(data, function (item) {
-            return refs.includes(item._ref);
+        return [].filter.call(data, item => {
+            return refs.includes(item._ref || item._id);
         });
     };
 
     static generateStruct(cache) {
-        const ret = { tables: {}, version: cache.version, _nsd_: cache[this.storeMapping.nextSchemaSyncDate] };
-        const resources = cache[this.storeMapping.resourceName];
+        const ret = { tables: {}, version: cache.get('version'), _nsd_: cache.get(this.storeMapping.nextSchemaSyncDate) };
+        const resources = cache.get(this.storeMapping.resourceName);
         if (resources && resources.resourceManager) {
             Object.keys(resources.resourceManager).forEach(attachObject);
         }
 
         function attachObject(tbl) {
-            if (cache.hasOwnProperty(tbl)) {
+            if (cache.has(tbl)) {
                 Object.defineProperty(ret.tables, tbl, {
-                    get: function () {
-                        return cache[tbl]
-                    },
+                    get: ()  => cache.get(tbl),
                     enumerable: true
                 });
             }
@@ -192,8 +190,9 @@ class privateApi {
         let tableNames = Object.keys(this.get(db || this._activeDatabase, 'tables'));
         if (removeIgnoredTables) {
             const ignoreSync = this.getConfigData('ignoreSync', db);
-            if (Array.isArray(ignoreSync))
+            if (Array.isArray(ignoreSync)){
                 tableNames = tableNames.filter(tbl => !ignoreSync.includes(tbl));
+            }
         }
         return tableNames;
     };
@@ -205,10 +204,10 @@ class privateApi {
      * @param {*} tbl 
      */
     static getTableCheckSum(db, tbl) {
-        var table = this.getTable(db, tbl);
+        const table = this.getTable(db, tbl);
         return ({
-            current: table._hash,
-            previous: table._previousHash
+            current: table ? table._hash : null,
+            previous: table ? table._previousHash : null
         });
     };
 
@@ -298,7 +297,7 @@ class privateApi {
              */
             if (removeAll) {
                 this.updateDeletedRecord('database', {
-                    db: db,
+                    db,
                     lastSyncedDate: databaseResources.lastSyncedDate
                 });
             } else {
@@ -319,7 +318,7 @@ class privateApi {
      */
     static truncateTable(dbName, tableName) {
         // update the DB
-        this.updateDB(dbName, tableName, function (table) {
+        this.updateDB(dbName, tableName, (table) => {
             table._hash = '';
             table._records = table.lastInsertId = 0;
         });
@@ -342,8 +341,8 @@ class privateApi {
          * default storage to memory
          * when invalid storage property
          */
-        var storageInit = Database.storageAdapter.get(config.storage || 'memory');
-        var _activeDBInstance = privateApi.getActiveDB(dbName);
+        const storageInit = Database.storageAdapter.get(config.storage || 'memory');
+        const _activeDBInstance = privateApi.getActiveDB(dbName);
 
         if (isfunction(storageInit)) {
             var dbToStorageInstance = Object.create({
@@ -358,6 +357,7 @@ class privateApi {
                 location: config.location || 'default',
                 key: config.key || GUID(),
                 folderPath: config.folderPath || '/tmp/',
+                encrypt: config.encrypt || false
             }, dbToStorageInstance, callback));
         } else {
             errorBuilder(config.storage + " doesn't exists");
@@ -371,11 +371,11 @@ class privateApi {
      * @param {*} records
      */
     static resolveUpdate(db, tbl, records) {
-        var canUpdate = (db && tbl);
-        var tblData = privateApi.getTableData(db, tbl);
-        var exisitingRefs = tblData.map(item => item._ref);
-        var types = ['insert', 'update', 'delete', 'insertReplace'].filter(key => !!records[key]);
-        var _ret = {
+        const canUpdate = (db && tbl);
+        const tblData = privateApi.getTableData(db, tbl);
+        const exisitingRefs = tblData.map(item => (item._ref || item._id));
+        const types = ['insert', 'update', 'delete', 'insertReplace'].filter(key => !!records[key]);
+        const _ret = {
             update: { data: [], refs: [] },
             delete: { data: [], refs: [] },
             insert: { data: [], refs: [] },
@@ -388,13 +388,18 @@ class privateApi {
          * @param {*} item 
          * @returns 
          */
-        var pushUpdate = (accum, item) => {
-            var idx = exisitingRefs.indexOf(item._ref);
+        const pushUpdate = (accum, item) => {
+            const refId = item._ref || item._id;
+            const idx = exisitingRefs.indexOf(refId);
             if (idx > -1) {
-                Object.assign(tblData[idx]._data, item._data);
-                _ret.update.data.push(item._data);
-                _ret.update.refs.push(item._ref)
-                accum.push(item);
+                const data = tblData[idx];
+                // update record(s)
+                // also handle $exp updates
+                const lastestRecord = QueryTaskPerformer.extend(true, data._data || data, item._data || item);
+                tblData[idx] = lastestRecord;
+                _ret.update.data.push(lastestRecord);
+                _ret.update.refs.push(refId)
+                accum.push(lastestRecord);
             }
 
             return accum;
@@ -406,33 +411,36 @@ class privateApi {
          * @param {*} item 
          * @returns 
          */
-        var pushInsert = (accum, item) => {
-            if (item._ref && !exisitingRefs.includes(item._ref)) {
+        const pushInsert = (accum, item) => {
+            const refId = item._ref || item._id;
+            if (refId && !exisitingRefs.includes(refId)) {
                 tblData.push(item);
                 accum.push(item);
             }
+
             _ret.insert.data.push(item._data || item);
-            _ret.insert.refs.push(item._ref || null);
+            _ret.insert.refs.push(refId || null);
             return accum;
         };
 
-        var taskHandler = Object.create({
+        const taskHandler = Object.create({
             update: () => records.update.reduce(pushUpdate, []),
             delete: () => {
                 records.delete.forEach(key => {
-                    var index = exisitingRefs.indexOf(key);
+                    const index = exisitingRefs.indexOf(key);
                     if (index > -1) {
                         exisitingRefs.splice(index, 1);
-                        var item = tblData.splice(index, 1);
+                        const item = tblData.splice(index, 1);
                         _ret['delete'].data.push(item[0]);
                     }
                 });
+
                 _ret['delete'].refs = records.delete
                 return records.delete;
             },
             insert: () => records.insert.reduce(pushInsert, []),
             insertReplace: () => records.insertReplace.reduce((accum, item) => {
-                if (exisitingRefs.includes(item._ref))
+                if (exisitingRefs.includes(item._ref || item._id))
                     accum = pushUpdate(accum, item);
                 else
                     accum = pushInsert(accum, item);
@@ -443,9 +451,9 @@ class privateApi {
 
         return new Promise((resolve, reject) => {
             if (canUpdate && types.length) {
-                for (var type of types) {
+                for (const type of types) {
                     if (records[type] && records[type].length) {
-                        var eventValue = taskHandler[type]();
+                        const eventValue = taskHandler[type]();
                         privateApi.storageFacade.broadcast(db, type, [tbl, eventValue, false]);
                     }
                 }
@@ -464,37 +472,48 @@ class privateApi {
     static buildHttpRequestOptions(dbName, reqOptions) {
         let options = { isErrorState: true };
         const resolver = this.getActiveDB(dbName).get(constants.RESOLVERS).get();
-        // requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
-        const requestState = resolver.requestMapping.get(reqOptions.path, reqOptions.method);
-        if (requestState) {
-            let tbl = reqOptions.tbl || requestState.tbl;
-            const cToken = $cookie('X-CSRF-TOKEN');
-            const cache = reqOptions.cache || requestState.CACHE || null;
-            if (isarray(tbl)) tbl = JSON.stringify(tbl);
-            // configure request options
-            options = AjaxSetup.getOptions({
-                url: (reqOptions.URL || resolver.serviceHost || '') + requestState.URL,
-                $appName: dbName,
-                type: (requestState.METHOD || 'GET').toLowerCase(),
-                dataType: 'json',
-                headers: {
-                    Authorization: "Bearer *",
-                    'X-REQ-OPTS': Base64Fn.encode(
-                        `${resolver.organisation}:${dbName}:${(tbl || '')}:${(Math.floor(+new Date / 1000) * 1000)}:${resolver.nonce || ''}`
-                    )
-                },
-                requestState: requestState,
-                cache: cache,
-                data: reqOptions.data
-            });
+        const buildHeaders = (tbl) => {
+            const org = reqOptions.withClient?.organisation || resolver.organisation;
+            const app = reqOptions.withClient?.application || dbName;
+            const headers = {
+                Authorization: (reqOptions.withClient && reqOptions.withClient.appKey) ? `Basic ${reqOptions.withClient.appKey}` : "Bearer *",
+                'X-REQ-OPTS': Base64Fn.encode(
+                    `${org}:${app}:${tbl}:${(Math.floor(+new Date / 1000) * 1000)}:${resolver.nonce || ''}`
+                )
+            };
 
             /**
              * set X-CSRF-TOKEN
              * only when defined
              */
+            const cToken = $cookie('X-CSRF-TOKEN');
             if (cToken) {
-                options.headers['X-CSRF-TOKEN'] = cToken;
+                headers['X-CSRF-TOKEN'] = cToken;
             }
+
+            return headers;
+        };
+
+
+        // requestState can either be a STRING or OBJECT { URL:STRING, tbl:String, AUTH_TYPE:Boolean}
+        const requestState = resolver.requestMapping.get(reqOptions.path, reqOptions.method);
+        if (requestState) {
+            let tbl = reqOptions.tbl || requestState.tbl;
+            const cache = reqOptions.cache || requestState.CACHE || null;
+            if (isarray(tbl)) tbl = JSON.stringify(tbl);
+            // configure request options
+            options = AjaxSetup.getOptions({
+                url: `${(reqOptions.URL || resolver.serviceHost || '')}${reqOptions.path}`,
+                $appName: dbName,
+                type: (requestState.METHOD || 'GET').toLowerCase(),
+                dataType: 'json',
+                headers: buildHeaders(tbl || ''),
+                requestState: requestState,
+                cache: cache,
+                data: reqOptions.data,
+                withClient: reqOptions.withClient
+            });
+
 
             //initialize our network interceptor
             if (resolver.interceptor) {
@@ -652,7 +671,7 @@ class privateApi {
      * @returns 
      */
     static autoSync(appName, tbl, type, data) {
-        var ignoreSync = privateApi.getConfigData('ignoreSync', appName);
+        const ignoreSync = privateApi.getConfigData('ignoreSync', appName);
         if (!inarray(tbl, (ignoreSync || []))) {
             const recordResolver = privateApi.getActiveDB(appName).get(constants.RECORDRESOLVERS);
             const handleResult = res => {
@@ -675,7 +694,7 @@ class privateApi {
                 const requestParams = privateApi.buildHttpRequestOptions(appName, { tbl, path: '/database/push' });
                 requestParams.data = data;
                 return privateApi.$http(requestParams)
-                    .then(handleResult, handleResult);
+                    .then(handleResult);
             }
         }
 

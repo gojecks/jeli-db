@@ -106,8 +106,8 @@ class TableTransaction {
      * @param {*} callback 
      * @returns 
      */
-    validator(tableName, columns, callback) {
-        var _typeValidator = privateApi.getActiveDB(this.DB_NAME).get(constants.DATATYPES);
+    validator(tableName, columns, callback, mode = 'i') {
+        const _typeValidator = privateApi.getActiveDB(this.DB_NAME).get(constants.DATATYPES);
         callback = callback || noop;
 
         /**
@@ -117,11 +117,19 @@ class TableTransaction {
          */
         return (cData, dataRef) => {
             //Process the Data
-            var passed = 1;
+            let passed = 1;
             if (cData) {
-                var cdataKeys = Object.keys(cData);
-                for (var key of cdataKeys) {
-                    if (key == '$exp') {
+                const cdataKeys = Object.keys(cData);
+                for (let key of cdataKeys) {
+                    if(key === '_id') {
+                        // skip check for _id
+                        if (!cData['_id']){
+                            this.setDBError('_id field is required');
+                            return;
+                        }
+
+                        continue;
+                    } else if (key == '$exp') {
                         if (!Array.isArray(cData[key])) {
                             this.setDBError(`${key} field must be an object containing op,key`);
                             passed = false;
@@ -129,6 +137,7 @@ class TableTransaction {
                         }
                         continue;
                     }
+
                     //check if column is in table
                     if (!columns[key]) {
                         //throw new error
@@ -138,8 +147,8 @@ class TableTransaction {
                         return;
                     }
 
-                    var type = typeof cData[key];
-                    var requiredType = (columns[key].type || 'string').toUpperCase();
+                    const type = typeof cData[key];
+                    const requiredType = (columns[key].type || 'string').toUpperCase();
                     if (!_typeValidator.validate(cData[key], requiredType)) {
                         /**
                          * Allow null value when NOT_NULL is not configured 
@@ -183,13 +192,14 @@ class TableTransaction {
     }
 
     getAllRef(data) {
-        return [].map.call(data || [], item => item._ref);
+        return [].map.call(data || [], item => (item._ref || item._id));
     }
 
     getColumnValues(tableName, columnName) {
-        var tableData = this.getTableData(tableName);
-        return tableData.reduce(function (previousValue, currentValue) {
-            var value = currentValue._data[columnName];
+        const tableData = this.getTableData(tableName);
+        return tableData.reduce((previousValue, currentValue) => {
+            // record compactibility support
+            const value = (currentValue._data || currentValue)[columnName];
             if (!isundefined(value) && !isnull(value)) {
                 previousValue.push(value);
             }
@@ -203,13 +213,13 @@ class TableTransaction {
      * @returns 
      */
     getTableIncCallback(tableInfo) {
-        var columns = tableInfo.columns[0];
-        var fields = Object.keys(columns).filter((column) => (
+        const columns = tableInfo.columns[0];
+        const fields = Object.keys(columns).filter((column) => (
             columns[column].AUTO_INCREMENT && inarray(columns[column].type.toUpperCase(), ['INT', 'NUMBER', 'INTEGER']))
         );
 
         return data => {
-            var inc = ++tableInfo.lastInsertId;
+            const inc = ++tableInfo.lastInsertId;
             if (fields.length) {
                 fields.forEach(function (field) {
                     data[field] = inc;
@@ -247,26 +257,27 @@ class TableTransaction {
     }
 
     getTableData(tableName, dataOnly) {
-        var data = privateApi.getTableData(this.DB_NAME, tableName);
-        return !dataOnly ? data : data.map(item => item._data );
+        const data = privateApi.getTableData(this.DB_NAME, tableName);
+        // record compactibility support
+        return !dataOnly ? data : data.map(item => item._data || item );
     }
 
-    execute(disablePushToServer, fromBatch) {
-        var executeStates = this.executeState;
-        var executeLen = executeStates.length;
-        var isLiveEnabled = privateApi.getConfigData('live', this.DB_NAME);
-        var totalSuccess = 0;
+    execute(disablePushToServer, fromBatch, rollbackOnError = false) {
+        const executeStates = this.executeState;
+        let executeLen = executeStates.length;
+        const isLiveEnabled = privateApi.getConfigData('live', this.DB_NAME);
+        let totalSuccess = 0;
         return new Promise((resolve, reject) => {
             if (executeLen) {
-                var error = !1;
-                var total = executeLen;
-                var results = [];
+                let error = !1;
+                let total = executeLen;
+                const results = [];
                 /**
                  * 
                  * @param {*} success 
                  * @param {*} res 
                  */
-                var complete = (success, res) => {
+                const complete = (success, res) => {
                     results.push(res);
                     if (success) totalSuccess++;
                     if (!executeLen) {
@@ -277,10 +288,10 @@ class TableTransaction {
 
                 while (executeStates.length) {
                     executeLen--;
-                    var ex = executeStates.shift();
-                    var res = { state: ex[0] };
+                    const ex = executeStates.shift();
+                    let res = { state: ex[0] };
                     try {
-                        res = ex[1](disablePushToServer);
+                        res = ex[1](disablePushToServer, rollbackOnError);
                     } catch (err) {
                         if (err instanceof TransactionErrorEvent) {
                             res = err;
@@ -300,7 +311,7 @@ class TableTransaction {
                              * @return {FUNCTION}
                              */
                             privateApi.autoSync(this.DB_NAME, res.table, ex[0])
-                                .then(function (ajaxResponse) {
+                                .then((ajaxResponse) => {
                                     if (ajaxResponse) {
                                         res.$ajax = ajaxResponse;
                                     }

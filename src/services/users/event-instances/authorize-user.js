@@ -3,28 +3,37 @@
  * @param {*} res 
  */
 class AuthorizeUserSuccessInstance {
+    #res;
+
     constructor(res) {
         this.state = "authorize";
         this.message = res.message || '';
-        this.getUserInfo = function () {
-            return res.userInfo;
-        };
+        this.#res = res;
+    }
 
-        this.getUserId = function () {
-            return res.userId;
-        };
+    getUserInfo() {
+        return this.#res.userInfo;
+    }
 
-        this.getTokens = function () {
-            return res.tokens || res;
-        };
+    getUserId() {
+        return this.#res.userId;
+    }
 
-        this.isPasswordReset = function () {
-            return !!res.forcePasswordReset;
-        };
+    getTokens() {
+        return this.#res.tokens || this.#res;
+    }
 
-        this.isDisabled = function () {
-            return !!(res.userInfo?.disabled);
-        };
+    // when a required-2FA grace period ends (seconds), or null
+    getMfaSetupDueAt() {
+        return this.#res.mfaSetupDueAt || null;
+    }
+
+    isPasswordReset() {
+        return !!this.#res.forcePasswordReset;
+    }
+
+    isDisabled() {
+        return !!(this.#res.userInfo?.disabled);
     }
 }
 

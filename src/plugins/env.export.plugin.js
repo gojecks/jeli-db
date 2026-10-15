@@ -4,34 +4,34 @@
 
 	Database.plugins.jQl('export', {
 	    help: ['-export -[TBL_NAME] -type[(csv , html, jql or json)]  -(d or p) (optional) -[fileName] -[title]'],
-		params:{
-			type: 'json',
-			table: 'all',
-			action: 'print',
-			fileName: '',
-			title: ''
-		},
 	    requiresParam: true,
+	    schema: {
+	        table: { position: 1, default: 'all', type: 'string' },
+	        type: { position: 2, default: 'json', type: 'string' },
+	        action: { position: 3, default: 'print', type: 'string' },
+	        fileName: { position: 4, default: '', type: 'string' },
+	        title: { position: 5, default: '', type: 'string' }
+	    },
 	    fn: jExportPluginFn
 	});
 
 	function jExportPluginFn(query, handler) {
-	    var response = { state: query[0], result: { message: null } };
-	    return function(db) {
+	    const response = { state: query.command, result: { message: null } };
+	    return db => {
 	        //export a table
-	        if (query.length > 2) {
+	        if (query.table) {
 	            try {
-	                var expRet = db
-	                    .export(query[1], query[2], (query[5]) ? query[5] : "JDB Table Export")
+	                const expRet = db
+	                    .export(query.table, query.type, query.title || "JDB Table Export")
 	                    .initialize();
 
 	                if (expRet && !expRet.status) {
-	                    var type = 'print';
-	                    if (query[3] === 'd') {
+	                    let type = 'print';
+	                    if (query.action === 'd') {
 	                        type = 'download'
 	                    }
 
-	                    response.result.message = expRet[type](query[4]);
+	                    response.result.message = expRet[type](query.fileName);
 	                    return handler.onSuccess.apply(handler.onSuccess, [response]);
 	                } else {
 	                    return handler.onError.apply(handler.onError, [expRet]);

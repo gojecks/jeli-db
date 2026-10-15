@@ -67,7 +67,7 @@ function Database(name, version) {
         key: null
     });
 
-    var dbPromiseExtension = new DBPromiseExtension(
+    const dbPromiseExtension = new DBPromiseExtension(
         /**
          * Upgrade and onCreate Registery
          * @param {*} state 

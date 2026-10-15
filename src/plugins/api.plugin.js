@@ -6,6 +6,13 @@ Database.plugins.jQl('api', {
         'state: STRING - /api/request/path '
     ],
     requiresParam: true,
+    schema: {
+        // not typed: BaseInstance#api's own doc says path/state can be
+        // either a STRING (a route) or an OBJECT (a full request descriptor)
+        path: { position: 1 },
+        // not typed: request body is arbitrary ("body:ANY" per the help text)
+        data: { position: 2 }
+    },
     fn: apiPluginFn
 });
 
@@ -16,7 +23,7 @@ Database.plugins.jQl('api', {
 
 function apiPluginFn(query, handler) {
     return function(db) {
-        db.api(query[1], query[2])
+        db.api(query.path, query.data)
             .then(function(res) {
                 handler.onSuccess.apply(handler.onSuccess, [res]);
             }, function(err) {
