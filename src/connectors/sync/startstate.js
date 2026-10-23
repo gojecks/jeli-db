@@ -21,9 +21,10 @@ function startSyncState(appName, serverResource, activeDB) {
      * @param {*} currentProcessTbl 
      * @returns 
      */
-    function _conflictResolver(currentProcessTbl) {
+    function _conflictResolver(currentProcessTbl, conflict) {
         return new Promise(function (resolve, reject) {
-            if (confirm('Update your table(' + currentProcessTbl + ') with Server records (yes/no)')) {
+            var reason = (conflict && conflict.reason == 'schema') ? 'schema was changed on the server and locally' : 'has newer records on the server';
+            if (confirm('Table(' + currentProcessTbl + ') ' + reason + '. Replace your local copy with the server version? Your unsynced changes are kept.')) {
                 syncHelper.setMessage('Updating Local(' + currentProcessTbl + ') with Server(' + currentProcessTbl + ')', networkResolver);
                 resolve();
             } else {
@@ -91,6 +92,7 @@ function startSyncState(appName, serverResource, activeDB) {
                 return;
             }
             syncHelper.setMessage('merging process skipped for ' + currentProcessTbl);
+            failedState.push(currentProcessTbl);
             nextQueue({ state: 'Error' }, 'push');
         }
 
@@ -101,7 +103,7 @@ function startSyncState(appName, serverResource, activeDB) {
          */
         function syncErrorState(state, errorResponse) {
             failedState.push(currentProcessTbl);
-            if (errorResponse.message) {
+            if (errorResponse && errorResponse.message) {
                 syncHelper.setMessage('server error message: ' + errorResponse.message);
             }
             nextQueue({ state: 'Error' }, state);
@@ -130,21 +132,32 @@ function startSyncState(appName, serverResource, activeDB) {
             }
 
             /**
-             * 
-             * @param {*} mergeObj 
+             * server copy replaces the local one, unsynced local changes are replayed on top
+             * @param {*} withData 
              */
-            function mergeChanges(mergeObj) {
-                var tableSchema = DatabaseSyncConnector.coreApi.getTable(appName, currentProcessTbl);
-                if (tableSchema) {
-                    Object.assign(tableSchema, mergeObj.schema);
-                    DatabaseSyncConnector.coreApi.updateDB(appName, currentProcessTbl, null, +new Date);
-                    syncHelper.setMessage('Table(' + currentProcessTbl + ') updated successfully');
-                    if (mergeObj.isLocalLastModified) {
-                        allowPushState();
-                    } else {
-                        nextQueue({ state: 'Success' }, 'push');
-                    }
+            function pullFromServer(withData) {
+                syncHelper.pullTableFromServer(appName, currentProcessTbl, $process.version, withData)
+                    .then(function () {
+                        syncHelper.setMessage('Table(' + currentProcessTbl + ') updated from the server');
+                        pushPendingRecords();
+                    }, function (err) {
+                        syncErrorState('push', err);
+                    });
+            }
+
+            // pending records go through /database/push, only when data syncing was requested
+            function pushPendingRecords() {
+                if (!$process.getSet('allowDataSyncing')) {
+                    return nextQueue({ state: 'Success' }, 'push');
                 }
+
+                DatabaseSyncConnector.coreApi.autoSync(appName, currentProcessTbl, 'insert')
+                    .then(function () {
+                        DatabaseSyncConnector.coreApi.updateDB(appName, currentProcessTbl, null, +new Date);
+                        nextQueue({ state: 'Success' }, 'push');
+                    }, function (err) {
+                        syncErrorState('push', err);
+                    });
             }
 
             /**
@@ -194,20 +207,24 @@ function startSyncState(appName, serverResource, activeDB) {
                     allowPushState(false);
                 }
             } else {
-                syncHelper.SyncConflictChecker(appName, currentProcessTbl, $process, networkResolver)
+                syncHelper.SyncConflictChecker(appName, currentProcessTbl, $process)
                     .then(function (response) {
-                        // if columns was updated
-                        // Push all records to the server
-                        if (response.changes) {
-                            allowPushState(false);
+                        if (!response.changes) {
+                            syncHelper.setMessage('Schema already up to date!');
+                            pushPendingRecords();
+                        } else if (response.direction == 'pull') {
+                            pullFromServer(!!response.withData);
                         } else {
-                            syncHelper.setMessage('Already up to date!');
-                            nextQueue({ state: 'Success' }, 'push');
+                            allowPushState();
                         }
                     }, function (conflictResponse) {
-                        (networkResolver.conflictResolver || _conflictResolver)(currentProcessTbl)
+                        if (!conflictResponse || !conflictResponse.reason) {
+                            return syncErrorState('push', conflictResponse);
+                        }
+
+                        (networkResolver.conflictResolver || _conflictResolver)(currentProcessTbl, conflictResponse)
                             .then(function () {
-                                mergeChanges(conflictResponse);
+                                pullFromServer(true);
                             }, failedConflictResolver);
                     });
             }
@@ -223,7 +240,7 @@ function startSyncState(appName, serverResource, activeDB) {
                     //goto next queue
                     nextQueue({ state: 'Success' }, 'pull');
                 }, function (pullErrorResponse) {
-                    syncErrorState('pull');
+                    syncErrorState('pull', pullErrorResponse);
                 });
         }
 
@@ -270,7 +287,8 @@ function startSyncState(appName, serverResource, activeDB) {
 
             return;
         }
-        finalize((response.state.toLowerCase() == 'error') ? 'killState' : 'finalizeProcess');
+        // the outcome covers every table, not only the last one processed
+        finalize(failedState.length ? 'killState' : 'finalizeProcess');
     }
 
     /**
@@ -278,7 +296,7 @@ function startSyncState(appName, serverResource, activeDB) {
      * @param {*} response 
      */
     function finalizePull(response) {
-        if ((response.state.toLowerCase() !== 'error')) {
+        if (!failedState.length && String(response.state).toLowerCase() !== 'error') {
             corePromiseResolve({
                 state: 'Success',
                 status: 200,
@@ -327,7 +345,10 @@ function startSyncState(appName, serverResource, activeDB) {
             .then(tableSchemas => {
                 $process.getSet('schemas', tableSchemas.schemas);
                 processQueue(queue, 'push');
-            }, () => finishQueue('push', {failedState: syncState.tables}))
+            }, () => {
+                failedState.push.apply(failedState, syncState.tables);
+                finishQueue('push', { state: 'error' });
+            })
         } else {
             DatabaseSyncConnector.coreApi.updateDB(appName, null, null, Date.now());
             finishQueue('push', { state: 'success' });

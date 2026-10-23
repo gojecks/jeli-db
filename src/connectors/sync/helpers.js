@@ -23,13 +23,14 @@ class syncHelper {
      * @param {*} appName 
      */
     static printSyncLog(appName) {
-        var _syncLog = syncHelper.process.getProcess(appName).getSet('syncLog');
+        var _syncLog = syncHelper.process.getProcess(appName).getSet('syncLog') || {};
         var logs = [];
         for (var tbl in _syncLog) {
+            var snap = _syncLog[tbl];
             logs.push('---Log for ' + tbl + ' table----');
-            logs.push('Changes: ' + _syncLog[tbl].localChanges ? 'Local' : 'Server');
-            ["delete", "insert", "update"].map(function (list) {
-                logs.push(list.toUpperCase() + " : " + _syncLog[tbl][list]);
+            logs.push('Changes: ' + (snap.localChanges ? 'Local' : 'Server') + (snap.dataChanged ? ' (data changed on server)' : ''));
+            ['serverOnly', 'localOnly', 'changed', 'config'].forEach(function (list) {
+                logs.push(list.toUpperCase() + " : " + (snap[list] || []).join(', '));
             });
         }
 
@@ -163,22 +164,17 @@ class syncHelper {
      * @param {*} state 
      */
     static push(appName, tbl, allowDataSyncing) {
-        var _activeDB = DatabaseSyncConnector.coreApi.getActiveDB(appName);
         syncHelper.setMessage(`Initializing Push State for table(${tbl})`);
+        // schema only: /database/sync seeds `data` as plain rows, pending {insert, update, delete} go through /database/push
         var collection = DatabaseSyncConnector.coreApi.getTable(appName, tbl, true);
-        //update the table and not overwrite
-        if (allowDataSyncing) {
-            syncHelper.setMessage(`Setting pending records to sync for table(${tbl})`);
-            var recordResolver = _activeDB.get(DatabaseSyncConnector.coreApi.constants.RECORDRESOLVERS);
-            if (recordResolver.has(tbl)) {
-                var records = recordResolver.get(tbl);
-                if (Object.keys(records.data).length) {
-                    collection.data = records.data;
-                }
-            }
-        }
-
-        return syncHelper.request(appName, '/database/sync', tbl, collection);
+        delete collection.data;
+        return syncHelper.request(appName, '/database/sync', tbl, collection)
+            .then(response => {
+                if (!allowDataSyncing || !response || !response.ok) return response;
+                syncHelper.setMessage(`Pushing pending records for table(${tbl})`);
+                return DatabaseSyncConnector.coreApi.autoSync(appName, tbl, 'insert')
+                    .then(dataSync => Object.assign({}, response, (dataSync && dataSync._hash) ? { _hash: dataSync._hash } : {}));
+            });
     };
 
     /**
@@ -237,50 +233,107 @@ class syncHelper {
      * @param {*} networkResolver 
      * @returns 
      */
-    static SyncConflictChecker(appName, tbl, $process, networkResolver) {
-        var clientSchema = DatabaseSyncConnector.coreApi.getTable(appName, tbl);
-        var serverSchema = $process.getSet('schemas')[tbl];
-        // getLatest from server
-        if (!this.entity) {
-            this.entity = [tbl];
-        }
+    static SyncConflictChecker(appName, tbl, $process) {
+        var coreApi = DatabaseSyncConnector.coreApi;
+        var clientSchema = coreApi.getTable(appName, tbl);
+        var serverSchema = ($process.getSet('schemas') || {})[tbl];
 
         return new Promise((resolve, reject) => {
-            // Perform Merge
-            // client table was found
-            if (serverSchema) {
-                //process server tables
-                var snapshot = new SnapShot(serverSchema, clientSchema);
-                var log = {};
-                log[tbl] = snapshot.getSnap();
-                $process.getSet('syncLog', log);
-                //@Local Table was found  
-                if (!clientSchema) {
-                    //ignore deleted tables
-                    var checkDeletedTables = networkResolver.deletedRecords.table[tbl];
-                    if (checkDeletedTables) {
-                        if (checkDeletedTables !== serverSchema._hash) {
-                            this.setMessage('Table (' + tbl + ') was dropped on your local DB, but have changes on the server');
-                        }
-                    } else {
-                        this.setMessage('Synchronizing New Table(' + tbl + ') to your local DB');
-                    }
-                }
-
-                if (snapshot.hashChanges) {
-                    this.setMessage('Table(' + tbl + ') was updated on the server');
-                    //reject the promise
-                    reject({ status: "error", schema: serverSchema, isLocalLastModified: snapshot.isLocalLastModified });
-                    return;
-                }
-                //update
-                resolve({ status: "success", changes: snapshot.counter });
-            } else {
-                //data have changed after last pull
+            if (!serverSchema) {
                 this.setMessage('Table schema was not found on the SERVER');
-                //update
-                resolve({ status: "success", changes: 1 });
+                return resolve({ status: "success", changes: 1, direction: 'push' });
             }
+
+            if (!clientSchema) {
+                this.setMessage('Synchronizing New Table(' + tbl + ') to your local DB');
+                return resolve({ status: "success", changes: 1, direction: 'pull', withData: true });
+            }
+
+            var snapshot = new SnapShot(serverSchema, clientSchema);
+            var log = $process.getSet('syncLog') || {};
+            log[tbl] = snapshot.getSnap();
+            $process.getSet('syncLog', log);
+
+            if (snapshot.hashChanges) {
+                this.setMessage('Table(' + tbl + ') was updated on the server');
+                return reject({ status: "error", reason: 'data', schema: serverSchema });
+            }
+
+            if (!snapshot.counter) {
+                return resolve({ status: "success", changes: 0 });
+            }
+
+            // direction comes from which side changed the schema since the last sync, not from lastModified (data writes move it)
+            var lastSynced = syncHelper.getResourceManagerInstance(appName).getTableLastSyncDate(tbl) || 0;
+            var localChanged = (clientSchema.schemaModified || 0) > lastSynced;
+            var serverChanged = !lastSynced || serverSchema.lastModified > lastSynced;
+            if (localChanged && serverChanged) {
+                this.setMessage('Table(' + tbl + ') schema was changed on the server and locally');
+                return reject({ status: "error", reason: 'schema', schema: serverSchema });
+            }
+
+            if (!localChanged) {
+                this.setMessage('Table(' + tbl + ') schema changed on the server, updating local schema');
+                return resolve({ status: "success", changes: snapshot.counter, direction: 'pull' });
+            }
+
+            resolve({ status: "success", changes: snapshot.counter, direction: 'push' });
+        });
+    }
+
+    /**
+     * server rows, with local pending inserts/updates kept and pending deletes applied
+     * @param {*} appName 
+     * @param {*} tbl 
+     * @param {*} serverRows 
+     */
+    static mergePendingRecords(appName, tbl, serverRows) {
+        var coreApi = DatabaseSyncConnector.coreApi;
+        var recordResolver = coreApi.getActiveDB(appName).get(coreApi.constants.RECORDRESOLVERS);
+        var pending = recordResolver.has(tbl) ? recordResolver.records[tbl].data : { insert: {}, update: {}, delete: {} };
+        var refOf = function (item) { return item._ref || item._id; };
+        var keepLocal = Object.keys(pending.insert || {}).concat(Object.keys(pending.update || {}));
+        var deleted = Object.keys(pending.delete || {});
+        var localRows = coreApi.getTableData(appName, tbl).filter(function (item) { return keepLocal.includes(refOf(item)); });
+
+        return serverRows
+            .filter(function (item) { var ref = refOf(item); return !deleted.includes(ref) && !keepLocal.includes(ref); })
+            .concat(localRows);
+    }
+
+    /**
+     * replaces the local schema (and rows when withData) with the server copy
+     * @param {*} appName 
+     * @param {*} tbl 
+     * @param {*} version 
+     * @param {*} withData 
+     */
+    static pullTableFromServer(appName, tbl, version, withData) {
+        var coreApi = DatabaseSyncConnector.coreApi;
+        var request = coreApi.buildHttpRequestOptions(appName, { path: '/database/schema', tbl: [tbl] });
+        Object.assign(request, { data: { loadData: withData ? [tbl] : [] } });
+        syncHelper.setMessage('Updating local table(' + tbl + ') from the server' + (withData ? ' with records' : ''));
+        return coreApi.$http(request).then(function (response) {
+            var schema = response && response.schemas && response.schemas[tbl];
+            if (!schema) return Promise.reject({ message: 'Table(' + tbl + ') was not found on the server' });
+            var rows = withData ? syncHelper.mergePendingRecords(appName, tbl, schema.data || []) : null;
+            delete schema.data;
+
+            if (rows && coreApi.tableExists(appName, tbl)) {
+                coreApi.truncateTable(appName, tbl);
+            }
+
+            var tables = {};
+            tables[tbl] = schema;
+            coreApi.storageFacade.broadcast(appName, coreApi.DB_EVENT_NAMES.RESOLVE_SCHEMA, [version, tables]);
+            return (rows ? coreApi.resolveUpdate(appName, tbl, { insert: rows }) : Promise.resolve())
+                .then(function () {
+                    coreApi.updateDB(appName, tbl, function (table) {
+                        table._hash = schema._hash;
+                        table._previousHash = schema._previousHash;
+                    }, +new Date);
+                    return schema;
+                });
         });
     }
 

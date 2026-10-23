@@ -1,58 +1,49 @@
  /**
-  * comparism functionality
-  * @method snapShot
-  * @param {*} server 
-  * @param {*} client 
+  * Read-only schema comparison between the server and local copy of a table
+  * @param {*} server
+  * @param {*} client
   */
  class SnapShot {
-    constructor(server, client){
-        this.counter = 0;
+    constructor(server, client) {
         this.hashChanges = (server._hash !== (client._hash || client._previousHash));
         this.isLocalLastModified = server.lastModified < client.lastModified;
-        this.getSnap = function() {
-            if (['primaryKey', 'foreignKey', 'index'].some(key => this.jsonDiff(server[key], client[key]))) {
-                this.counter++;
-            }
-   
-            return this.checker(
-               ((this.isLocalLastModified ? client : server).columns[0] || {}), 
-               ((this.isLocalLastModified ? server : client).columns[0] || {})
-           );
+        this.changes = SnapShot.diff(server, client);
+        this.counter = this.changes.total;
+    }
+
+    // key-order independent; null, undefined and {} are equal
+    static normalize(value) {
+        if (value === undefined || value === null) return null;
+        if (Array.isArray(value)) return value.map(SnapShot.normalize);
+        if (typeof value == 'object') {
+            const keys = Object.keys(value).sort();
+            if (!keys.length) return null;
+            return keys.reduce((accum, key) => (accum[key] = SnapShot.normalize(value[key]), accum), {});
+        }
+
+        return value;
+    }
+
+    static jsonDiff(a, b) {
+        return JSON.stringify(SnapShot.normalize(a)) !== JSON.stringify(SnapShot.normalize(b));
+    }
+
+    static diff(server, client) {
+        const serverColumns = (server.columns && server.columns[0]) || {};
+        const clientColumns = (client.columns && client.columns[0]) || {};
+        const serverKeys = Object.keys(serverColumns);
+        const clientKeys = Object.keys(clientColumns);
+        const changes = {
+            serverOnly: serverKeys.filter(key => !clientKeys.includes(key)),
+            localOnly: clientKeys.filter(key => !serverKeys.includes(key)),
+            changed: clientKeys.filter(key => serverKeys.includes(key) && SnapShot.jsonDiff(serverColumns[key], clientColumns[key])),
+            config: ['primaryKey', 'foreignKey', 'index'].filter(key => SnapShot.jsonDiff(server[key], client[key]))
         };
+        changes.total = changes.serverOnly.length + changes.localOnly.length + changes.changed.length + changes.config.length;
+        return changes;
     }
 
-    jsonDiff = function(a, b) {
-        if (typeof a !== 'object' && Object.is(a, b)) return false;
-        return JSON.stringify(a) != JSON.stringify(b);
-    }
-
-    checker(clientData, serverData, type) {
-        var _changes = { update: 0, insert: 0, delete: 0, diff: 0, localChanges: this.isLocalLastModified };
-        var clientKeys = Object.keys(clientData);
-
-        if (this.isLocalLastModified) {
-           var serverKeys = Object.keys(serverData);
-            _changes.delete = serverKeys.filter(key => !clientKeys.includes(key)).length;
-            _changes.insert = clientKeys.filter(key => !serverKeys.includes(key)).length;
-            this.counter += (_changes.delete + _changes.insert);
-        }
-   
-        for(var key of clientKeys){
-            //set the record to update
-            var diffData = serverData[key];
-            //server data exist and local data exists
-            if (diffData) {
-                //changes have been made to either client or server
-                //cache the changes
-                if (this.jsonDiff(diffData, clientData[key])) {
-                    //update with client
-                    Object.assign(diffData, clientData[key]);
-                    _changes.update++;
-                    this.counter++;
-                }
-            }
-        }
-   
-        return _changes;
+    getSnap() {
+        return Object.assign({ localChanges: this.isLocalLastModified, dataChanged: this.hashChanges }, this.changes);
     }
  }

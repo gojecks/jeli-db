@@ -63,6 +63,8 @@ class TableInstance {
      */
     update(tableData) {
         privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, function (table) {
+            // local schema edits win over the server copy on the next sync
+            table.schemaModified = +new Date;
             if (tableData.columns && !Array.isArray(tableData.columns)) {
                 tableData.columns = [tableData.columns];
             }

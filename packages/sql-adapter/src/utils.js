@@ -1,31 +1,17 @@
-/**
- * 
- * @param {*} data 
- */
-function deepClone(data) {
-    return JSON.parse(JSON.stringify(data));
-}
+function noop() { }
 
 /**
- * 
- * @param {*} data 
+ *
+ * @param {*} err
  */
-function isArray(data) {
-    return toString.call(data) === "[object Array]";
-}
-
-/**
- * 
- * @param {*} tx 
- * @param {*} txError 
- */
-function logError(tx, txError) {
+function logError(err) {
     console.group('JDB SQL_ADAPTER');
-    console.log(txError);
+    console.log(err);
     console.groupEnd();
 }
 
-function jsonParserTypes(value){
+// rows written before values were JSON-encoded hold raw strings
+function jsonParserTypes(value) {
     try {
         return JSON.parse(value);
     } catch {

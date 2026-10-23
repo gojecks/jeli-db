@@ -76,7 +76,7 @@ function transactionUpdate(updateRecords) {
             updated++;
             // store the ref to be updated
             const ref = lastestRecord._id;
-            rowsToUpdate.push( record[2](previous._data || previous) );
+            rowsToUpdate.push(Object.assign({ _id: ref }, record[2](previous._data || previous)));
             // update refs
             refs.push([ref, record[1]]);
         }, updateRecords.length);

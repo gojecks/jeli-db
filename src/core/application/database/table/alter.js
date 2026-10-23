@@ -34,6 +34,7 @@ class TableAlterInstance {
 
         //update the DB
         privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, (table) => {
+            table.schemaModified = +new Date;
             table.columns = this.tableInfo.columns
         });
 
@@ -75,6 +76,7 @@ class TableAlterInstance {
 
         //update the DB
         privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, (table) => {
+            table.schemaModified = +new Date;
             table.columns = this.tableInfo.columns
         });
 
@@ -154,6 +156,7 @@ class TableAlterAddInstance {
              * update our database schema
              */
             privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, (table) => {
+                table.schemaModified = +new Date;
                 table.columns = this.tableInfo.columns;
             });
         }
@@ -194,6 +197,7 @@ class TableAlterAddInstance {
         }
 
         privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, function (table) {
+            table.schemaModified = +new Date;
             table.index = indexData;
         });
     };
@@ -207,6 +211,7 @@ class TableAlterAddInstance {
             this.tableInfo.allowedMode[mode] = 1;
             //update the DB
             privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, (table) => {
+                table.schemaModified = +new Date;
                 table.allowedMode = _this.tableInfo.allowedMode;
             });
         }
@@ -220,6 +225,7 @@ class TableAlterAddInstance {
         if (key && this.tableInfo.columns[0][key]) {
             //update the DB
             privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, (table) => {
+                table.schemaModified = +new Date;
                 this.tableInfo.columns[0][key].PRIMARY_KEY = true;
                 table.primaryKey = key;
                 table.columns = this.tableInfo.columns;
@@ -261,6 +267,7 @@ class TableAlterAddInstance {
 
             //update the DB
             privateApi.updateDB(this.tableInfo.DB_NAME, this.tableInfo.TBL_NAME, function (table) {
+                table.schemaModified = +new Date;
                 table.foreignKey = foreignKeys;
             });
         }

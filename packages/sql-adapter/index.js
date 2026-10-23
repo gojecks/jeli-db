@@ -1,24 +1,23 @@
 /**
- * 
- * @param {*} config 
- * @param {*} storageUtils 
- * @param {*} next 
- * @returns 
+ *
+ * @param {*} config
+ * @param {*} storageUtils
+ * @param {*} next
+ * @returns
  */
 function SqlAdapter(config, storageUtils, next) {
     var _sqlFacade = null;
-    var _privateStore = {};
+    var _privateStore = new Map();
     var _errorTables = [];
-    var type = null;
+    var STORE_TABLE = '_JELI_STORE_';
+    var PAGE_SIZE = 1000;
     var getDataName = collection => `${collection}:data`;
+    var getColumns = definition => Object.keys(((definition && definition.columns) || [])[0] || {});
+    var storeSql = (name, item) => ['INSERT OR REPLACE INTO "' + STORE_TABLE + '" ("_rev", "_data") VALUES (?,?)', [name, JSON.stringify(item)]];
 
     class StorageFacade {
-        /**
-         *
-         * @param {*} name
-         */
-        static usage(name) {
-            return JSON.stringify(StorageFacade.getItem(name) || '').length;
+        static usage() {
+            return JSON.stringify(Array.from(_privateStore.values())).length;
         }
 
         /**
@@ -30,7 +29,7 @@ function SqlAdapter(config, storageUtils, next) {
                 return storageUtils.generateStruct(_privateStore);
             }
 
-            return _privateStore[name];
+            return _privateStore.get(name);
         }
 
         /**
@@ -39,257 +38,161 @@ function SqlAdapter(config, storageUtils, next) {
          * @param {*} item
          */
         static setItem(name, item) {
-            _privateStore[name] = item;
-            _sqlFacade.query('INSERT OR REPLACE INTO _JELI_STORE_ (_rev, _data) VALUES (?,?)', [name, JSON.stringify(item)]);
+            _privateStore.set(name, item);
+            _sqlFacade.query.apply(_sqlFacade, storeSql(name, item)).catch(logError);
         }
 
         static removeItem(name) {
-            _sqlFacade.query('DELETE FROM _JELI_STORE_ WHERE _rev=?', [name])
-                .then(function () {
-                    delete _privateStore[name];
-                });
-
+            _privateStore.delete(name);
+            _sqlFacade.query('DELETE FROM "' + STORE_TABLE + '" WHERE "_rev"=?', [name]).catch(logError);
             return true;
         }
 
         static clear(onDone) {
             onDone = onDone || noop;
-            _sqlFacade.query('DELETE FROM _JELI_STORE_', [])
-                .then(() => {
-                    // empty data
-                    _privateStore = {};
-                    // onDone
-                    onDone(true);
-                }, () => onDone(false));
+            var tables = StorageFacade.tableNames();
+            _privateStore.clear();
+            _sqlFacade.dropTables(tables)
+                .then(() => _sqlFacade.query('DELETE FROM "' + STORE_TABLE + '"'))
+                .then(() => onDone(true), err => {
+                    logError(err);
+                    onDone(false);
+                });
         }
 
         static isExists(key) {
-            return _privateStore.hasOwnProperty(key);
+            return _privateStore.has(key);
         }
 
         static broadcast(eventName, args) {
             var eventCallback = EventRegistry[eventName];
-            eventCallback && eventCallback.apply(null, args);
+            return eventCallback && eventCallback.apply(EventRegistry, args);
         }
 
-        static initialize() {
-            _sqlFacade = CoreSqlFacade.createInstance(config);
-            function loadAllData() {
-                _sqlFacade.query('SELECT * FROM _JELI_STORE_', [])
-                    .then(function (tx, results) {
-                        var len = results.rows.length;
-                        for (var i = 0; i < len; i++) {
-                            _privateStore[results.rows.item(i)._rev] = JSON.parse(results.rows.item(i)._data);
-                        }
+        static tableNames() {
+            var resource = _privateStore.get(storageUtils.storeMapping.resourceName);
+            return Object.keys((resource && resource.resourceManager) || {}).filter(tbl => _privateStore.has(tbl));
+        }
 
-                        loadDBData();
-                    }, logError);
+        static async loadTable(tbl) {
+            var columnNames = getColumns(_privateStore.get(tbl));
+            var rows = [];
+            _privateStore.set(getDataName(tbl), rows);
+            for (var offset = 0; ; offset += PAGE_SIZE) {
+                var results = await _sqlFacade.select(tbl, PAGE_SIZE, offset);
+                for (var i = 0; i < results.rows.length; i++) {
+                    var row = results.rows.item(i);
+                    rows.push(columnNames.reduce((accum, key) => {
+                        accum[key] = jsonParserTypes(row[key]);
+                        return accum;
+                    }, { _id: row._ref }));
+                }
+
+                if (results.rows.length < PAGE_SIZE) return;
             }
+        }
 
-            function loadDBData() {
-                var resource = _privateStore[storageUtils.storeMapping.resourceName];
-                var tableNames = Object.keys((resource || {}).resourceManager || {});
-                if (!_privateStore.version || !tableNames.length)
-                    return (next || noop)();
+        static async initialize() {
+            _sqlFacade = CoreSqlFacade.createInstance(config);
+            try {
+                await _sqlFacade.createTable(STORE_TABLE, '_rev', ['_data']);
+                var results = await _sqlFacade.query('SELECT * FROM "' + STORE_TABLE + '"');
+                for (var i = 0; i < results.rows.length; i++) {
+                    _privateStore.set(results.rows.item(i)._rev, jsonParserTypes(results.rows.item(i)._data));
+                }
 
-                resolveTableData();
-
-                function resolveTableData() {
-                    if (!tableNames.length)
-                        return (next || noop)();
-
-                    var current = tableNames.shift();
-                    var columns = StorageFacade.getItem(current).columns[0];
-                    var columnNames = Object.keys(columns || {});
-
-                    _privateStore[getDataName(current)] = [];
-                    /**
-                     * check if table has data before querying database
-                     */
-                    var MAXIMUM_RESULT = 1000,
-                        TOTAL_RECORDS = _privateStore[current]._records || 0,
-                        chunkQueries = [];
-                    if (TOTAL_RECORDS > 0) {
-                        /**
-                         * chunk query
-                         */
-                        if (TOTAL_RECORDS > MAXIMUM_RESULT) {
-                            console.log('[JDB SQL_ADAPTER]: preparing chunking of table ' + current);
-                            for (var i = 0; i <= TOTAL_RECORDS; i += MAXIMUM_RESULT) {
-                                chunkQueries.push([i, MAXIMUM_RESULT])
-                            }
-                            startChunkQuery();
-                        } else {
-                            _sqlFacade.select('select * from ' + current)
-                                .then(success, error);
-                        }
-
-                    } else {
-                        resolveTableData();
-                    }
-
-                    /**
-                     * 
-                     * @param {*} tx 
-                     * @param {*} results 
-                     */
-                    function success(tx, results) {
-                        var len = results.rows.length;
-                        for (var i = 0; i < len; i++) {
-                            var data = ({
-                                _ref: results.rows.item(i)._ref,
-                                _data: columnNames.reduce((accum, key) => {
-                                    accum[key] = jsonParserTypes(results.rows.item(i)[key]);
-                                    return accum;
-                                }, {})
-                            });
-
-                            // store the data
-                            _privateStore[getDataName(current)].push(data);
-                        }
-
-                        nextQuery();
-                    }
-
-                    function startChunkQuery() {
-                        var query = chunkQueries.shift()
-                        _sqlFacade.select('select * from ' + current + ' limit ?,?', query)
-                            .then(success, function (err) {
-                                chunkQueries.push(query);
-                                error(err);
-                            });
-                    }
-
-                    function nextQuery() {
-                        if (chunkQueries.length) {
-                            startChunkQuery();
-                        } else {
-                            // loadNextData
-                            resolveTableData();
-                        }
-                    }
-
-                    /**
-                     * 
-                     * @param {*} err 
-                     */
-                    function error(err) {
-                        console.log('[JDB SQL_ADAPTER]: failed to load:', current);
-                        _errorTables.push(current);
-                        nextQuery();
+                if (_privateStore.get('version')) {
+                    for (var tbl of StorageFacade.tableNames()) {
+                        await StorageFacade.loadTable(tbl).catch(err => {
+                            console.log('[JDB SQL_ADAPTER]: failed to load:', tbl);
+                            _errorTables.push(tbl);
+                            logError(err);
+                        });
                     }
                 }
+            } catch (err) {
+                // open in memory rather than leave the database hanging
+                console.error('[JDB SQL_ADAPTER]: failed to initialize the store', err);
             }
 
-            // create our store table
-            _sqlFacade
-                .query('CREATE TABLE IF NOT EXISTS _JELI_STORE_ (_rev unique, _data)', [])
-                .then(loadAllData, function () {
-                    throw new Error(type + " failed to initialize our store");
-                });
-
-            return StorageFacade;
+            (next || noop)();
         }
     }
 
 
     class EventRegistry {
-
         static insert(tbl, data, insertData) {
-            _privateStore[tbl].lastInsertId += data.length;
+            _privateStore.get(tbl).lastInsertId += data.length;
             if (insertData) {
-                _privateStore[getDataName(tbl)].push.apply(_privateStore[getDataName(tbl)], data);
+                var rows = _privateStore.get(getDataName(tbl));
+                data.forEach(row => rows.push(row));
             }
 
-            _sqlFacade.insert(tbl, data);
+            _sqlFacade.insert(tbl, data).then(logFailures, logError);
         }
 
+        // writes the whole in-memory row, the broadcast only carries the changed fields
         static update(tbl, data) {
-            _sqlFacade.update(tbl, data)
-                .then(function () { }, logError);
+            var refs = new Set(data.map(CoreSqlFacade.refOf));
+            var rows = (_privateStore.get(getDataName(tbl)) || []).filter(row => refs.delete(CoreSqlFacade.refOf(row)));
+            _sqlFacade.update(tbl, rows.concat(data.filter(row => refs.has(CoreSqlFacade.refOf(row))))).then(logFailures, logError);
         }
 
-        static delete(tbl, delItem) {
-            /**
-             * remove the data from memory
-             */
-            _sqlFacade.delete(tbl, delItem, " WHERE _ref=?", '_ref')
-                .then(function () { }, logError);
+        static delete(tbl, refs) {
+            _sqlFacade.delete(tbl, refs).then(logFailures, logError);
         }
 
+        /**
+         * action 1 adds columnName, 0 drops it, or renames when columnName is [old, new]
+         */
         static onAlterTable(tableName, columnName, action) {
-            var columnData = "";
-            _sqlFacade.alterTable.apply(_sqlFacade, arguments)
-                .then(function () {
-                    if (action) {
-                        var tblData = _privateStore[getDataName(tableName)];
-                        if (tblData.length) {
-                            var columnData = tblData[0]._data[columnName];
-                        }
-                    }
-
-                    updateTable(columnData);
-                }, handleAlterError);
-            /**
-             * update a table when these actions are performed DROP | RENAME | ADD
-             */
-            function updateTable() {
-                _sqlFacade.query('update ' + tableName + ' set ' + columnName + '=?', [columnData])
-            }
-
-            /**
-             * Below method helps to tackle issues with Sqlite lower version without support for 
-             * RENAME and DROP COLUMN
-             */
-            function handleAlterError() {
-                // failure should be either for DROP and RENAME
-                if (typeof columnName === 'object') {
-                    // rename mode
-                    _sqlFacade.alterTable(tableName, columnName[1], 1);
-                } else {
-                    // drop
-                    if (!action) {
-                        updateTable();
-                    }
-                }
+            if (Array.isArray(columnName)) {
+                _sqlFacade.renameColumn(tableName, columnName[0], columnName[1]).catch(logError);
+            } else if (action) {
+                var rows = _privateStore.get(getDataName(tableName)) || [];
+                _sqlFacade.addColumns(tableName, [columnName]).catch(logError);
+                _sqlFacade.update(tableName, rows.map(row => ({ _ref: CoreSqlFacade.refOf(row), _data: { [columnName]: (row._data || row)[columnName] } })))
+                    .then(logFailures, logError);
+            } else {
+                _sqlFacade.dropColumn(tableName, columnName).catch(logError);
             }
         }
 
+        // an existing table keeps its rows, like DefaultStorage
         static onCreateTable(tbl, definition) {
-            var columns = ['_ref unique'];
-            if (definition.columns[0]) {
-                columns = columns.concat(Object.keys(definition.columns[0]));
+            var exists = _privateStore.has(tbl);
+            var data = definition.data || [];
+            var columns = getColumns(definition);
+            delete definition.data;
+
+            _sqlFacade.createTable(tbl, '_ref', columns).catch(logError);
+            if (exists) {
+                _sqlFacade.addColumns(tbl, columns).catch(logError);
             }
 
-            _sqlFacade.createTable(tbl, columns);
-            var data = definition.data || [];
-            delete definition.data;
             StorageFacade.setItem(tbl, definition);
-            _privateStore[getDataName(tbl)] = data;
-            EventRegistry.insert(tbl, data.splice(0), true);
+            if (!exists || !_privateStore.has(getDataName(tbl))) {
+                _privateStore.set(getDataName(tbl), data.splice(0));
+                _sqlFacade.insert(tbl, _privateStore.get(getDataName(tbl))).then(logFailures, logError);
+            }
         }
 
         static onDropTable(tbl) {
-            _sqlFacade.dropTable(tbl)
-                .then(function () {
-                    StorageFacade.removeItem(tbl);
-                    StorageFacade.removeItem(getDataName(tbl));
-                });
+            StorageFacade.removeItem(tbl);
+            _privateStore.delete(getDataName(tbl));
+            _sqlFacade.dropTables([tbl]).then(logFailures, logError);
         }
 
         static onUpdateTable(tbl, updates) {
-            Object.keys(updates)
-                .forEach(function (key) {
-                    _privateStore[tbl][key] = updates[key];
-                });
-            // set the property to db
-            StorageFacade.setItem(tbl, _privateStore[tbl]);
+            Object.assign(_privateStore.get(tbl), updates);
+            StorageFacade.setItem(tbl, _privateStore.get(tbl));
         }
 
         static onTruncateTable(tableName) {
-            _privateStore[getDataName(tableName)].length = 0;
-            return _sqlFacade.delete.apply(_sqlFacade, arguments);
-        };
+            var rows = _privateStore.get(getDataName(tableName));
+            if (rows) rows.length = 0;
+            _sqlFacade.truncate(tableName).catch(logError);
+        }
 
         static onResolveSchema(version, tables) {
             StorageFacade.setItem('version', version);
@@ -299,66 +202,51 @@ function SqlAdapter(config, storageUtils, next) {
         }
 
         static onRenameTable(oldTable, newTable) {
-            // rename cache first
-            _privateStore[newTable] = _privateStore[oldTable];
-            _privateStore[newTable].TBL_NAME = newTable;
-            _privateStore[getDataName(newTable)] = _privateStore[getDataName(oldTable)];
-            delete _privateStore[getDataName(oldTable)];
-            delete _privateStore[oldTable];
-
-            _sqlFacade.query('update _JELI_STORE_ set _rev=? where _rev=?', [newTable, oldTable]);
-            _sqlFacade.query('ALTER TABLE ' + oldTable + ' RENAME TO ' + newTable, []);
+            var definition = _privateStore.get(oldTable);
+            definition.TBL_NAME = newTable;
+            _privateStore.set(getDataName(newTable), _privateStore.get(getDataName(oldTable)));
+            _privateStore.delete(getDataName(oldTable));
+            _sqlFacade.renameTable(oldTable, newTable).catch(logError);
+            StorageFacade.setItem(newTable, definition);
+            StorageFacade.removeItem(oldTable);
         }
 
+        // copies everything into <newName>.db, then drops the old tables
         static onRenameDataBase(oldName, newName, cb) {
-            var newData = deepClone(_privateStore[oldName], true),
-                tbls = ['_JELI_STORE_'],
-                tblInstance = Object.keys(newData.tables);
-            /**
-             * loop through tables
-             * store each table Data
-             */
-            tblInstance.forEach(tblName => {
-                newData.tables[tblName].DB_NAME = newName;
-                newData.tables[tblName].lastModified = +new Date
-                tbls.push(tblName);
+            var target = CoreSqlFacade.createInstance(Object.assign({}, config, { name: newName }));
+            var tables = StorageFacade.tableNames();
+            var statements = [CoreSqlFacade.createTableSql(STORE_TABLE, '_rev', ['_data'])];
+
+            tables.forEach(tbl => Object.assign(_privateStore.get(tbl), { DB_NAME: newName, lastModified: +new Date }));
+            _privateStore.forEach((item, name) => {
+                if (!tables.some(tbl => name === getDataName(tbl))) {
+                    statements.push(storeSql(name, item));
+                }
+            });
+            tables.forEach(tbl => {
+                statements.push(CoreSqlFacade.createTableSql(tbl, '_ref', getColumns(_privateStore.get(tbl))));
+                _privateStore.get(getDataName(tbl)).forEach(row => statements.push(CoreSqlFacade.insertSql(tbl, row)));
             });
 
-            var bkInstance = CoreSqlFacade.createInstance(extend(config, { name: newName }));
-            _sqlFacade.dropTables(tbls);
-            /**
-             * create our store
-             */
-            bkInstance.createTable('_JELI_STORE_', ['_rev unique', '_data'])
-                .then(function () {
-                    /**
-                     * insert into our store
-                     */
-                    bkInstance.insert('_JELI_STORE_', [{
-                        _rev: newName,
-                        _data: newData
-                    }, {
-                        _rev: storageUtils.storeMapping.resourceName,
-                        _data: StorageFacade.getItem(storageUtils.storeMapping.resourceName)
-                    }, {
-                        _rev: storageUtils.storeMapping.pendingSync,
-                        _data: StorageFacade.getItem(storageUtils.storeMapping.pendingSync)
-                    }])
-                        .then(function () {
-                            tblInstance.each(createAndInsert);
-                            StorageFacade.clear(callback);
-                        });
+            target.execute(statements)
+                .then(res => {
+                    if (res.errors.length) return Promise.reject(res.errors);
+                    var source = _sqlFacade;
+                    _sqlFacade = target;
+                    config.name = newName;
+                    source.dropTables(tables.concat([STORE_TABLE])).catch(logError);
+                    (cb || noop)();
+                })
+                .catch(err => {
+                    console.error('[JDB SQL_ADAPTER]: failed to rename ' + oldName + ' to ' + newName, err);
                 });
-
-            function createAndInsert(tblName) {
-                bkInstance.createTable(tblName, ['_ref unique', '_data'])
-                    .then(function () {
-                        bkInstance.insert(tblName, _privateStore[getDataName(tblName)])
-                    });
-            }
         }
     }
 
+    function logFailures(res) {
+        if (res.errors.length) logError(res.errors);
+    }
 
-    return StorageFacade.initialize();
+    StorageFacade.initialize();
+    return StorageFacade;
 }

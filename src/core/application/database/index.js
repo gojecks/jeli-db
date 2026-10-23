@@ -445,7 +445,7 @@ class DatabaseInstance extends BaseInstance {
         if (tableName && _opendedDBInstance && !privateApi.tableExists(this.name, tableName)) {
             // pardon wrong columns format
             if (isobject(columns)) {
-                columns = [nColumn];
+                columns = [columns];
             }
 
             var curTime = +new Date;
@@ -752,67 +752,116 @@ class DatabaseInstance extends BaseInstance {
     }
 
     /**
-     * 
-     * @param {*} table 
-     * @param {*} isSchema 
-     * @param {*} handler 
-     * @returns 
+     *
+     * @param {*} table
+     * @param {*} isSchema
+     * @param {*} handler { logService, onSelect, skipExisting (default true) }
+     * @returns
      */
     import(table, isSchema = true, handler) {
-        // define handler
         handler = Object.assign({
-            logService: errorBuilder,
+            logService: () => { },
             onSelect: function () { },
+            skipExisting: true
         }, handler || {});
 
         const db = this;
-        //check if handler
-        function processJQL(queries, resolve) {
-            const total = queries.length;
-            let start = 0;
-            const result = {
-                messages: []
-            };
+        const MAX_URL_SIZE = 10 * 1024 * 1024;
+        const log = msg => handler.logService(msg);
+        const resolveType = name => (String(name || '').split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
+        const finish = (journal, resolve) => {
+            const errors = journal.errors.length;
+            resolve(dbSuccessPromiseObject('import', Object.assign({
+                message: errors ? `Completed with ${errors} error(s)` : "Completed without errors"
+            }, journal)));
+        };
 
-            function process() {
-                if (isequal(total, start)) {
-                    return resolve(dbSuccessPromiseObject('import', "Completed without errors"));
+        // command + target table of a JQL statement, from the plugin's declared table position
+        function jqlTarget(query) {
+            try {
+                if (QueryBuilder.isV2Query(query)) {
+                    const v2 = QueryBuilder.parseV2(query);
+                    return { command: String(v2.command || '').toLowerCase(), table: v2.flags.table || null };
                 }
 
-                const query = queries[start];
+                const tokens = QueryBuilder.queryParser(query) || [];
+                const command = String(tokens[0] || '').toLowerCase();
+                const plugin = Database.plugins.get(command);
+                const position = plugin && plugin.schema && plugin.schema.table && plugin.schema.table.position;
+                return { command, table: (position && typeof tokens[position] == 'string') ? tokens[position] : null };
+            } catch (e) {
+                return { command: '', table: null };
+            }
+        }
+
+        function planJQL(queries) {
+            const created = new Set();
+            const skippedTables = new Set();
+            return queries.map(query => {
+                const { command, table } = jqlTarget(query);
+                const exists = !!table && !created.has(table) && privateApi.tableExists(db.name, table);
+                let skipped = !!table && skippedTables.has(table);
+                if (command == 'create' && table) {
+                    if (exists && handler.skipExisting) {
+                        skippedTables.add(table);
+                        skipped = true;
+                    } else if (!exists) {
+                        created.add(table);
+                    }
+                }
+
+                return {
+                    table,
+                    action: command,
+                    exists,
+                    skipped,
+                    destructive: !skipped && (['drop', 'truncate', 'delete', 'update', 'alter', 'rename'].includes(command) || (command == 'insert' && exists))
+                };
+            });
+        }
+
+        function processJQL(queries, resolve) {
+            const journal = { created: [], skipped: [], altered: [], errors: [] };
+            const plan = planJQL(queries);
+            let start = 0;
+
+            function process() {
+                if (start == queries.length) return finish(journal, resolve);
+                const step = plan[start];
+                let query = queries[start];
                 start++;
 
-                db.jQl(query).then((ret) => {
-                    handler.logService(ret.result.message);
+                if (step.skipped) {
+                    if (step.action == 'create') journal.skipped.push(step.table);
+                    log(`Line ${start} skipped, table(${step.table}) already exists`);
+                    return process();
+                }
+
+                if (step.table && journal.created.includes(step.table) && ['insert', 'update', 'delete'].includes(step.action)) {
+                    query += ' -ignoreSync';
+                }
+
+                db.jQl(query).then(ret => {
+                    if (step.action == 'create' && step.table) journal.created.push(step.table);
+                    else if (step.table && step.action != 'insert') journal.altered.push(step.table);
+                    log(ret.result ? ret.result.message : ret.message);
                     process();
-                },
-                    (err) => {
-                        handler.logService(err.message + " on line : " + start);
-                        process();
-                    });
+                }, err => {
+                    journal.errors.push({ table: step.table, line: start, message: err.message });
+                    log(err.message + " on line : " + start);
+                    process();
+                });
             }
 
             process();
         }
 
-        const importSchema = function (content, type, resolve, reject) {
-            handler.logService('Writing DB schemas');
+        function parse(content, type) {
             const importFormatFn = JImportHelper[type];
-            let jdbSchemaData = null;
-            if (type && importFormatFn) {
-                jdbSchemaData = importFormatFn(content);
-            } else {
-                return reject("Unsupported File Format");
-            }
-
-            // start JQL imortation
-            if (typeof jdbSchemaData == 'string') {
-                return processJQL(jdbSchemaData, resolve);
-            }
-
-            handler.logService('SchemaData:' + JSON.stringify(jdbSchemaData, null, 3));
-            const schemaProcess = new CoreSchemaProcessService(db);
-            // process the schemaData 
+            if (!type || !importFormatFn) throw new Error("Unsupported File Format");
+            let jdbSchemaData = importFormatFn(content);
+            if (type == 'jql') return jdbSchemaData;
+            if (JImportHelper.isMigration(jdbSchemaData)) return JImportHelper.migration(jdbSchemaData);
             // when insert data mode
             if (Array.isArray(jdbSchemaData) && table && !isSchema) {
                 jdbSchemaData = {
@@ -826,27 +875,48 @@ class DatabaseInstance extends BaseInstance {
                 };
             }
 
-            schemaProcess.process(jdbSchemaData, function () {
-                schemaProcess.processCrud(logs => {
-                    handler.logService('Crud Logs:');
-                    while (logs.length) {
-                        handler.logService(JSON.stringify(logs.shift(), null, 3));
-                    }
+            if (!isobject(jdbSchemaData)) {
+                throw new Error("Unsupported schema format: expected { table: {...} } or a migration file ([{ type, config }])");
+            }
 
-                    resolve(dbSuccessPromiseObject('import', "Completed without errors"));
-                })
-            });
+            return jdbSchemaData;
+        }
+
+        const importSchema = function (content, type, resolve, reject) {
+            let jdbSchemaData;
+            try {
+                jdbSchemaData = parse(content, type);
+            } catch (err) {
+                return reject(err.message || err);
+            }
+
+            log('Writing DB schemas');
+            if (Array.isArray(jdbSchemaData)) {
+                return processJQL(jdbSchemaData, resolve);
+            }
+
+            try {
+                const schemaProcess = new CoreSchemaProcessService(db, { skipExisting: handler.skipExisting, log });
+                schemaProcess.process(jdbSchemaData, () => {
+                    schemaProcess.processCrud((logs, journal) => {
+                        log('Crud Logs:');
+                        logs.forEach(entry => log(JSON.stringify(entry, null, 3)));
+                        finish(journal, resolve);
+                    });
+                });
+            } catch (err) {
+                reject(err.message || err);
+            }
         };
 
         const readFile = (file, resolve, reject) => {
             if (file) {
                 const reader = new FileReader();
-                // Read file into memory as UTF-8      
+                // Read file into memory as UTF-8
                 reader.readAsText(file);
                 // Handle errors load
                 reader.onload = function (event) {
-                    const fileType = file.name.split('.').pop();
-                    importSchema(event.target.result, fileType, resolve, reject);
+                    importSchema(event.target.result, resolveType(file.name), resolve, reject);
                 };
                 reader.onerror = reject;
             } else {
@@ -854,12 +924,33 @@ class DatabaseInstance extends BaseInstance {
             }
         };
 
+        const readUrl = (url, type) => {
+            let parsed;
+            try {
+                parsed = new URL(url, location.href);
+            } catch (e) {
+                return Promise.reject('Invalid URL');
+            }
+
+            if (!['http:', 'https:'].includes(parsed.protocol)) return Promise.reject('Only http(s) URLs are supported');
+            // public files only: credentials are never sent to third-party hosts
+            return fetch(parsed.href, { credentials: 'omit' })
+                .then(res => {
+                    if (!res.ok) return Promise.reject(`Unable to download file (${res.status})`);
+                    if (+res.headers.get('content-length') > MAX_URL_SIZE) return Promise.reject('File is larger than 10MB');
+                    return res.text().then(content => {
+                        if (content.length > MAX_URL_SIZE) return Promise.reject('File is larger than 10MB');
+                        return { content, type: type || resolveType(parsed.pathname) };
+                    });
+                }, () => Promise.reject('Unable to download file, the host may not allow cross-origin requests'));
+        };
+
         const openFileSelector = (resolve, reject) => {
             let fileSelected = false;
             function eventBinder(e) {
                 fileSelected = true;
                 const file = this.files[0];
-                handler.onselect(file);
+                handler.onSelect(file);
                 readFile(file, resolve, reject);
                 input.remove();
             }
@@ -880,38 +971,57 @@ class DatabaseInstance extends BaseInstance {
                     if (!fileSelected) {
                         reject('No file selected');
                     }
-                    handler.unselect(!handler.selectedFile);
                 }, 1000);
             };
             input.click();
         };
 
+        const failed = reject => err => {
+            log(err);
+            reject(dbErrorPromiseObject((err && err.message) || err || "Completed with errors"));
+        };
+
         return {
-            selectFile: () => {
-                return new Promise((resolve, reject) => {
-                    openFileSelector(resolve, function (err) {
-                        handler.logService(err);
-                        reject(dbErrorPromiseObject("Completed with errors"));
-                    });
-                });
-            },
-            fromFile: (file) => {
-                return new Promise((resolve, reject) => {
-                    readFile(file, resolve, function (err) {
-                        handler.logService(err);
-                        reject(dbErrorPromiseObject("Completed with errors"));
-                    });
-                });
-            },
-            fromText: (content, type) => {
-                return new Promise((resolve, reject) => {
-                    importSchema(content, type, resolve, function (err) {
-                        handler.logService(err);
-                        reject(dbErrorPromiseObject("Completed with errors"));
-                    });
-                });
+            selectFile: () => new Promise((resolve, reject) => openFileSelector(resolve, failed(reject))),
+            fromFile: file => new Promise((resolve, reject) => readFile(file, resolve, failed(reject))),
+            fromText: (content, type) => new Promise((resolve, reject) => importSchema(content, type, resolve, failed(reject))),
+            fromUrl: (url, type) => new Promise((resolve, reject) => {
+                readUrl(url, type).then(res => importSchema(res.content, res.type, resolve, failed(reject)), failed(reject));
+            }),
+            // downloads a URL without importing it, e.g. to preview first
+            readUrl,
+            // what an import would do, without changing anything
+            preview: (content, type) => {
+                const jdbSchemaData = parse(content, type);
+                return Array.isArray(jdbSchemaData) ? planJQL(jdbSchemaData) :
+                    CoreSchemaProcessService.plan(db, jdbSchemaData, handler.skipExisting);
             }
         };
+    }
+
+    /**
+     * Undo for imported tables: drops tables that were never synced and clears their pending records.
+     * Synced tables are left untouched and returned in `kept`.
+     * @param {*} tables
+     */
+    discardLocalTables(tables) {
+        const activeDB = privateApi.getActiveDB(this.name);
+        const resource = activeDB.get(constants.RESOURCEMANAGER);
+        const recordResolver = activeDB.get(constants.RECORDRESOLVERS);
+        const result = { discarded: [], kept: [] };
+        (tables || []).forEach(tbl => {
+            if (!privateApi.tableExists(this.name, tbl)) return;
+            if (resource.getTableLastSyncDate(tbl)) {
+                result.kept.push(tbl);
+                return;
+            }
+
+            this.table(tbl).drop(true);
+            recordResolver.isResolved(tbl);
+            result.discarded.push(tbl);
+        });
+
+        return result;
     }
 
     syncAll(stopOnFailedTransaction) {

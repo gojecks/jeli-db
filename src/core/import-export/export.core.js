@@ -33,8 +33,23 @@ class jExport {
     });
 
     //getValue
-    static getValueInArray(cdata) {
-        return [cdata._ref || cdata._id].concat(Object.values(cdata._data || cdata).map(item => (isobject(item) ? JSON.stringify(item) : item)));
+    // values follow the header's column order, not the record's key order
+    static getValueInArray(cdata, columns) {
+        const record = cdata._data || cdata;
+        return [cdata._ref || cdata._id].concat(columns.map(column => {
+            const item = record[column.split(':')[0]];
+            return (item !== null && typeof item == 'object') ? JSON.stringify(item) : item;
+        }));
+    }
+
+    static csvCell(value) {
+        value = (value === null || value === undefined) ? '' : String(value);
+        return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+    }
+
+    static htmlCell(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     static handlers = {
@@ -42,11 +57,11 @@ class jExport {
             const documents = [];
             return ({
                 put: (tableName, columns, tableData) => {
-                    const document = [tableName];
-                    document.push(['ref'].concat(columns).join(','));
+                    const document = [jExport.csvCell(tableName)];
+                    document.push(['ref'].concat(columns).map(jExport.csvCell).join(','));
                     if (Array.isArray(tableData) && tableData.length) {
                         for (var data of tableData) {
-                            document.push(jExport.getValueInArray(data).join(','));
+                            document.push(jExport.getValueInArray(data, columns).map(jExport.csvCell).join(','));
                         }
                     }
                     documents.push(document.join('\n'))
@@ -61,18 +76,18 @@ class jExport {
              * @param {*} data 
              */
             function pushRow(data) {
-                return '<tr>' + data.map(cData => `<th>${cData}</th>`).join('') + '</tr>';
+                return '<tr>' + data.map(cData => `<th>${jExport.htmlCell(cData)}</th>`).join('') + '</tr>';
             }
 
             return ({
                 put: (tableName, columns, tableData) => {
-                    document.push('<h4>Table: ' + tableName + '</h4>');
-                    document.push('<table class="table table-bordered" id="' + tableName + '">');
+                    document.push('<h4>Table: ' + jExport.htmlCell(tableName) + '</h4>');
+                    document.push('<table class="table table-bordered" id="' + jExport.htmlCell(tableName) + '">');
                     document.push(`<thead>${pushRow(['ref'].concat(columns))}</thead>`);
                     if (Array.isArray(tableData) && tableData.length) {
                         document.push(`<tbody>`);
                         for (const data of tableData) {
-                            document.push(pushRow(jExport.getValueInArray(data)));
+                            document.push(pushRow(jExport.getValueInArray(data, columns)));
                         }
                         document.push(`</tbody>`);
                     }
@@ -109,7 +124,7 @@ class jExport {
             });
         },
         jql() {
-            const queries = ['/** JQL **/\n/** generated ' + new Date().toLocaleString() + ' **/'];
+            let queries = ['/** JQL **/\n/** generated ' + new Date().toLocaleString() + ' **/'];
             return ({
                 put: (tableSchema, tableData) => {
                     queries.push('/** Start Table ' + tableSchema.TBL_NAME + ' schema entry **/');
